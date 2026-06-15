@@ -1269,7 +1269,12 @@ if(typeof module !== "undefined" && module.exports){
         '</a>';
     } else { box.innerHTML = ""; }
     afterglowEl.classList.add("show");
-    afterglowEl.scrollIntoView({behavior:"smooth", block:"center"});
+    // Center the revealed quote (the hero), not the stats panel below it —
+    // otherwise the view scrolls down and pushes the quote out of frame on mobile.
+    const hero = $("stage");
+    if(hero && hero.scrollIntoView){
+      requestAnimationFrame(()=> hero.scrollIntoView({behavior:"smooth", block:"center"}));
+    }
   }
 
   function buildResult(){
