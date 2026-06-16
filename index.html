@@ -135,10 +135,20 @@
   .rule .orn{font-size:.9rem}
 
   /* ---------- Slots (the line being set) ---------- */
+  /* tile sizing scales down for longer quotes so the full blank still fits */
+  #board{
+    --fs:1.18rem; --chip-fs:1.12rem; --solved-fs:1.5rem;
+    --tok-pad:7px 12px; --chip-pad:8px 13px;
+    --slot-min:62px; --slot-h:42px; --gap-y:8px; --gap-x:9px;
+  }
+  #board.len-l   { --fs:1.02rem; --chip-fs:0.98rem; --solved-fs:1.28rem; --tok-pad:6px 10px; --chip-pad:7px 11px; --slot-min:52px; --slot-h:38px; --gap-y:7px; --gap-x:7px; }
+  #board.len-xl  { --fs:0.9rem;  --chip-fs:0.88rem; --solved-fs:1.12rem; --tok-pad:5px 8px;  --chip-pad:6px 9px;  --slot-min:44px; --slot-h:34px; --gap-y:6px; --gap-x:6px; }
+  #board.len-xxl { --fs:0.8rem;  --chip-fs:0.78rem; --solved-fs:1.0rem;  --tok-pad:4px 7px;  --chip-pad:5px 8px;  --slot-min:38px; --slot-h:31px; --gap-y:5px; --gap-x:5px; }
+
   .line{
     display:flex;
     flex-wrap:wrap;
-    gap:8px 9px;
+    gap:var(--gap-y) var(--gap-x);
     justify-content:center;
     align-items:center;
     min-height:46px;
@@ -146,10 +156,10 @@
   }
   .tok{
     font-family:var(--serif);
-    font-size:1.18rem;
+    font-size:var(--fs);
     line-height:1.1;
     color:var(--ink);
-    padding:7px 12px;
+    padding:var(--tok-pad);
     border-radius:3px;
     border:1px solid transparent;
     background:transparent;
@@ -158,8 +168,8 @@
   }
   /* empty slot */
   .slot{
-    min-width:62px;
-    height:42px;
+    min-width:var(--slot-min);
+    height:var(--slot-h);
     border-bottom:2px dotted var(--light);
     border-radius:2px;
     background:rgba(72,108,216,.05);
@@ -212,12 +222,12 @@
   }
   .chip{
     font-family:var(--serif);
-    font-size:1.12rem;
+    font-size:var(--chip-fs);
     color:var(--ink);
     background:#fff;
     border:1px solid var(--paper-edge);
     border-radius:3px;
-    padding:8px 13px;
+    padding:var(--chip-pad);
     cursor:pointer;
     box-shadow:0 1px 2px rgba(10,20,90,.10), 0 2px 6px rgba(10,20,90,.04);
     transition:transform .14s ease, box-shadow .14s ease;
@@ -266,7 +276,7 @@
     font-family:var(--serif);font-style:italic;font-size:1.05rem;color:var(--navy);
   }
   .reveal .who-src{display:block;font-size:.74rem;color:var(--ink-soft);font-style:italic;margin-top:2px}
-  .stars{font-size:1.5rem;letter-spacing:.18em;margin:18px 0 4px;color:var(--yellow)}
+  .stars{font-size:1.35rem;letter-spacing:.14em;margin:18px 0 4px;color:var(--yellow)}
   .stars .off{color:rgba(10,20,90,.16)}
   .score-line{font-size:.84rem;color:var(--ink-soft);font-weight:700;margin-bottom:20px}
   .reveal .controls{margin-top:8px}
@@ -356,14 +366,14 @@
   @keyframes heroRise{ from{transform:translateY(8px)} to{transform:none} }
   #board.solved .tok{
     background:transparent !important; border-color:transparent !important; box-shadow:none !important;
-    color:var(--navy); font-size:1.5rem; padding:5px 5px;
+    color:var(--navy); font-size:var(--solved-fs); padding:5px 5px;
     text-shadow:0 0 1px rgba(255,255,255,.6);
     transition:font-size .6s ease, background .5s ease, border-color .5s ease, box-shadow .5s ease, padding .5s ease;
   }
   #board.solved .line::before{ content:"\201C"; }
   #board.solved .line::after{ content:"\201D"; }
   #board.solved .line::before, #board.solved .line::after{
-    font-family:var(--serif); font-size:1.5rem; color:var(--navy);
+    font-family:var(--serif); font-size:var(--solved-fs); color:var(--navy);
     opacity:0; animation:fadeIn .7s ease .4s forwards;
   }
   @keyframes fadeIn{ to{opacity:1} }
@@ -388,8 +398,41 @@
   .wordle.show{ display:block; animation:rise .5s ease both; }
   .wordle-tip{ text-align:center; font-size:.78rem; letter-spacing:.03em; color:var(--ink-soft); margin:0 0 14px; }
   .wordle-tip b{ color:var(--navy); }
+  /* relocated Phase-B instruction: below the puzzle, above How to play */
+  .phaseb-tip{
+    display:none; text-align:center; max-width:560px; margin:18px auto 0; padding:0 20px;
+    font-size:.84rem; letter-spacing:.02em; color:var(--ink-soft);
+  }
+  .phaseb-tip.show{ display:block; }
+  .phaseb-tip b{ color:var(--navy); }
+  /* undo button — locked to the bottom-right of the puzzle card, with padding */
+  .undo-fab{
+    position:absolute; right:16px; bottom:16px; z-index:6;
+    width:48px; height:48px; border-radius:50%;
+    display:none; align-items:center; justify-content:center;
+    background:#fff; border:1px solid var(--paper-edge);
+    box-shadow:0 4px 14px rgba(10,20,90,.18);
+    font-size:20px; line-height:1; cursor:pointer; -webkit-tap-highlight-color:transparent;
+    transition:transform .12s ease, box-shadow .15s ease, opacity .15s ease;
+  }
+  .undo-fab.show{ display:flex; }
+  .undo-fab:hover{ box-shadow:0 6px 18px rgba(10,20,90,.24); }
+  .undo-fab:active{ transform:scale(.92); }
+  .undo-fab:disabled{ opacity:.35; cursor:default; box-shadow:0 2px 8px rgba(10,20,90,.12); }
+  .undo-fab:focus-visible{ outline:3px solid var(--pbs-blue); outline-offset:2px; }
   .wgrid{ display:flex; flex-direction:column; gap:6px; align-items:center; margin-bottom:16px; }
   .wrow{ display:flex; gap:6px; }
+  /* active (top) attempt — subtle cue that input lands here */
+  .wrow.active .wcell{ border-style:dashed; }
+  .wrow.active .wcell.filled{ border-style:solid; }
+  /* newest guess drops in on top, pushing previous attempts down */
+  .wrow.dropin{ overflow:hidden; animation:wdrop .34s cubic-bezier(.2,.7,.2,1) both; }
+  @keyframes wdrop{
+    0%{ opacity:0; max-height:0; transform:translateY(-8px); }
+    55%{ opacity:1; }
+    100%{ opacity:1; max-height:48px; transform:none; }
+  }
+  @media (prefers-reduced-motion:reduce){ .wrow.dropin{ animation:none; } }
   .wcell{
     width:40px; height:40px; border:2px solid var(--paper-edge); border-radius:4px;
     display:flex; align-items:center; justify-content:center;
@@ -461,10 +504,7 @@
 
   @media (max-width:430px){
     .gamename{font-size:1.35rem}
-    .tok,.chip{font-size:1.04rem}
-    #board.solved .tok,
-    #board.solved .line::before,
-    #board.solved .line::after{font-size:1.2rem}
+    #board{ --fs:1.04rem; --chip-fs:1.04rem; --solved-fs:1.2rem; }
     .reveal blockquote{font-size:1.4rem}
     .card{padding:24px 16px 20px}
   }
@@ -522,7 +562,6 @@
 
     <!-- Phase B: Wordle-style reveal of the secret word -->
     <div class="wordle" id="wordle">
-      <p class="wordle-tip">Now uncover the <b>mystery word</b></p>
       <div class="wgrid" id="wgrid" aria-label="Letter guesses"></div>
       <div class="wkeys" id="wkeys" aria-label="Keyboard"></div>
     </div>
@@ -540,8 +579,12 @@
       <p class="tomorrow">A new quotation arrives each morning.</p>
       <div class="pbs-links" id="pbsBox"></div>
     </div>
+
+    <button id="undoBtn" class="undo-fab" type="button" aria-label="Return your last word to the bank" title="Undo last word">&#x21A9;&#xFE0F;</button>
   </section>
 </main>
+
+<p class="phaseb-tip" id="phasebTip">Now uncover the <b>mystery word</b> — crack it to finish.</p>
 
 <details class="how">
   <summary>How to play</summary>
@@ -582,14 +625,11 @@ const QUOTES = [
   {id:"q006", text:"We don't make mistakes, just happy little accidents.", author:"Bob Ross", src:"The Joy of Painting"},
   {id:"q007", text:"Talent is a pursued interest.", author:"Bob Ross", src:"The Joy of Painting"},
   {id:"q008", text:"You need the dark in order to show the light.", author:"Bob Ross", src:"The Joy of Painting"},
-  {id:"q010", text:"People who love to eat are always the best people.", author:"Julia Child", src:"attributed"},
-  {id:"q011", text:"Find something you're passionate about and keep tremendously interested in it.", author:"Julia Child", src:"attributed"},
   {id:"q012", text:"The only real stumbling block is fear of failure.", author:"Julia Child", src:"attributed"},
   {id:"q013", text:"Your necessary voice can invest in the power of possibility.", author:"Gwen Ifill", src:"commencement address"},
   {id:"q015", text:"Imagination will often carry us to worlds that never were.", author:"Carl Sagan", src:"Cosmos"},
   {id:"q016", text:"Somewhere, something incredible is waiting to be known.", author:"Carl Sagan", src:"attributed"},
   {id:"q017", text:"Science is a way of thinking much more than it is a body of knowledge.", author:"Carl Sagan", src:"Broca's Brain"},
-  {id:"q019", text:"There's only us. There is no them.", author:"Ken Burns", src:"commencement address"},
   {id:"q020", text:"The most sophisticated people I know are, inside, all children.", author:"Jim Henson", src:"attributed"},
   {id:"q021", text:"Asking questions is a good way of finding things out.", author:"Big Bird", src:"Sesame Street"},
   {id:"q022", text:"Travel connects people with people.", author:"Rick Steves", src:"Travel as a Political Act"},
@@ -603,9 +643,7 @@ const QUOTES = [
   {id:"q032", text:"If I have seen further it is by standing on the shoulders of giants.", author:"Isaac Newton", src:"letter, 1675"},
   {id:"q033", text:"Learning never exhausts the mind.", author:"Leonardo da Vinci", src:"attributed"},
   {id:"q034", text:"Great things are done by a series of small things brought together.", author:"Vincent van Gogh", src:"letters"},
-  {id:"q036", text:"Knowing yourself is the beginning of all wisdom.", author:"Aristotle", src:"attributed"},
   {id:"q037", text:"Try to be a rainbow in someone's cloud.", author:"Maya Angelou", src:"attributed"},
-  {id:"q038", text:"Nothing will work unless you do.", author:"Maya Angelou", src:"attributed"},
   {id:"q039", text:"We may encounter many defeats, but we must not be defeated.", author:"Maya Angelou", src:"attributed"},
   {id:"q040", text:"No one has ever become poor by giving.", author:"Anne Frank", src:"The Diary of a Young Girl"},
   {id:"q041", text:"No one is useless in this world who lightens the burdens of another.", author:"Charles Dickens", src:"Our Mutual Friend"},
@@ -618,7 +656,6 @@ const QUOTES = [
   {id:"q048", text:"The journey of a thousand miles begins with a single step.", author:"Lao Tzu", src:"Tao Te Ching"},
   {id:"q049", text:"It does not matter how slowly you go as long as you do not stop.", author:"Confucius", src:"attributed"},
   {id:"q050", text:"Everything has beauty, but not everyone sees it.", author:"Confucius", src:"attributed"},
-  {id:"q052", text:"However difficult life may seem, there is always something you can do.", author:"Stephen Hawking", src:"attributed"},
   {id:"q053", text:"I am not afraid of storms, for I am learning how to sail my ship.", author:"Louisa May Alcott", src:"Little Women"},
   {id:"q054", text:"Let the beauty of what you love be what you do.", author:"Rumi", src:"attributed"},
   {id:"q056", text:"We are all in the gutter, but some of us are looking at the stars.", author:"Oscar Wilde", src:"Lady Windermere's Fan"},
@@ -655,7 +692,6 @@ const QUOTES = [
   {id:"q092", text:"The art of teaching is the art of assisting discovery.", author:"Mark Van Doren", src:"attributed"},
   {id:"q094", text:"Be kind whenever possible.", author:"Dalai Lama", src:"attributed"},
   {id:"q098", text:"The best time to plant a tree was twenty years ago. The second best time is now.", author:"Proverb", src:"traditional"},
-  {id:"q099", text:"You are never too old to set another goal or to dream a new dream.", author:"C.S. Lewis", src:"attributed"},
   {id:"q100", text:"What you do makes a difference, and you have to decide what kind of difference you want to make.", author:"Jane Goodall", src:"attributed"},
   {id:"q101", text:"Knowing that we can be loved exactly as we are gives us all the best opportunity for growing into the healthiest of people.", author:"Fred Rogers", src:"The World According to Mister Rogers"},
   {id:"q102", text:"There are three ways to ultimate success: the first way is to be kind, the second way is to be kind, and the third way is to be kind.", author:"Fred Rogers", src:"attributed"},
@@ -789,6 +825,33 @@ function dayNumber(d){
   const start = new Date(2024,0,1);
   return Math.floor((d - start)/86400000);
 }
+/* Generic 5–8 letter function/filler words that should NOT be the hidden word —
+   prepositions, conjunctions, pronouns, auxiliaries, determiners, and bleached
+   adverbs. Keeps the mystery word a meaningful, load-bearing part of the quote. */
+const FUNCTION_WORDS = new Set([
+  "about","above","across","after","against","along","among","amongst","around",
+  "before","behind","below","beneath","beside","besides","between","beyond",
+  "despite","during","except","inside","outside","since","through","throughout",
+  "toward","towards","under","underneath","until","unto","upon","within","without",
+  "because","although","though","unless","whereas","while","whilst","whether","versus",
+  "another","either","neither","enough","every","several","various","certain",
+  "could","couldn","would","wouldn","should","shouldn","shall","might","mightn",
+  "must","mustn","cannot","being","been","have","havent","having","does","doesn",
+  "didn","hasnt","hasn","haven","hadn","isnt","arent","aren","wasnt","wasn",
+  "werent","weren","wont","dont","theres","heres","thats","whats",
+  "their","theirs","them","themselves","these","those","they","this","that",
+  "what","whatever","which","whichever","whom","whose","your","yours","yourself",
+  "yourselves","ours","ourselves","herself","himself","itself","myself","oneself",
+  "anybody","anyone","anything","everybody","everyone","everything",
+  "somebody","someone","something","nobody",
+  "really","very","quite","rather","almost","merely","simply","mostly","perhaps",
+  "maybe","indeed","instead","however","therefore","moreover","otherwise","somewhat",
+  "somehow","anyway","anyhow","likewise","besides","sometimes","usually","often",
+  "always","never","still","also","just","even","once","than","then","there",
+  "where","when","here","much","more","most","some","such","only","both","each",
+  "from","into","onto","with"
+]);
+
 function buildPuzzle(seed){
   const rng = mulberry32(xfnv1a("quotable:"+seed));
   const idx = Math.floor(rng()*QUOTES.length);
@@ -796,22 +859,28 @@ function buildPuzzle(seed){
   const words = tokenize(q.text);
   const lastIdx = words.length - 1;
 
-  // secret word FIRST: a clean 5–8 letter word that isn't the first or last word
-  // and appears only once in the quote. Chosen before anchors so any qualifying
-  // quote always yields a mystery word. -1 only if nothing qualifies.
+  // secret word FIRST: a "load-bearing" content word — a key noun/verb/adjective/
+  // adverb that carries the quote's meaning, not a generic function word (about,
+  // would, there, these…). It's a clean 5–8 letter word that isn't the first or
+  // last word and appears only once. Chosen before anchors so any qualifying quote
+  // always yields a mystery word; among candidates we prefer the most substantive
+  // (longest) one. -1 only if nothing qualifies.
   const norm = w => w.replace(/[^A-Za-z]/g, "").toLowerCase();
   const coreCount = {};
   words.forEach(w=>{ const c = norm(w); if(c) coreCount[c] = (coreCount[c]||0) + 1; });
-  const secretCandidates = words
+  const cands = words
     .map((w,i)=> ({w,i,core:norm(w)}))
     .filter(o=> o.i !== 0 && o.i !== lastIdx
                && o.core.length >= 5 && o.core.length <= 8
                && /^[A-Za-z]+[.,;:!?]?$/.test(o.w)   // letters + at most one trailing mark
-               && coreCount[o.core] === 1)
-    .map(o=> o.i);
-  const secretIndex = secretCandidates.length
-    ? secretCandidates[Math.floor(rng()*secretCandidates.length)]
-    : -1;
+               && coreCount[o.core] === 1
+               && !FUNCTION_WORDS.has(o.core));      // skip generic/filler words
+  let secretIndex = -1;
+  if(cands.length){
+    const maxLen = Math.max(...cands.map(o=> o.core.length));
+    const top = cands.filter(o=> o.core.length === maxLen);   // most substantive
+    secretIndex = top[Math.floor(rng()*top.length)].i;
+  }
 
   // pre-placed anchors: index 0 is always given; last word and the secret word
   // are never given. Longer quotes get more footholds.
@@ -892,7 +961,7 @@ function pbsLinkFor(quote){
 
 /* expose for node testing */
 if(typeof module !== "undefined" && module.exports){
-  module.exports = {QUOTES, xfnv1a, mulberry32, seededShuffle, tokenize, buildPuzzle, dayNumber, PBS_LINKS, pbsLinkFor};
+  module.exports = {QUOTES, xfnv1a, mulberry32, seededShuffle, tokenize, buildPuzzle, dayNumber, PBS_LINKS, pbsLinkFor, FUNCTION_WORDS};
 }
 </script>
 
@@ -907,7 +976,8 @@ if(typeof module !== "undefined" && module.exports){
   const lineEl = $("line"), bankEl = $("bank"), moveCountEl = $("moveCount"),
         boardEl = $("board"), afterglowEl = $("afterglow"),
         promptEl = $("prompt"), bankLabelEl = $("bankLabel"), controlsEl = $("controls"),
-        wordleEl = $("wordle"), wgridEl = $("wgrid"), wkeysEl = $("wkeys"), attributionEl = $("attribution");
+        wordleEl = $("wordle"), wgridEl = $("wgrid"), wkeysEl = $("wkeys"), attributionEl = $("attribution"),
+        phasebTipEl = $("phasebTip"), undoBtn = $("undoBtn");
 
   // everything that fades away on the final solve
   const chromeEls = [promptEl, bankLabelEl, bankEl, controlsEl, wordleEl];
@@ -959,7 +1029,7 @@ if(typeof module !== "undefined" && module.exports){
 
     state = {
       seed, quote:pz.quote, words, lastIdx, tailPunct, anchors, slots, bank, minMoves,
-      moves:0, solved:false, startTime:Date.now(), elapsedMs:0, score:0,
+      moves:0, solved:false, startTime:Date.now(), elapsedMs:0, score:0, placeSeq:0,
       phase:"assemble", secretIndex, secretWord, secretLen, secretKey,
       guesses:[], current:"", keyStatus:{}, secretGuesses:0
     };
@@ -970,9 +1040,16 @@ if(typeof module !== "undefined" && module.exports){
     promptEl.textContent = PROMPT_DEFAULT;
 
     boardEl.classList.remove("solved");
+    boardEl.classList.remove("len-l","len-xl","len-xxl");
+    const n = words.length;
+    if(n >= 23)      boardEl.classList.add("len-xxl");
+    else if(n >= 16) boardEl.classList.add("len-xl");
+    else if(n >= 11) boardEl.classList.add("len-l");
     afterglowEl.classList.remove("show");
     attributionEl.classList.remove("set");
     wordleEl.classList.remove("show","is-faded","is-hidden");
+    phasebTipEl.classList.remove("show");
+    undoBtn.classList.add("show");
     chromeEls.forEach(el=> el.classList.remove("is-faded","is-hidden"));
     wgridEl.innerHTML = ""; wkeysEl.innerHTML = "";
 
@@ -987,6 +1064,7 @@ if(typeof module !== "undefined" && module.exports){
   /* -------- render the line + bank -------- */
   function render(){
     const s = state;
+    if(typeof undoBtn !== "undefined" && undoBtn){ undoBtn.disabled = (s.phase !== "assemble") || undoableSlot() < 0; }
     lineEl.innerHTML = "";
     const activeIdx = firstEmptySlot();
     s.slots.forEach((slot,i)=>{
@@ -1115,14 +1193,15 @@ if(typeof module !== "undefined" && module.exports){
     s.word = state.bank[bi].word; s._fromKey = state.bank[bi].key; s._wi = state.bank[bi].wi;
     state.bank.splice(bi,1);
     state.moves++;
+    s._placedAt = ++state.placeSeq;   // track "last used word" for undo
     commit(slotIdx);
   }
   function slotMove(fromIdx, toIdx){
     if(fromIdx === toIdx) return;
     const a = state.slots[fromIdx], b = state.slots[toIdx];
     if(!a || !b || a.fixed || a.locked || b.fixed || b.locked) return;
-    if(b.word === null){ b.word=a.word; b._fromKey=a._fromKey; b._wi=a._wi; a.word=null; a._fromKey=null; a._wi=undefined; }
-    else { const tw=b.word,tk=b._fromKey,twi=b._wi; b.word=a.word; b._fromKey=a._fromKey; b._wi=a._wi; a.word=tw; a._fromKey=tk; a._wi=twi; }
+    if(b.word === null){ b.word=a.word; b._fromKey=a._fromKey; b._wi=a._wi; b._placedAt=++state.placeSeq; a.word=null; a._fromKey=null; a._wi=undefined; }
+    else { const tw=b.word,tk=b._fromKey,twi=b._wi; b.word=a.word; b._fromKey=a._fromKey; b._wi=a._wi; a.word=tw; a._fromKey=tk; a._wi=twi; a._placedAt=++state.placeSeq; b._placedAt=++state.placeSeq; }
     commit(toIdx); commit(fromIdx);
   }
   function returnWord(i){
@@ -1131,6 +1210,23 @@ if(typeof module !== "undefined" && module.exports){
     s.word = null; s._fromKey = null; s._wi = undefined;
   }
   function assembleComplete(){ return state.slots.every(s=> s.locked || s.fixed); }
+
+  // Undo: return the most recently used (still-loose) word to the bank.
+  // Locked-correct words can't be pulled back. Does NOT refund a move.
+  function undoableSlot(){
+    let best=-1, bestSeq=-1;
+    state.slots.forEach((s,i)=>{
+      if(s.word!==null && !s.locked && !s.fixed && (s._placedAt||0) > bestSeq){ bestSeq=s._placedAt||0; best=i; }
+    });
+    return best;
+  }
+  function undoLast(){
+    if(state.phase !== "assemble") return;
+    const i = undoableSlot();
+    if(i < 0) return;          // nothing loose to return
+    returnWord(i);             // back to the bank — move count is untouched
+    render();
+  }
 
   function afterChange(){
     render();
@@ -1144,7 +1240,10 @@ if(typeof module !== "undefined" && module.exports){
   function enterWordle(){
     state.phase = "wordle";
     state.guesses = []; state.current = ""; state.keyStatus = {}; state.secretGuesses = 0;
-    promptEl.textContent = "Crack the mystery word to finish";
+    promptEl.textContent = "";
+    promptEl.classList.add("is-hidden");      // no instruction up top during Phase B
+    phasebTipEl.classList.add("show");        // instruction now lives below the puzzle
+    undoBtn.classList.remove("show");         // no words to place in Phase B
     [bankLabelEl, bankEl, controlsEl].forEach(el=> el.classList.add("is-faded"));
     setTimeout(()=> [bankLabelEl, bankEl, controlsEl].forEach(el=> el.classList.add("is-hidden")), 450);
     wordleEl.classList.add("show");
@@ -1170,6 +1269,7 @@ if(typeof module !== "undefined" && module.exports){
     for(let i=0;i<guess.length;i++){ const c=guess[i], cur=state.keyStatus[c]; if(!cur || rank[marks[i]]>rank[cur]) state.keyStatus[c]=marks[i]; }
     const won = guess === state.secretWord;
     state.current = "";
+    state._animNew = true;          // animate the new guess landing on top
     renderWordle();
     if(won) setTimeout(finishSolve, 520);
   }
@@ -1178,16 +1278,21 @@ if(typeof module !== "undefined" && module.exports){
   function renderWordleGrid(){
     const L = state.secretLen;
     wgridEl.innerHTML = "";
-    state.guesses.forEach(g=>{
-      const row = document.createElement("div"); row.className = "wrow";
-      for(let i=0;i<L;i++){ const c=document.createElement("div"); c.className="wcell "+g.marks[i]; c.textContent=g.word[i]; row.appendChild(c); }
-      wgridEl.appendChild(row);
-    });
+    // the next blank attempt stays pinned at the TOP
     if(state.phase==="wordle"){
-      const row = document.createElement("div"); row.className = "wrow";
+      const row = document.createElement("div"); row.className = "wrow active";
       for(let i=0;i<L;i++){ const c=document.createElement("div"); c.className="wcell"+(state.current[i]?" filled":""); c.textContent=state.current[i]||""; row.appendChild(c); }
       wgridEl.appendChild(row);
     }
+    // submitted guesses, most recent first — older attempts sit further down
+    for(let k=state.guesses.length-1; k>=0; k--){
+      const g = state.guesses[k];
+      const row = document.createElement("div"); row.className = "wrow";
+      if(state._animNew && k===state.guesses.length-1) row.classList.add("dropin");
+      for(let i=0;i<L;i++){ const c=document.createElement("div"); c.className="wcell "+g.marks[i]; c.textContent=g.word[i]; row.appendChild(c); }
+      wgridEl.appendChild(row);
+    }
+    state._animNew = false;
   }
   function buildKeys(){
     const rows = [["Q","W","E","R","T","Y","U","I","O","P"],["A","S","D","F","G","H","J","K","L"],["ENTER","Z","X","C","V","B","N","M","DEL"]];
@@ -1210,20 +1315,30 @@ if(typeof module !== "undefined" && module.exports){
     state.solved = true; state.phase = "done";
     state.elapsedMs = Date.now() - state.startTime;
     wordleEl.classList.remove("show"); wordleEl.classList.add("is-hidden");
+    phasebTipEl.classList.remove("show");     // instruction goes away once solved
+    undoBtn.classList.remove("show");
     render();                 // reveal the secret word in the line
     solveSequence();
   }
 
   function computeScore(){
     const elapsedSec = Math.round(state.elapsedMs/1000);
-    const tiles = state.words.length;
+    const tiles = state.words.length;          // full quote length (difficulty)
+    const n = state.minMoves;                  // tiles the player actually places
     const hasSecret = state.secretIndex>=0;
-    const par = tiles*5 + 30 + (hasSecret ? state.secretLen*4 : 0);
-    const extraMoves = Math.max(0, state.moves - state.minMoves);
+    const s = hasSecret ? state.secretLen : 0;
+    // par scales with difficulty: more words + a longer hidden word = more time allowed
+    const par = 25 + tiles*6 + s*5;
+    const extraMoves = Math.max(0, state.moves - n);
     const extraGuesses = hasSecret ? Math.max(0, (state.secretGuesses||1) - 1) : 0;
     const over = Math.max(0, elapsedSec - par);
-    let score = 1000 - extraMoves*40 - extraGuesses*40 - over*3;
-    return { score: Math.max(50, Math.round(score)), elapsedSec };
+    // per-move penalty eases on longer puzzles, so it's the RATE of mistakes that
+    // matters, not the raw count — a few slips on a 20-word quote shouldn't tank it
+    const perMove = Math.min(48, Math.max(14, Math.round(240 / Math.max(4, n))));
+    let score = 1000 - extraMoves*perMove - extraGuesses*45 - Math.round(over*1.5);
+    // small cushion so a flawless long/hard phrase still sits at the top of the range
+    score += Math.min(80, tiles + s);
+    return { score: Math.max(100, Math.min(1000, Math.round(score))), elapsedSec };
   }
 
   function solveSequence(){
@@ -1251,8 +1366,8 @@ if(typeof module !== "undefined" && module.exports){
   function showAfterglow(){
     const { score, elapsedSec } = computeScore();
     state.score = score;
-    const tier = score>=850 ? 3 : score>=600 ? 2 : score>=350 ? 1 : 0;
-    $("stars").innerHTML = "&#10022;".repeat(tier) + '<span class="off">' + "&#10022;".repeat(3-tier) + '</span>';
+    const tier = score>=900 ? 5 : score>=760 ? 4 : score>=580 ? 3 : score>=380 ? 2 : 1;
+    $("stars").innerHTML = "&#10022;".repeat(tier) + '<span class="off">' + "&#10022;".repeat(5-tier) + '</span>';
     $("timeLine").textContent = "Solved in " + fmtTime(elapsedSec);
     $("scoreLine").textContent = "Score " + score + " · " + state.moves + (state.moves===1?" move":" moves");
     $("mysteryLine").textContent = state.secretIndex>=0
@@ -1314,11 +1429,24 @@ if(typeof module !== "undefined" && module.exports){
   });
 
   $("shareBtn").addEventListener("click", doShare);
+  $("undoBtn").addEventListener("click", undoLast);
   $("newBtn").addEventListener("click", ()=> initGame(Math.floor(Math.random()*100000)));
   $("puzzleNo").addEventListener("click", async ()=>{
     try{ await navigator.clipboard.writeText(puzzleUrl(state.seed)); toast("Puzzle link copied"); }
     catch(e){ toast(puzzleUrl(state.seed)); }
   });
+
+  // Hidden gesture: tap the bottom-left corner 4× in quick succession → skip to
+  // a fresh random quote (handy for demos / browsing the bank).
+  let skipTaps = 0, skipLast = 0;
+  document.addEventListener("pointerdown", e=>{
+    const inCorner = e.clientX <= 72 && (window.innerHeight - e.clientY) <= 72;
+    if(!inCorner){ skipTaps = 0; return; }
+    const now = Date.now();
+    skipTaps = (now - skipLast < 600) ? skipTaps + 1 : 1;
+    skipLast = now;
+    if(skipTaps >= 4){ skipTaps = 0; initGame(Math.floor(Math.random()*100000)); }
+  }, true);
 
   initGame(getInitialSeed());
 })();
