@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<title>Quotable — a daily quotation from PBS</title>
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex" />
+<meta name="googlebot" content="noindex, nofollow" />
+<title>Verbatim — a daily quote puzzle from PBS</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&display=swap" rel="stylesheet" />
@@ -108,13 +110,15 @@
     text-transform:uppercase;
     color:var(--ink-soft);
     font-weight:700;
-    margin:0 0 6px;
+    margin:10px auto 0;
+    max-width:560px; padding:0 20px;
   }
+  .prompt b{ color:var(--navy); }
 
-  /* attribution shown from the start */
+  /* attribution shown from the start — kept close to the quote */
   .attribution{
     text-align:center;
-    margin:16px 0 6px;
+    margin:4px 0 6px;
   }
   .attribution .by{
     font-family:var(--serif);
@@ -131,7 +135,7 @@
     font-family:var(--serif);
   }
 
-  .rule{display:flex;align-items:center;justify-content:center;gap:10px;color:rgba(10,20,90,.25);margin:0 0 20px}
+  .rule{display:flex;align-items:center;justify-content:center;gap:10px;color:rgba(10,20,90,.25);margin:18px 0 0}
   .rule::before,.rule::after{content:"";height:1px;background:rgba(10,20,90,.18);flex:1;max-width:90px}
   .rule .orn{font-size:.9rem}
 
@@ -200,8 +204,8 @@
   /* correctly locked */
   .lock{
     color:var(--navy);
-    background:rgba(72,211,205,.18);
-    border:1px solid var(--teal);
+    background:rgba(38,56,196,.12);
+    border:1px solid var(--pbs-blue);
     cursor:default;
     box-shadow:none;
   }
@@ -277,9 +281,6 @@
     font-family:var(--serif);font-style:italic;font-size:1.05rem;color:var(--navy);
   }
   .reveal .who-src{display:block;font-size:.74rem;color:var(--ink-soft);font-style:italic;margin-top:2px}
-  .stars{font-size:1.35rem;letter-spacing:.14em;margin:18px 0 4px;color:var(--yellow)}
-  .stars .off{color:rgba(10,20,90,.16)}
-  .score-line{font-size:.84rem;color:var(--ink-soft);font-weight:700;margin-bottom:20px}
   .reveal .controls{margin-top:8px}
   .tomorrow{margin-top:18px;font-size:.74rem;color:var(--ink-soft)}
 
@@ -319,9 +320,9 @@
 
   /* a word landing in its correct slot */
   @keyframes lockGlow{
-    0%{ box-shadow:0 0 0 0 rgba(72,211,205,0); }
-    35%{ box-shadow:0 0 20px 5px rgba(72,211,205,.55); }
-    100%{ box-shadow:0 0 0 0 rgba(72,211,205,0); }
+    0%{ box-shadow:0 0 0 0 rgba(38,56,196,0); }
+    35%{ box-shadow:0 0 20px 5px rgba(38,56,196,.5); }
+    100%{ box-shadow:0 0 0 0 rgba(38,56,196,0); }
   }
   @keyframes lockPop{ 0%{transform:scale(.86)} 55%{transform:scale(1.07)} 100%{transform:scale(1)} }
   .tok.glow{ animation:lockGlow .95s ease-out, lockPop .5s ease-out; }
@@ -346,11 +347,11 @@
 
   /* #1 — gold rule that draws in beneath the quote */
   .goldrule{
-    height:2px; width:150px; margin:20px auto 0; border-radius:2px;
+    height:2px; width:150px; margin:2px auto 0; border-radius:2px;
     background:linear-gradient(90deg, transparent, var(--yellow), #E6B200, var(--yellow), transparent);
     transform:scaleX(0); transform-origin:left center; opacity:0;
   }
-  #board.solved .goldrule{ animation:drawRule .85s cubic-bezier(.2,.7,.2,1) .35s forwards; }
+  #board.solved .goldrule{ margin-top:14px; animation:drawRule .85s cubic-bezier(.2,.7,.2,1) .35s forwards; }
   @keyframes drawRule{ 0%{transform:scaleX(0);opacity:0} 18%{opacity:1} 100%{transform:scaleX(1);opacity:1} }
 
   /* #1 — author resolves into letter-spaced small caps on solve */
@@ -435,15 +436,16 @@
   }
   @media (prefers-reduced-motion:reduce){ .wrow.dropin{ animation:none; } }
   .wcell{
-    width:40px; height:40px; border:2px solid var(--paper-edge); border-radius:4px;
+    width:var(--wc,40px); height:var(--wc,40px); border:2px solid var(--paper-edge); border-radius:4px;
+    box-sizing:border-box;
     display:flex; align-items:center; justify-content:center;
-    font-family:var(--serif); font-size:1.35rem; font-weight:600; color:var(--navy);
+    font-family:var(--serif); font-size:var(--wcfs,1.35rem); font-weight:600; color:var(--navy);
     text-transform:uppercase; background:#fff;
   }
   .wcell.filled{ border-color:var(--light); }
   .wcell.pop{ animation:lockPop .25s ease; }
-  .wcell.correct{ background:var(--teal); border-color:var(--teal); color:var(--navy); }
-  .wcell.present{ background:var(--yellow); border-color:var(--yellow); color:var(--navy); }
+  .wcell.correct{ background:var(--pbs-blue); border-color:var(--pbs-blue); color:#fff; }
+  .wcell.present{ background:#fff; border:3px solid var(--pbs-blue); color:var(--navy); }  /* right letter, wrong spot → thick blue stroke */
   .wcell.absent{ background:#C7CBDD; border-color:#C7CBDD; color:#fff; }
 
   .wkeys{ display:flex; flex-direction:column; gap:6px; align-items:center; }
@@ -451,19 +453,61 @@
   .wkey{
     min-width:28px; height:46px; padding:0 6px; border:none; border-radius:5px;
     background:#E7E9F4; color:var(--navy); font-family:var(--ui); font-weight:700; font-size:.85rem;
-    cursor:pointer; text-transform:uppercase; transition:background .15s ease, transform .08s ease;
+    cursor:pointer; text-transform:uppercase; transition:background .15s ease, transform .08s ease, box-shadow .15s ease;
     touch-action:manipulation;            /* no double-tap-to-zoom on rapid key taps */
     user-select:none; -webkit-user-select:none; -webkit-touch-callout:none;
   }
   .wkey:active{ transform:translateY(1px); }
   .wkey.wide{ min-width:48px; font-size:.68rem; }
-  .wkey.correct{ background:var(--teal); color:var(--navy); }
-  .wkey.present{ background:var(--yellow); color:var(--navy); }
+  .wkey.correct{ background:var(--pbs-blue); color:#fff; }
+  .wkey.present{ background:#E7E9F4; color:var(--navy); box-shadow:inset 0 0 0 3px var(--pbs-blue); }  /* blue stroke, no yellow fill */
   .wkey.absent{ background:#AEB2C8; color:#fff; }
   .wkey:focus-visible{ outline:3px solid var(--pbs-blue); outline-offset:2px; }
 
   /* afterglow extra lines */
-  .time-line{ font-family:var(--serif); font-size:1.15rem; color:var(--navy); margin-bottom:2px; }
+  .time-line{ font-family:var(--serif); font-size:1.15rem; color:var(--navy); margin:14px 0 2px; }
+  .score-line{font-size:.84rem;color:var(--ink-soft);font-weight:700;margin-bottom:8px}
+
+  /* heart / love control on the summary */
+  .heart-wrap{ position:relative; display:flex; justify-content:center; margin:16px 0 20px; }
+  .heart-btn{
+    position:relative; display:inline-flex; align-items:center; gap:8px;
+    padding:9px 16px; border-radius:999px; cursor:pointer;
+    background:#fff; border:1px solid var(--paper-edge); color:var(--ink-soft);
+    font-family:var(--ui); font-size:.8rem; font-weight:700; letter-spacing:.02em;
+    -webkit-tap-highlight-color:transparent; touch-action:manipulation;
+    transition:border-color .15s ease, color .15s ease, box-shadow .15s ease, transform .1s ease;
+  }
+  .heart-btn:hover{ border-color:var(--coral); }
+  .heart-btn:active{ transform:scale(.96); }
+  .heart-btn:focus-visible{ outline:3px solid var(--pbs-blue); outline-offset:2px; }
+  .heart-ico{ font-size:1.1rem; line-height:1; color:#C9CDDD; transition:color .15s ease; }
+  .heart-btn.loved{ border-color:var(--coral); color:var(--coral); box-shadow:0 3px 12px rgba(254,112,78,.18); }
+  .heart-btn.loved .heart-ico{ color:var(--coral); }
+  .heart-btn.wobble .heart-ico{ animation:heartWobble .6s cubic-bezier(.2,.7,.2,1); }
+  @keyframes heartWobble{
+    0%{ transform:scale(1) rotate(0); }
+    25%{ transform:scale(1.5) rotate(-12deg); }
+    45%{ transform:scale(.85) rotate(10deg); }
+    65%{ transform:scale(1.25) rotate(-6deg); }
+    85%{ transform:scale(.95) rotate(3deg); }
+    100%{ transform:scale(1) rotate(0); }
+  }
+  /* burst particles */
+  .heart-burst{ position:absolute; left:50%; top:50%; width:0; height:0; pointer-events:none; z-index:5; }
+  .heart-burst span{
+    position:absolute; left:0; top:0; font-size:13px; color:var(--coral);
+    transform:translate(-50%,-50%); opacity:1;
+    animation:heartFly .7s ease-out forwards;
+  }
+  @keyframes heartFly{
+    0%{ transform:translate(-50%,-50%) scale(.4); opacity:1; }
+    100%{ transform:translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(1.1); opacity:0; }
+  }
+  @media (prefers-reduced-motion:reduce){
+    .heart-btn.wobble .heart-ico{ animation:none; }
+    .heart-burst span{ animation:none; display:none; }
+  }
   .mystery-line{ font-size:.8rem; color:var(--ink-soft); margin-top:8px; }
 
   /* PBS content links at the bottom of the reveal (mirrors Animystery) */
@@ -520,9 +564,49 @@
     .attribution.set .by{ opacity:1; }
     .sweep{ display:none; }
   }
+  /* ---------- password gate ---------- */
+  .gate{
+    position:fixed; inset:0; z-index:9999; display:flex; align-items:center; justify-content:center;
+    background:var(--pbs-blue); padding:24px;
+  }
+  .gate.hidden{ display:none; }
+  .gate-card{
+    background:var(--paper); border-radius:8px; padding:34px 28px 30px; width:100%; max-width:340px;
+    text-align:center; box-shadow:0 18px 50px rgba(10,20,90,.3);
+  }
+  .gate-name{ font-family:var(--serif); font-weight:600; font-size:2rem; color:var(--navy); letter-spacing:.01em; }
+  .gate-sub{ font-family:var(--ui); font-size:.7rem; letter-spacing:.16em; text-transform:uppercase; color:var(--ink-soft); margin:4px 0 22px; font-weight:700; }
+  .gate-ask{ font-family:var(--serif); font-style:italic; color:var(--navy); font-size:1rem; margin:0 0 14px; }
+  .gate-input{
+    width:100%; box-sizing:border-box; padding:12px 14px; font-size:1rem; font-family:var(--ui);
+    border:1px solid var(--paper-edge); border-radius:6px; background:#fff; color:var(--navy); text-align:center;
+  }
+  .gate-input:focus{ outline:none; border-color:var(--pbs-blue); box-shadow:0 0 0 3px rgba(38,56,196,.18); }
+  .gate-btn{
+    margin-top:14px; width:100%; padding:12px 14px; border:none; border-radius:999px; cursor:pointer;
+    background:var(--pbs-blue); color:#fff; font-family:var(--ui); font-weight:700; font-size:.92rem; letter-spacing:.02em;
+    -webkit-tap-highlight-color:transparent; touch-action:manipulation; transition:transform .1s ease, background .15s ease;
+  }
+  .gate-btn:hover{ background:var(--medium); }
+  .gate-btn:active{ transform:scale(.97); }
+  .gate-err{ min-height:1em; margin:12px 0 0; font-size:.8rem; color:var(--coral); font-weight:700; }
+  .gate-card.shake{ animation:gateShake .4s ease; }
+  @keyframes gateShake{ 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(7px)} 60%{transform:translateX(-5px)} 80%{transform:translateX(3px)} }
+  @media (prefers-reduced-motion:reduce){ .gate-card.shake{ animation:none; } }
 </style>
 </head>
 <body>
+<div class="gate" id="gate" role="dialog" aria-modal="true" aria-label="Enter password to play Verbatim">
+  <div class="gate-card">
+    <div class="gate-name">Verbatim</div>
+    <p class="gate-sub">A daily quote puzzle from PBS</p>
+    <p class="gate-ask">Enter the password to play</p>
+    <input id="gatePw" class="gate-input" type="password" autocomplete="off" autocapitalize="off"
+           autocorrect="off" spellcheck="false" aria-label="Password" placeholder="Password" />
+    <button id="gateBtn" class="gate-btn" type="button">Start</button>
+    <p class="gate-err" id="gateErr" aria-live="polite"></p>
+  </div>
+</div>
 <header>
   <!-- PBS WHITE logo (profiles = PBS Blue) for use on PBS Blue field. -->
   <svg class="logo" viewBox="0 0 135 56" role="img" aria-label="PBS" xmlns="http://www.w3.org/2000/svg">
@@ -530,7 +614,7 @@
     <path fill="#2638C4" d="m48.416 28.272-3.11.622v5.756c0 1.944-1.595 3.461-3.656 3.461h-1.595V44.8h-5.133v-6.689h1.594c2.061 0 3.656-1.555 3.656-3.461v-5.756l3.111-.622c.661-.155 1.011-.894.7-1.478L35.816 11.2h5.095l8.166 15.594c.35.584 0 1.361-.66 1.478zM37.916 26.794 29.75 11.2h-8.44c-7.66 0-14.194 6.261-14 13.961.118 5.717 3.812 9.995 8.945 11.628V44.8h12.6v-6.689h1.595c2.06 0 3.655-1.555 3.655-3.461v-5.756l3.111-.622c.7-.116 1.05-.894.7-1.478M27.34 25.9a3.203 3.203 0 0 1-3.19-3.189 3.203 3.203 0 0 1 3.19-3.189 3.203 3.203 0 0 1 3.189 3.19 3.203 3.203 0 0 1-3.19 3.188z"/>
   </svg>
   <div class="brandwrap">
-    <span class="gamename">Quotable</span>
+    <span class="gamename">Verbatim</span>
     <span class="tagline">A Daily Quote Puzzle</span>
   </div>
   <button class="puzzle-no" id="puzzleNo" title="Copy a link to this puzzle">
@@ -541,9 +625,6 @@
 
 <main>
   <section class="card" id="board" aria-live="polite">
-    <p class="prompt" id="prompt">Place the words to set the quotation</p>
-    <div class="rule"><span class="orn">&#10087;</span></div>
-
     <div class="stage" id="stage">
       <div class="line" id="line" aria-label="The quotation you are assembling"></div>
       <span class="sweep" id="sweep" aria-hidden="true"></span>
@@ -571,10 +652,15 @@
 
     <!-- Afterglow: appears in place once solved -->
     <div class="afterglow" id="afterglow">
-      <div class="stars" id="stars"></div>
       <div class="time-line" id="timeLine"></div>
       <div class="score-line" id="scoreLine"></div>
       <div class="mystery-line" id="mysteryLine"></div>
+      <div class="heart-wrap">
+        <button class="heart-btn" id="heartBtn" type="button" aria-pressed="false" aria-label="Love this quote">
+          <span class="heart-ico" aria-hidden="true">&#9829;</span>
+          <span class="heart-label">Love this quote</span>
+        </button>
+      </div>
       <div class="controls">
         <button class="btn btn-primary" id="shareBtn">Share this quote</button>
         <button class="btn btn-ghost" id="newBtn">Try another</button>
@@ -587,7 +673,8 @@
   </section>
 </main>
 
-<p class="phaseb-tip" id="phasebTip">Now uncover the <b>mystery word</b> — crack it to finish.</p>
+<div class="rule" id="ruleBelow"><span class="orn">&#10087;</span></div>
+<p class="prompt" id="prompt">Place the words to set the quotation</p>
 
 <details class="how">
   <summary>How to play</summary>
@@ -782,7 +869,6 @@ const QUOTES = [
   {id:"q188", text:"To achieve great things, two things are needed: a plan, and not quite enough time.", author:"Leonard Bernstein", src:"attributed"},
   {id:"q189", text:"You don't have to burn books to destroy a culture. Just get people to stop reading them.", author:"Ray Bradbury", src:"attributed"},
   {id:"q190", text:"If there's a book that you want to read, but it hasn't been written yet, then you must write it.", author:"Toni Morrison", src:"attributed"},
-  {id:"q191", text:"The world always seems brighter when you've just made something that wasn't there before.", author:"Neil Gaiman", src:"attributed"},
   {id:"q192", text:"You have to write the book that wants to be written, even if it is too difficult for grown-ups.", author:"Madeleine L'Engle", src:"attributed"},
   {id:"q193", text:"Even the smallest person can change the course of the future.", author:"J.R.R. Tolkien", src:"The Lord of the Rings"},
   {id:"q194", text:"Those who don't believe in magic will never find it.", author:"Roald Dahl", src:"The Minpins"},
@@ -791,6 +877,107 @@ const QUOTES = [
   {id:"q198", text:"Twenty years from now you will be more disappointed by the things that you didn't do than by the ones you did do.", author:"H. Jackson Brown's mother", src:"P.S. I Love You"},
   {id:"q199", text:"A day without sunshine is like, you know, night.", author:"Steve Martin", src:"attributed"},
   {id:"q200", text:"Finish each day and be done with it. You have done what you could. Some blunders and absurdities no doubt crept in; forget them as soon as you can.", author:"Ralph Waldo Emerson", src:"letter, 1854"}
+,
+  {id:"q300", text:"Education is the key to unlock the golden door of freedom.", author:"George Washington Carver", src:"attributed"},
+  {id:"q301", text:"When you do the common things in life in an uncommon way, you will command the attention of the world.", author:"George Washington Carver", src:"attributed"},
+  {id:"q302", text:"Never be limited by other people's limited imaginations.", author:"Mae Jemison", src:"attributed"},
+  {id:"q303", text:"Imagination is the discovering faculty, preeminently; it penetrates the unseen worlds around us.", author:"Ada Lovelace", src:"attributed"},
+  {id:"q304", text:"I attribute my success to this: I never gave or took an excuse.", author:"Florence Nightingale", src:"attributed"},
+  {id:"q305", text:"The most damaging phrase in the language is: we have always done it this way.", author:"Grace Hopper", src:"attributed"},
+  {id:"q306", text:"A ship in port is safe, but that is not what ships are built for.", author:"Grace Hopper", src:"attributed"},
+  {id:"q307", text:"The reward for work well done is the chance to do more.", author:"Jonas Salk", src:"attributed"},
+  {id:"q308", text:"Chance favors the prepared mind.", author:"Louis Pasteur", src:"attributed"},
+  {id:"q309", text:"It is not the strongest of the species that survives, but the most adaptable.", author:"Charles Darwin", src:"attributed"},
+  {id:"q310", text:"A man who dares to waste an hour of time has not discovered the value of life.", author:"Charles Darwin", src:"attributed"},
+  {id:"q311", text:"I would rather have questions that cannot be answered than answers that cannot be questioned.", author:"Richard Feynman", src:"attributed"},
+  {id:"q312", text:"Imagination will often carry us to worlds that never were; but without it we go nowhere.", author:"Carl Sagan", src:"attributed"},
+  {id:"q313", text:"Equipped with his five senses, man explores the universe and calls the adventure science.", author:"Edwin Hubble", src:"attributed"},
+  {id:"q314", text:"It seems to me that the natural world is the greatest source of excitement.", author:"David Attenborough", src:"attributed"},
+  {id:"q315", text:"The more clearly we focus on the wonders of the universe, the less taste we have for destruction.", author:"Rachel Carson", src:"attributed"},
+  {id:"q316", text:"The ocean is the cornerstone of the earth's life support system.", author:"Sylvia Earle", src:"attributed"},
+  {id:"q317", text:"We abuse land because we regard it as a commodity belonging to us.", author:"Aldo Leopold", src:"attributed"},
+  {id:"q318", text:"The sea, once it casts its spell, holds one in its net of wonder forever.", author:"Jacques Cousteau", src:"attributed"},
+  {id:"q319", text:"It is the little things citizens do that will make the difference.", author:"Wangari Maathai", src:"attributed"},
+  {id:"q320", text:"The secret of getting ahead is getting started.", author:"Mark Twain", src:"attributed"},
+  {id:"q321", text:"Kindness is the language which the deaf can hear and the blind can see.", author:"Mark Twain", src:"attributed"},
+  {id:"q322", text:"Hope is the thing with feathers that perches in the soul.", author:"Emily Dickinson", src:"attributed"},
+  {id:"q323", text:"In three words I can sum up what I have learned about life: it goes on.", author:"Robert Frost", src:"attributed"},
+  {id:"q324", text:"Two roads diverged in a wood, and I took the one less traveled by.", author:"Robert Frost", src:"attributed"},
+  {id:"q325", text:"Keep your face always toward the sunshine, and shadows will fall behind you.", author:"Walt Whitman", src:"attributed"},
+  {id:"q326", text:"Go confidently in the direction of your dreams; live the life you have imagined.", author:"Henry David Thoreau", src:"attributed"},
+  {id:"q327", text:"Tomorrow is a new day with no mistakes in it yet.", author:"L.M. Montgomery", src:"attributed"},
+  {id:"q328", text:"There is something delicious about writing the first words of a story.", author:"Beatrix Potter", src:"attributed"},
+  {id:"q329", text:"Always be on the lookout for the presence of wonder.", author:"E.B. White", src:"attributed"},
+  {id:"q330", text:"It is not often that someone comes along who is a true friend and a good writer.", author:"E.B. White", src:"attributed"},
+  {id:"q331", text:"Judge each day not by the harvest you reap but by the seeds that you plant.", author:"Robert Louis Stevenson", src:"attributed"},
+  {id:"q332", text:"Just living is not enough; one must have sunshine, freedom, and a little flower.", author:"Hans Christian Andersen", src:"attributed"},
+  {id:"q333", text:"Tenderness and kindness are signs of strength and resolution.", author:"Khalil Gibran", src:"attributed"},
+  {id:"q334", text:"You cannot cross the sea merely by standing and staring at the water.", author:"Rabindranath Tagore", src:"attributed"},
+  {id:"q335", text:"Life is for the living; let life be like music.", author:"Langston Hughes", src:"attributed"},
+  {id:"q336", text:"Tell me, what is it you plan to do with your one wild and precious life?", author:"Mary Oliver", src:"attributed"},
+  {id:"q337", text:"Instructions for living a life: pay attention, be astonished, tell about it.", author:"Mary Oliver", src:"attributed"},
+  {id:"q338", text:"Stories make us more alive, more human, more courageous, more loving.", author:"Madeleine L'Engle", src:"attributed"},
+  {id:"q339", text:"Some day you will be old enough to start reading fairy tales again.", author:"C.S. Lewis", src:"attributed"},
+  {id:"q340", text:"Not all those who wander are lost.", author:"J.R.R. Tolkien", src:"attributed"},
+  {id:"q341", text:"Optimism is the faith that leads to achievement.", author:"Helen Keller", src:"attributed"},
+  {id:"q342", text:"If there is a book you want to read that has not been written yet, then you must write it.", author:"Toni Morrison", src:"attributed"},
+  {id:"q343", text:"Faith is taking the first step even when you do not see the whole staircase.", author:"Martin Luther King Jr.", src:"attributed"},
+  {id:"q344", text:"Life's most urgent question is: what are you doing for others?", author:"Martin Luther King Jr.", src:"attributed"},
+  {id:"q345", text:"We may have come on different ships, but we are in the same boat now.", author:"Martin Luther King Jr.", src:"attributed"},
+  {id:"q346", text:"It is easier to build strong children than to repair broken adults.", author:"Frederick Douglass", src:"attributed"},
+  {id:"q347", text:"The future belongs to those who believe in the beauty of their dreams.", author:"Eleanor Roosevelt", src:"attributed"},
+  {id:"q348", text:"Do one thing every day that scares you.", author:"Eleanor Roosevelt", src:"attributed"},
+  {id:"q349", text:"Every great dream begins with a dreamer.", author:"Harriet Tubman", src:"attributed"},
+  {id:"q350", text:"Do your little bit of good where you are; those little bits together overwhelm the world.", author:"Desmond Tutu", src:"attributed"},
+  {id:"q351", text:"Believe you can and you are halfway there.", author:"Theodore Roosevelt", src:"attributed"},
+  {id:"q352", text:"Success is measured not by the position reached but by the obstacles overcome.", author:"Booker T. Washington", src:"attributed"},
+  {id:"q353", text:"I dream my painting, and then I paint my dream.", author:"Vincent van Gogh", src:"attributed"},
+  {id:"q354", text:"Everyone discusses my art and pretends to understand, when it is simply necessary to love.", author:"Claude Monet", src:"attributed"},
+  {id:"q355", text:"Musicians do not retire; they stop when there is no more music in them.", author:"Louis Armstrong", src:"attributed"},
+  {id:"q356", text:"Just do not give up trying to do what you really want to do.", author:"Ella Fitzgerald", src:"attributed"},
+  {id:"q357", text:"A problem is a chance for you to do your best.", author:"Duke Ellington", src:"attributed"},
+  {id:"q358", text:"It is only when you are tested that you truly discover who you are.", author:"Maya Lin", src:"attributed"},
+  {id:"q359", text:"A great photograph fully expresses what one feels about what is photographed.", author:"Ansel Adams", src:"attributed"},
+  {id:"q360", text:"The best way to bring people together is through the joy of making music.", author:"Yo-Yo Ma", src:"attributed"},
+  {id:"q361", text:"Never underestimate the power of dreams and the influence of the human spirit.", author:"Wilma Rudolph", src:"attributed"},
+  {id:"q362", text:"Success is a journey, not a destination; the doing is often better than the outcome.", author:"Arthur Ashe", src:"attributed"},
+  {id:"q363", text:"Champions keep playing until they get it right.", author:"Billie Jean King", src:"attributed"},
+  {id:"q364", text:"A life is not important except in the impact it has on other lives.", author:"Jackie Robinson", src:"attributed"},
+  {id:"q365", text:"The struggles within yourself are the battles you have really won.", author:"Jesse Owens", src:"attributed"},
+  {id:"q366", text:"Any time you have a chance to make a difference, you should not be wasting your time.", author:"Roberto Clemente", src:"attributed"},
+  {id:"q367", text:"Never let the fear of striking out keep you from playing the game.", author:"Babe Ruth", src:"attributed"},
+  {id:"q368", text:"The secret of change is to focus all your energy on building the new.", author:"Socrates", src:"attributed"},
+  {id:"q369", text:"You cannot teach a person anything; you can only help them discover it within.", author:"Galileo Galilei", src:"attributed"},
+  {id:"q370", text:"Never doubt that a small group of thoughtful, committed citizens can change the world.", author:"Margaret Mead", src:"attributed"},
+  {id:"q371", text:"A person who never made a mistake never tried anything new.", author:"Albert Einstein", src:"attributed"},
+  {id:"q372", text:"Whoever is happy will make others happy too.", author:"Anne Frank", src:"attributed"},
+  {id:"q373", text:"Talent is a pursued interest; anything you are willing to practice, you can do.", author:"Bob Ross", src:"attributed"},
+  {id:"q374", text:"We do not make mistakes, just happy little accidents.", author:"Bob Ross", src:"attributed"},
+  {id:"q375", text:"Travel is freedom; it is recess, and we need it.", author:"Rick Steves", src:"attributed"},
+  {id:"q376", text:"Reading allows us to live as many lives as we want, in as many worlds as there are books.", author:"LeVar Burton", src:"attributed"},
+  {id:"q377", text:"When I was a boy and I would see scary things in the news, my mother would say, look for the helpers.", author:"Fred Rogers", src:"attributed"},
+  {id:"q378", text:"Success is no accident; it is hard work, perseverance, learning, and sacrifice.", author:"Pelé", src:"attributed"},
+  {id:"q379", text:"The most difficult thing is the decision to act; the rest is merely tenacity.", author:"Amelia Earhart", src:"attributed"},
+  {id:"q380", text:"Mystery creates wonder, and wonder is the basis of our desire to understand.", author:"Neil Armstrong", src:"attributed"},
+  {id:"q381", text:"Somewhere, something incredible is waiting to be discovered.", author:"Carl Sagan", src:"attributed"},
+  {id:"q382", text:"Talent is God-given; be humble. Fame is man-given; be grateful.", author:"John Wooden", src:"attributed"},
+  {id:"q383", text:"Listen to the mustn'ts, child; anything can happen, anything can be.", author:"Shel Silverstein", src:"attributed"},
+  {id:"q384", text:"We may encounter many defeats, but we must never be defeated.", author:"Dr. Maya Angelou", src:"attributed"},
+  {id:"q385", text:"During a performance you cannot stop and fix things; you keep going.", author:"Itzhak Perlman", src:"attributed"},
+  {id:"q386", text:"I have things in my head that are not like what anyone has taught me.", author:"Georgia O'Keeffe", src:"attributed"},
+  {id:"q387", text:"Often when you think you are at the end of something, you are at the beginning of something else.", author:"Mister Fred Rogers", src:"attributed"},
+  {id:"q388", text:"The greatest sign of success for a teacher is to be able to say the children are now working as if I did not exist.", author:"Maria Montessori", src:"attributed"},
+  {id:"q389", text:"Never help a child with a task at which he feels he can succeed.", author:"Maria Montessori", src:"attributed"},
+  {id:"q390", text:"Excellence is to do a common thing in an uncommon way.", author:"Booker T. Washington", src:"attributed"},
+  {id:"q391", text:"Although the world is full of suffering, it is full also of the overcoming of it.", author:"Helen Keller", src:"attributed"},
+  {id:"q392", text:"Have no fear of perfection; you will never reach it.", author:"Marie Curie", src:"attributed"},
+  {id:"q393", text:"The capacity to care is what gives life its deepest meaning.", author:"Pablo Casals", src:"attributed"},
+  {id:"q394", text:"The best thing one can do when it is raining is to let it rain.", author:"Henry Wadsworth Longfellow", src:"attributed"},
+  {id:"q395", text:"Life is like a movie: write your own ending, keep believing, keep pretending.", author:"Jim Henson", src:"attributed"},
+  {id:"q396", text:"Learn from yesterday, live for today, look to tomorrow.", author:"Charles Schulz", src:"attributed"},
+  {id:"q397", text:"If you do not see the book you want on the shelf, then write it.", author:"Beverly Cleary", src:"attributed"},
+  {id:"q398", text:"We have a hunger of the mind which asks for knowledge of all around us.", author:"Maria Mitchell", src:"attributed"},
+  {id:"q399", text:"Sometimes being a friend means mastering the art of timing.", author:"Octavia Butler", src:"attributed"}
 ];
 
 /* -------- Seeded PRNG (mulberry32) + string hash -------- */
@@ -979,10 +1166,10 @@ if(typeof module !== "undefined" && module.exports){
         boardEl = $("board"), afterglowEl = $("afterglow"),
         promptEl = $("prompt"), bankLabelEl = $("bankLabel"), controlsEl = $("controls"),
         wordleEl = $("wordle"), wgridEl = $("wgrid"), wkeysEl = $("wkeys"), attributionEl = $("attribution"),
-        phasebTipEl = $("phasebTip"), undoBtn = $("undoBtn");
+        ruleBelowEl = $("ruleBelow"), undoBtn = $("undoBtn"), heartBtn = $("heartBtn");
 
   // everything that fades away on the final solve
-  const chromeEls = [promptEl, bankLabelEl, bankEl, controlsEl, wordleEl];
+  const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
 
   let state = null, drag = null, justDragged = false;
@@ -1038,7 +1225,8 @@ if(typeof module !== "undefined" && module.exports){
 
     $("puzzleNum").textContent = "№ " + seed;
     $("attrBy").textContent = "— " + pz.quote.author;
-    $("attrSrc").textContent = (pz.quote.src && pz.quote.src !== "house line") ? pz.quote.src : "";
+    const _src = (pz.quote.src || "").trim();
+    $("attrSrc").textContent = (_src && !/^(attributed|house line)$/i.test(_src)) ? _src : "";
     promptEl.textContent = PROMPT_DEFAULT;
 
     boardEl.classList.remove("solved");
@@ -1050,7 +1238,6 @@ if(typeof module !== "undefined" && module.exports){
     afterglowEl.classList.remove("show");
     attributionEl.classList.remove("set");
     wordleEl.classList.remove("show","is-faded","is-hidden");
-    phasebTipEl.classList.remove("show");
     undoBtn.classList.add("show");
     chromeEls.forEach(el=> el.classList.remove("is-faded","is-hidden"));
     wgridEl.innerHTML = ""; wkeysEl.innerHTML = "";
@@ -1110,6 +1297,7 @@ if(typeof module !== "undefined" && module.exports){
   }
 
   /* -------- tap + drag (assemble phase only) -------- */
+  function haptic(p){ try{ if(window.navigator && navigator.vibrate) navigator.vibrate(p); }catch(e){} }
   function attachDraggable(el, payload){
     el.addEventListener("pointerdown", e=> onPointerDown(e, el, payload));
     el.addEventListener("click", e=>{
@@ -1128,6 +1316,7 @@ if(typeof module !== "undefined" && module.exports){
   function onPointerDown(e, el, payload){
     if(state.phase !== "assemble") return;
     if(e.pointerType === "mouse" && e.button !== 0) return;
+    haptic(10);   // gentle buzz on pick-up
     drag = {el, payload, startX:e.clientX, startY:e.clientY, moved:false, clone:null, hover:null, word:el.textContent};
     document.addEventListener("pointermove", onPointerMove);
     document.addEventListener("pointerup", onPointerUp);
@@ -1197,6 +1386,7 @@ if(typeof module !== "undefined" && module.exports){
     state.moves++;
     s._placedAt = ++state.placeSeq;   // track "last used word" for undo
     commit(slotIdx);
+    haptic(state.slots[slotIdx].locked ? 32 : 18);   // stronger on drop; strongest when correct
   }
   function slotMove(fromIdx, toIdx){
     if(fromIdx === toIdx) return;
@@ -1205,6 +1395,7 @@ if(typeof module !== "undefined" && module.exports){
     if(b.word === null){ b.word=a.word; b._fromKey=a._fromKey; b._wi=a._wi; b._placedAt=++state.placeSeq; a.word=null; a._fromKey=null; a._wi=undefined; }
     else { const tw=b.word,tk=b._fromKey,twi=b._wi; b.word=a.word; b._fromKey=a._fromKey; b._wi=a._wi; a.word=tw; a._fromKey=tk; a._wi=twi; a._placedAt=++state.placeSeq; b._placedAt=++state.placeSeq; }
     commit(toIdx); commit(fromIdx);
+    haptic((state.slots[toIdx].locked || state.slots[fromIdx].locked) ? 32 : 18);
   }
   function returnWord(i){
     const s = state.slots[i]; if(!s || s.word===null || s.locked || s.fixed) return;
@@ -1242,9 +1433,7 @@ if(typeof module !== "undefined" && module.exports){
   function enterWordle(){
     state.phase = "wordle";
     state.guesses = []; state.current = ""; state.keyStatus = {}; state.secretGuesses = 0;
-    promptEl.textContent = "";
-    promptEl.classList.add("is-hidden");      // no instruction up top during Phase B
-    phasebTipEl.classList.add("show");        // instruction now lives below the puzzle
+    promptEl.innerHTML = 'Now uncover the <b>mystery word</b> — crack it to finish';
     undoBtn.classList.remove("show");         // no words to place in Phase B
     [bankLabelEl, bankEl, controlsEl].forEach(el=> el.classList.add("is-faded"));
     setTimeout(()=> [bankLabelEl, bankEl, controlsEl].forEach(el=> el.classList.add("is-hidden")), 450);
@@ -1279,6 +1468,11 @@ if(typeof module !== "undefined" && module.exports){
   function renderWordle(){ renderWordleGrid(); buildKeys(); }
   function renderWordleGrid(){
     const L = state.secretLen;
+    // shrink cells for longer words so they never exceed the puzzle area
+    const wc = L>=8 ? 32 : L===7 ? 36 : 40;
+    const fs = L>=8 ? 1.02 : L===7 ? 1.18 : 1.35;
+    wgridEl.style.setProperty("--wc", wc+"px");
+    wgridEl.style.setProperty("--wcfs", fs+"rem");
     wgridEl.innerHTML = "";
     // the next blank attempt stays pinned at the TOP
     if(state.phase==="wordle"){
@@ -1317,7 +1511,6 @@ if(typeof module !== "undefined" && module.exports){
     state.solved = true; state.phase = "done";
     state.elapsedMs = Date.now() - state.startTime;
     wordleEl.classList.remove("show"); wordleEl.classList.add("is-hidden");
-    phasebTipEl.classList.remove("show");     // instruction goes away once solved
     undoBtn.classList.remove("show");
     render();                 // reveal the secret word in the line
     solveSequence();
@@ -1368,13 +1561,13 @@ if(typeof module !== "undefined" && module.exports){
   function showAfterglow(){
     const { score, elapsedSec } = computeScore();
     state.score = score;
-    const tier = score>=900 ? 5 : score>=760 ? 4 : score>=580 ? 3 : score>=380 ? 2 : 1;
-    $("stars").innerHTML = "&#10022;".repeat(tier) + '<span class="off">' + "&#10022;".repeat(5-tier) + '</span>';
     $("timeLine").textContent = "Solved in " + fmtTime(elapsedSec);
-    $("scoreLine").textContent = "Score " + score + " · " + state.moves + (state.moves===1?" move":" moves");
+    $("scoreLine").textContent = score + " points · " + state.moves + (state.moves===1?" move":" moves");
     $("mysteryLine").textContent = state.secretIndex>=0
       ? "Mystery word: " + state.secretWord + " — " + state.secretGuesses + (state.secretGuesses===1?" guess":" guesses")
       : "";
+    // reset the love/heart control for this quote
+    if(typeof heartBtn !== "undefined" && heartBtn){ heartBtn.classList.remove("loved"); heartBtn.setAttribute("aria-pressed","false"); }
     const link = pbsLinkFor(state.quote);
     const box = $("pbsBox");
     if(link){
@@ -1395,7 +1588,7 @@ if(typeof module !== "undefined" && module.exports){
   }
 
   function buildResult(){
-    return { game:"quotable", seed:state.seed, puzzleNumber:state.seed, quoteId:state.quote.id,
+    return { game:"verbatim", seed:state.seed, puzzleNumber:state.seed, quoteId:state.quote.id,
              author:state.quote.author, moves:state.moves, solved:true,
              timeMs:state.elapsedMs, score:state.score,
              secretWord:state.secretWord, secretGuesses:state.secretGuesses };
@@ -1404,13 +1597,13 @@ if(typeof module !== "undefined" && module.exports){
   /* -------- share -------- */
   function shareText(){
     const { score, elapsedSec } = computeScore();
-    return "Quotable № " + state.seed + " — " + score + " pts in " + fmtTime(elapsedSec) +
+    return "Verbatim № " + state.seed + " — " + score + " pts in " + fmtTime(elapsedSec) +
       "\n\n\u201C" + state.quote.text + "\u201D\n— " + state.quote.author +
       "\n\n" + puzzleUrl(state.seed);
   }
   async function doShare(){
     const txt = shareText();
-    if(navigator.share){ try{ await navigator.share({title:"Quotable", text:txt}); return; }catch(e){} }
+    if(navigator.share){ try{ await navigator.share({title:"Verbatim", text:txt}); return; }catch(e){} }
     try{ await navigator.clipboard.writeText(txt); toast("Copied to clipboard"); }
     catch(e){ toast("Copy failed — select and copy manually"); }
   }
@@ -1424,7 +1617,7 @@ if(typeof module !== "undefined" && module.exports){
   $("footLogo").innerHTML = '<svg class="ft-logo" viewBox="0 0 135 56" aria-label="PBS" role="img" xmlns="http://www.w3.org/2000/svg"><path fill="#2638C4" d="M126.155 24.889c-3.072-1.595-5.522-2.878-5.522-5.328 0-1.75 1.478-2.8 4.006-2.8 2.955 0 5.6.972 7.622 2.178V12.6c-2.1-.894-5.017-1.672-7.622-1.672-7.389 0-10.695 4.394-10.695 9.177 0 5.6 3.773 8.284 7.895 10.462 4.083 2.177 5.639 3.11 5.639 5.444 0 1.983-1.711 3.111-4.589 3.111-4.006 0-6.806-1.828-8.672-3.305v6.727c1.711 1.206 5.405 2.645 8.594 2.645 7.156 0 11.706-3.733 11.706-9.761.038-6.3-5.289-8.945-8.362-10.54zM71.478 11.2h-8.867v33.6h6.611V34.106h1.323c8.283 0 13.416-4.395 13.416-11.473.04-7.155-4.627-11.433-12.483-11.433m-2.256 5.6h1.945c3.889 0 6.378 2.255 6.378 5.717 0 3.772-2.295 5.91-6.34 5.91h-1.983zm35.895 9.917c2.256-1.556 3.344-3.85 3.344-6.923 0-5.289-3.888-8.594-10.189-8.594H88.006v33.6H98.7c8.206 0 11.939-5.289 11.939-10.189.039-3.85-2.1-6.844-5.522-7.894m-7.35-9.84c2.606 0 4.278 1.595 4.278 4.123s-1.828 4.161-4.628 4.161h-2.8v-8.244h3.15zM94.617 39.2v-8.79h4.2c3.344 0 5.328 1.633 5.328 4.356 0 2.916-1.984 4.394-5.95 4.394h-3.578v.039zM56 28c0 15.478-12.522 28-28 28S0 43.478 0 28 12.522 0 28 0s28 12.522 28 28"/><path fill="#fff" d="m48.416 28.272-3.11.622v5.756c0 1.944-1.595 3.461-3.656 3.461h-1.595V44.8h-5.133v-6.689h1.594c2.061 0 3.656-1.555 3.656-3.461v-5.756l3.111-.622c.661-.155 1.011-.894.7-1.478L35.816 11.2h5.095l8.166 15.594c.35.584 0 1.361-.66 1.478zM37.916 26.794 29.75 11.2h-8.44c-7.66 0-14.194 6.261-14 13.961.118 5.717 3.812 9.995 8.945 11.628V44.8h12.6v-6.689h1.595c2.06 0 3.655-1.555 3.655-3.461v-5.756l3.111-.622c.7-.116 1.05-.894.7-1.478M27.34 25.9a3.203 3.203 0 0 1-3.19-3.189 3.203 3.203 0 0 1 3.19-3.189 3.203 3.203 0 0 1 3.189 3.19 3.203 3.203 0 0 1-3.19 3.188z"/></svg>';
 
   document.addEventListener("keydown", e=>{
-    if(state.phase!=="wordle") return;
+    if(!state || state.phase!=="wordle") return;
     if(e.key==="Enter") submitGuess();
     else if(e.key==="Backspace"){ e.preventDefault(); delLetter(); }
     else if(/^[a-zA-Z]$/.test(e.key)) typeLetter(e.key);
@@ -1432,6 +1625,38 @@ if(typeof module !== "undefined" && module.exports){
 
   $("shareBtn").addEventListener("click", doShare);
   $("undoBtn").addEventListener("click", undoLast);
+
+  // Heart / love control — wobble + juicy burst when you tap to love the quote.
+  // (Analytics tracking intentionally left out for now.)
+  function spawnHeartBurst(){
+    const wrap = heartBtn.parentElement, ico = heartBtn.querySelector(".heart-ico");
+    const wr = wrap.getBoundingClientRect(), ir = ico.getBoundingClientRect();
+    const burst = document.createElement("span"); burst.className = "heart-burst";
+    burst.style.left = (ir.left - wr.left + ir.width/2) + "px";
+    burst.style.top  = (ir.top  - wr.top  + ir.height/2) + "px";
+    const N = 9;
+    for(let i=0;i<N;i++){
+      const s = document.createElement("span"); s.textContent = "\u2665";
+      const ang = (Math.PI*2*i/N) + (Math.random()*0.5 - 0.25);
+      const dist = 28 + Math.random()*24;
+      s.style.setProperty("--tx", (Math.cos(ang)*dist).toFixed(1) + "px");
+      s.style.setProperty("--ty", (Math.sin(ang)*dist - 6).toFixed(1) + "px");
+      s.style.fontSize = (10 + Math.random()*8).toFixed(0) + "px";
+      s.style.animationDelay = (Math.random()*40).toFixed(0) + "ms";
+      burst.appendChild(s);
+    }
+    wrap.appendChild(burst);
+    setTimeout(()=> burst.remove(), 950);
+  }
+  heartBtn.addEventListener("click", ()=>{
+    const loved = !heartBtn.classList.contains("loved");
+    heartBtn.classList.toggle("loved", loved);
+    heartBtn.setAttribute("aria-pressed", loved ? "true" : "false");
+    heartBtn.classList.remove("wobble"); void heartBtn.offsetWidth; heartBtn.classList.add("wobble");
+    if(loved){ spawnHeartBurst(); haptic(22); }
+    // TODO(analytics): record love for state.quote.id — left out for now
+  });
+
   $("newBtn").addEventListener("click", ()=> initGame(Math.floor(Math.random()*100000)));
   $("puzzleNo").addEventListener("click", async ()=>{
     try{ await navigator.clipboard.writeText(puzzleUrl(state.seed)); toast("Puzzle link copied"); }
@@ -1442,6 +1667,7 @@ if(typeof module !== "undefined" && module.exports){
   // a fresh random quote (handy for demos / browsing the bank).
   let skipTaps = 0, skipLast = 0;
   document.addEventListener("pointerdown", e=>{
+    if(!state) return;   // ignore until the game has started (e.g. during the password gate)
     const inCorner = e.clientX <= 72 && (window.innerHeight - e.clientY) <= 72;
     if(!inCorner){ skipTaps = 0; return; }
     const now = Date.now();
@@ -1450,7 +1676,39 @@ if(typeof module !== "undefined" && module.exports){
     if(skipTaps >= 4){ skipTaps = 0; initGame(Math.floor(Math.random()*100000)); }
   }, true);
 
-  initGame(getInitialSeed());
+  // ---------- password gate ----------
+  const PASSWORD = "fredrogersforever";
+  const GATE_KEY = "verbatim_unlocked";
+  let gameStarted = false;
+  function startGame(){
+    if(gameStarted) return;
+    gameStarted = true;
+    initGame(getInitialSeed());
+  }
+  function unlock(){
+    try{ localStorage.setItem(GATE_KEY, "1"); }catch(e){}
+    const gate = $("gate");
+    gate.classList.add("hidden");
+    startGame();
+  }
+  function tryUnlock(){
+    const val = ($("gatePw").value || "").trim().toLowerCase();
+    if(val === PASSWORD){ $("gateErr").textContent = ""; unlock(); }
+    else {
+      $("gateErr").textContent = "That's not the password — try again.";
+      const card = document.querySelector(".gate-card");
+      card.classList.remove("shake"); void card.offsetWidth; card.classList.add("shake");
+      $("gatePw").select();
+    }
+  }
+  (function initGate(){
+    let already = false;
+    try{ already = localStorage.getItem(GATE_KEY) === "1"; }catch(e){}
+    if(already){ $("gate").classList.add("hidden"); startGame(); return; }
+    $("gateBtn").addEventListener("click", tryUnlock);
+    $("gatePw").addEventListener("keydown", e=>{ if(e.key === "Enter"){ e.preventDefault(); tryUnlock(); } });
+    setTimeout(()=>{ try{ $("gatePw").focus(); }catch(e){} }, 60);
+  })();
 })();
 </script>
 </body>
