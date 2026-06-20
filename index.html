@@ -693,6 +693,20 @@
     text-transform:uppercase; letter-spacing:.06em; font-weight:600;
   }
   .chip.scram-tile:hover{ transform:translateY(-2px); }
+
+  /* the mystery word you're currently solving — yellow highlight in the line */
+  .tok.active-secret{
+    background:var(--yellow) !important;
+    border:1px solid #E0B400 !important;
+    color:var(--navy) !important;
+    box-shadow:0 0 0 2px #E0B400 inset, 0 0 14px rgba(255,207,0,.55) !important;
+    animation:secretPulse 1.5s ease-in-out infinite;
+  }
+  @keyframes secretPulse{
+    0%,100%{ box-shadow:0 0 0 2px #E0B400 inset, 0 0 9px rgba(255,207,0,.40); }
+    50%    { box-shadow:0 0 0 2px #E0B400 inset, 0 0 20px rgba(255,207,0,.75); }
+  }
+  @media (prefers-reduced-motion:reduce){ .tok.active-secret{ animation:none; } }
 </style>
 </head>
 <body>
@@ -1405,7 +1419,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "3a";
+  const VERSION = "3b";
   let mode = "normal";   // "normal" | "hard"
 
   let state = null, drag = null, justDragged = false;
@@ -1536,6 +1550,20 @@ if(typeof module !== "undefined" && module.exports){
   function maskFromEntry(e){ return e ? ("_".repeat(e.len) + (e.punct || "")) : ""; }
   function maskForSlot(i){ return maskFromEntry(state.secretByIndex[i]); }
   function maskForChipWi(wi){ return maskFromEntry(state.secretByIndex[wi]); }
+  // What (if anything) a token sitting in slot i should be masked as. A mystery
+  // chip stays masked WHEREVER it sits — including a wrong slot — so dropping it
+  // somewhere incorrect never reveals the word. Returns the mask string, or null.
+  function slotMaskText(slot, i){
+    if(state.phase === "done") return null;
+    if(slot.locked && state.secretByIndex[i]){           // locked into a mystery slot (bound to that word)
+      return state.secretByIndex[i].solved ? null : maskForSlot(i);
+    }
+    if(slot._fromKey && state.secretKeys.has(slot._fromKey)){   // a mystery chip placed loose anywhere
+      const e = state.secretByIndex[slot._wi];
+      return (e && e.solved) ? null : maskForChipWi(slot._wi);
+    }
+    return null;
+  }
   // In hard mode the quote-word that gets unscrambled shows SCRAMBLED (yellow box)
   // everywhere it appears — bank and line — until it's actually unscrambled.
   function scrambleDisplayFor(wi){
@@ -1606,20 +1634,22 @@ if(typeof module !== "undefined" && module.exports){
     const activeIdx = firstEmptySlot();
     s.slots.forEach((slot,i)=>{
       let node;
-      const secret = isSecretSlot(i) && (slot.locked || slot.word!==null);
+      const maskTxt = slotMaskText(slot, i);            // mystery chip stays masked anywhere
+      const secret = maskTxt !== null;
+      const activeSecret = state.phase==="wordle" && i===state.activeSecret;  // the one you're solving now
       const scram = scrambleDisplayFor(slot._wi);   // scrambled letters, or null
       if(slot.fixed){
         node = document.createElement("span");
         node.className = "tok anchor"; node.textContent = slot.word;
       } else if(slot.locked){
         node = document.createElement("span");
-        node.className = "tok lock" + (slot.justLocked ? " glow" : "") + (secret ? " masked" : "") + (scram!=null ? " scram-tile" : "");
-        node.textContent = secret ? maskForSlot(i) : (scram!=null ? scram : slot.word);
+        node.className = "tok lock" + (slot.justLocked ? " glow" : "") + (secret ? " masked" : "") + (activeSecret ? " active-secret" : "") + (scram!=null ? " scram-tile" : "");
+        node.textContent = secret ? maskTxt : (scram!=null ? scram : slot.word);
         slot.justLocked = false;
       } else if(slot.word!==null){
         node = document.createElement("button");
         node.className = "tok placed" + (secret ? " secret masked" : "") + (scram!=null ? " scram-tile" : "");
-        node.textContent = secret ? maskForSlot(i) : (scram!=null ? scram : slot.word);
+        node.textContent = secret ? maskTxt : (scram!=null ? scram : slot.word);
         node.dataset.slot = i; if(slot._fromKey) node.dataset.key = slot._fromKey;
         node.setAttribute("aria-label", (secret?"Mystery word":(scram!=null?"Scrambled word":"Placed word "))+". Tap to return it, or drag to move it.");
         attachDraggable(node, {srcType:"slot", fromIdx:i});
