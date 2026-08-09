@@ -428,13 +428,12 @@
   /* active (top) attempt — subtle cue that input lands here */
   .wrow.active .wcell{ border-style:dashed; }
   .wrow.active .wcell.filled{ border-style:solid; }
-  /* newest guess drops in on top, pushing previous attempts down.
-     overflow stays visible so the placed-letter juice sparks aren't clipped. */
-  .wrow.dropin{ animation:wdrop .34s cubic-bezier(.2,.7,.2,1) both; }
+  /* newest guess drops in on top, pushing previous attempts down */
+  .wrow.dropin{ overflow:hidden; animation:wdrop .34s cubic-bezier(.2,.7,.2,1) both; }
   @keyframes wdrop{
-    0%{ opacity:0; transform:translateY(-10px) scale(.96); }
+    0%{ opacity:0; max-height:0; transform:translateY(-8px); }
     55%{ opacity:1; }
-    100%{ opacity:1; transform:none; }
+    100%{ opacity:1; max-height:48px; transform:none; }
   }
   @media (prefers-reduced-motion:reduce){ .wrow.dropin{ animation:none; } }
   .wcell{
@@ -617,96 +616,70 @@
   /* ---------- hard-mode scramble panel ---------- */
   .scramble{ display:none; flex-direction:column; align-items:center; gap:14px; margin-top:6px; }
   .scramble.show{ display:flex; }
-  /* yellow box wraps AROUND the scrambled word (the row of letter tiles) */
-  .scrow{
-    display:flex; gap:8px; flex-wrap:nowrap; justify-content:center; max-width:100%;
-    background:var(--yellow);
-    padding:12px 14px; border-radius:12px;
-    box-shadow:0 0 0 2px #E0B400 inset, 0 8px 20px rgba(255,207,0,.30);
-  }
+  .scrow{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
   .scell{
-    position:relative;
-    width:var(--sc,46px); height:var(--sc,46px); border:2px solid #fff; border-radius:6px; box-sizing:border-box;
-    flex:0 0 auto;
-    display:flex; align-items:center; justify-content:center; cursor:grab; background:#fff;
-    font-family:var(--serif); font-size:var(--scfs,1.3rem); font-weight:600; color:var(--navy); text-transform:uppercase;
-    -webkit-tap-highlight-color:transparent; touch-action:none; user-select:none; -webkit-user-select:none;
-    box-shadow:0 2px 5px rgba(120,80,0,.18);
-    transition:transform .1s ease, background .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease;
+    width:var(--sc,46px); height:var(--sc,46px); border:2px solid var(--paper-edge); border-radius:6px; box-sizing:border-box;
+    display:flex; align-items:center; justify-content:center; cursor:pointer; background:#fff;
+    font-family:var(--serif); font-size:1.3rem; font-weight:600; color:var(--navy); text-transform:uppercase;
+    -webkit-tap-highlight-color:transparent; touch-action:manipulation; user-select:none;
+    transition:transform .1s ease, background .15s ease, border-color .15s ease, color .15s ease;
   }
-  .scell .ch{ position:relative; z-index:2; pointer-events:none; }
-  .scell.sel{ border-color:var(--pbs-blue); box-shadow:0 0 0 3px rgba(38,56,196,.30); transform:translateY(-2px); }
-  .scell.correct{ background:var(--pbs-blue); border-color:var(--pbs-blue); color:#fff; cursor:default; box-shadow:0 2px 6px rgba(38,56,196,.4); }
+  .scell.sel{ border-color:var(--pbs-blue); box-shadow:0 0 0 3px rgba(38,56,196,.18); transform:translateY(-2px); }
+  .scell.correct{ background:var(--pbs-blue); border-color:var(--pbs-blue); color:#fff; cursor:default; }
   .scell.pop{ animation:lockPop .25s ease; }
-  .scell.dragging{ opacity:.32; cursor:grabbing; }
-  .scell.drop-hover{ outline:3px solid var(--pbs-blue); outline-offset:2px; transform:translateY(-2px); }
-  /* floating letter while dragging */
-  .scell-clone{
-    position:fixed; z-index:140; pointer-events:none;
-    transform:translate(-50%,-50%) rotate(-3deg);
+  /* scrambled letters live on yellow */
+  .scell.scrambled{ background:var(--yellow); border-color:#E0B500; color:var(--navy); }
+  .scell.dragging{ opacity:.35; }
+  .scell.drop-hover{ border-color:var(--pbs-blue); box-shadow:0 0 0 3px rgba(38,56,196,.3); }
+  .scramble-clone{
+    background:var(--yellow); border:2px solid #E0B500; border-radius:6px;
     display:flex; align-items:center; justify-content:center;
-    font-family:var(--serif); font-size:1.2rem; font-weight:600; color:var(--navy); text-transform:uppercase;
-    background:#fff; border:2px solid var(--pbs-blue); border-radius:7px;
-    box-shadow:0 10px 24px rgba(10,20,90,.30);
+    font-family:var(--serif); font-weight:600; color:var(--navy); text-transform:uppercase;
+    box-shadow:0 10px 24px rgba(10,20,90,.28);
   }
+  .scrow{ position:relative; }
 
-  /* ---------- letter "juice" (placed-letter VFX) ---------- */
-  .wcell{ position:relative; }
-  .wcell .ch{ position:relative; z-index:2; }
-  .cell-juice{ position:absolute; left:50%; top:50%; width:0; height:0; z-index:1; pointer-events:none; }
-  .cell-juice .glow{
-    position:absolute; left:0; top:0; width:46px; height:46px; margin:-23px 0 0 -23px; border-radius:50%;
-    background:radial-gradient(closest-side, rgba(255,207,0,.75), rgba(255,207,0,0) 72%);
-    animation:juiceGlow .55s ease-out forwards;
+  /* a scrambled word shows on a yellow box anywhere it appears */
+  .tok.scrambled-word, .chip.scrambled-word{
+    background:var(--yellow) !important; border-color:#E0B500 !important; color:var(--navy) !important;
+    letter-spacing:.06em;
   }
-  .cell-juice .ring{
-    position:absolute; left:0; top:0; width:18px; height:18px; margin:-9px 0 0 -9px; border-radius:50%;
-    border:2px solid var(--yellow); opacity:.9;
-    animation:juiceRing .55s ease-out forwards;
-  }
-  .cell-juice .spark{
-    position:absolute; left:0; top:0; width:6px; height:6px; margin:-3px 0 0 -3px; border-radius:50%;
-    background:var(--jc, var(--yellow));
-    animation:juiceSpark .6s ease-out forwards;
-  }
-  @keyframes juiceGlow{ 0%{opacity:0;transform:scale(.4)} 28%{opacity:1} 100%{opacity:0;transform:scale(1.6)} }
-  @keyframes juiceRing{ 0%{transform:scale(.4);opacity:.9} 100%{transform:scale(2.7);opacity:0} }
-  @keyframes juiceSpark{
-    0%{ transform:translate(0,0) scale(1); opacity:1; }
-    100%{ transform:translate(var(--tx), var(--ty)) scale(.2); opacity:0; }
-  }
-  @media (prefers-reduced-motion:reduce){ .cell-juice{ display:none; } }
-
-  /* scrambled author name shown in the attribution — yellow box, scrambled letters */
-  /* yellow box wraps AROUND each scrambled author-name token in the byline */
   .scram-name{
-    display:inline-block; font-style:normal; font-family:var(--serif); font-weight:600;
-    background:var(--yellow); color:var(--navy); text-transform:uppercase; letter-spacing:.05em;
-    padding:2px 9px; border-radius:7px; box-shadow:0 0 0 1.5px #E0B400 inset, 0 1px 4px rgba(255,207,0,.45); vertical-align:1px;
+    display:inline-block; background:var(--yellow); border:1px solid #E0B500; border-radius:4px;
+    padding:0 7px; color:var(--navy); letter-spacing:.05em;
   }
-  /* the quote-word that will be unscrambled: shown scrambled in a yellow box,
-     in both the word bank and the line, until it's unscrambled (hard mode) */
-  .chip.scram-tile, .tok.scram-tile{
-    background:var(--yellow) !important; color:var(--navy) !important;
-    border:1px solid #E0B400 !important;
-    box-shadow:0 0 0 2px #E0B400 inset, 0 1px 3px rgba(120,80,0,.22) !important;
-    text-transform:uppercase; letter-spacing:.06em; font-weight:600;
+  /* highlight whichever scrambled word/name you're currently solving */
+  .solving-hl{ animation:solvePulse 1.5s ease-in-out infinite; }
+  @keyframes solvePulse{
+    0%,100%{ box-shadow:0 0 0 2px rgba(38,56,196,.45); }
+    50%{ box-shadow:0 0 0 6px rgba(38,56,196,.12); }
   }
-  .chip.scram-tile:hover{ transform:translateY(-2px); }
 
-  /* the mystery word you're currently solving — yellow highlight in the line */
-  .tok.active-secret{
-    background:var(--yellow) !important;
-    border:1px solid #E0B400 !important;
-    color:var(--navy) !important;
-    box-shadow:0 0 0 2px #E0B400 inset, 0 0 14px rgba(255,207,0,.55) !important;
-    animation:secretPulse 1.5s ease-in-out infinite;
+  /* juice behind a correctly-placed letter */
+  .spark{ position:absolute; width:0; height:0; pointer-events:none; z-index:8; }
+  .spark-ring{
+    position:absolute; left:0; top:0; width:8px; height:8px; border:2px solid var(--yellow);
+    border-radius:50%; transform:translate(-50%,-50%); animation:sparkRing .5s ease-out forwards;
   }
-  @keyframes secretPulse{
-    0%,100%{ box-shadow:0 0 0 2px #E0B400 inset, 0 0 9px rgba(255,207,0,.40); }
-    50%    { box-shadow:0 0 0 2px #E0B400 inset, 0 0 20px rgba(255,207,0,.75); }
+  .spark-dot{
+    position:absolute; left:0; top:0; width:5px; height:5px; background:var(--yellow);
+    border-radius:50%; transform:translate(-50%,-50%); animation:sparkFly .55s ease-out forwards;
   }
-  @media (prefers-reduced-motion:reduce){ .tok.active-secret{ animation:none; } }
+  @keyframes sparkRing{ 0%{ opacity:.95; width:8px; height:8px; } 100%{ opacity:0; width:44px; height:44px; } }
+  @keyframes sparkFly{
+    0%{ opacity:1; transform:translate(-50%,-50%) scale(1); }
+    100%{ opacity:0; transform:translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(.35); }
+  }
+  @media (prefers-reduced-motion:reduce){ .spark-ring,.spark-dot{ animation:none; display:none; } .solving-hl{ animation:none; box-shadow:0 0 0 2px rgba(38,56,196,.45); } }
+
+  /* wrong mystery-word guess shakes "no" before filing below */
+  .wrow.shakeno{ animation:rowShake .45s ease; }
+  @keyframes rowShake{
+    0%,100%{ transform:translateX(0); }
+    15%{ transform:translateX(-10px); } 30%{ transform:translateX(9px); }
+    45%{ transform:translateX(-7px); } 60%{ transform:translateX(5px); } 75%{ transform:translateX(-3px); }
+  }
+  @media (prefers-reduced-motion:reduce){ .wrow.shakeno{ animation:none; } }
 </style>
 </head>
 <body>
@@ -733,7 +706,7 @@
     </button>
     <button class="mode-btn hard" id="modeHard" type="button">
       <span class="mode-title">Hard</span>
-      <span class="mode-desc">Unscramble the author's name, then a word — and crack two mystery words last.</span>
+      <span class="mode-desc">A scrambled word, the mystery word, then unscramble the author's name.</span>
     </button>
     <p class="menu-ver" id="menuVer"></p>
   </div>
@@ -1113,107 +1086,7 @@ const QUOTES = [
   {id:"q396", text:"Learn from yesterday, live for today, look to tomorrow.", author:"Charles Schulz", src:"attributed"},
   {id:"q397", text:"If you do not see the book you want on the shelf, then write it.", author:"Beverly Cleary", src:"attributed"},
   {id:"q398", text:"We have a hunger of the mind which asks for knowledge of all around us.", author:"Maria Mitchell", src:"attributed"},
-  {id:"q399", text:"Sometimes being a friend means mastering the art of timing.", author:"Octavia Butler", src:"attributed"},
-  {id:"q400", text:"Nothing is too wonderful to be true, if it be consistent with the laws of nature.", author:"Michael Faraday", src:"attributed"},
-  {id:"q401", text:"Genius is one percent inspiration and ninety-nine percent perspiration.", author:"Thomas Edison", src:"attributed"},
-  {id:"q402", text:"The present is theirs; the future, for which I really worked, is mine.", author:"Nikola Tesla", src:"attributed"},
-  {id:"q403", text:"When one door closes another opens, but we often look so long upon the closed door that we do not see the one that has opened.", author:"Alexander Graham Bell", src:"attributed"},
-  {id:"q404", text:"Where there is no vision, there is no hope.", author:"George Washington Carver", src:"attributed"},
-  {id:"q405", text:"That brain of mine is something more than merely mortal, as time will show.", author:"Ada Lovelace", src:"attributed"},
-  {id:"q406", text:"Like what you do, and then you will do your best.", author:"Katherine Johnson", src:"attributed"},
-  {id:"q407", text:"All adventures, especially into new territory, are scary.", author:"Sally Ride", src:"attributed"},
-  {id:"q408", text:"Don't let anyone rob you of your imagination, your creativity, or your curiosity.", author:"Mae Jemison", src:"attributed"},
-  {id:"q409", text:"Science and everyday life cannot and should not be separated.", author:"Rosalind Franklin", src:"attributed"},
-  {id:"q410", text:"In nature nothing exists alone.", author:"Rachel Carson", src:"Silent Spring"},
-  {id:"q411", text:"The beauty of a living thing is not the atoms that go into it, but the way those atoms are put together.", author:"Carl Sagan", src:"Cosmos"},
-  {id:"q412", text:"The universe is under no obligation to make sense to you.", author:"Neil deGrasse Tyson", src:"attributed"},
-  {id:"q413", text:"However difficult life may seem, there is always something you can do and succeed at.", author:"Stephen Hawking", src:"attributed"},
-  {id:"q414", text:"The true sign of intelligence is not knowledge but imagination.", author:"Albert Einstein", src:"attributed"},
-  {id:"q415", text:"Be less curious about people and more curious about ideas.", author:"Marie Curie", src:"attributed"},
-  {id:"q416", text:"Science knows no country, because knowledge belongs to humanity.", author:"Louis Pasteur", src:"attributed"},
-  {id:"q417", text:"Nature uses as little as possible of anything.", author:"Johannes Kepler", src:"attributed"},
-  {id:"q418", text:"Reserve your right to think, for even to think wrongly is better than not to think at all.", author:"Hypatia", src:"attributed"},
-  {id:"q419", text:"Give me a place to stand, and I shall move the earth.", author:"Archimedes", src:"attributed"},
-  {id:"q420", text:"Keep close to Nature's heart, and break clear away once in a while.", author:"John Muir", src:"attributed"},
-  {id:"q421", text:"Everyone needs to understand the natural world in order to look after it.", author:"David Attenborough", src:"attributed"},
-  {id:"q422", text:"No water, no life. No blue, no green.", author:"Sylvia Earle", src:"attributed"},
-  {id:"q423", text:"The happiness of the bee and the dolphin is to exist. For man it is to know that and to wonder at it.", author:"Jacques Cousteau", src:"attributed"},
-  {id:"q424", text:"We can be ethical only in relation to something we can see, feel, understand, or love.", author:"Aldo Leopold", src:"A Sand County Almanac"},
-  {id:"q425", text:"Live in each season as it passes; breathe the air, drink the drink, taste the fruit.", author:"Henry David Thoreau", src:"attributed"},
-  {id:"q426", text:"Optimism is true moral courage.", author:"Ernest Shackleton", src:"attributed"},
-  {id:"q427", text:"Adventure is just bad planning.", author:"Roald Amundsen", src:"attributed"},
-  {id:"q428", text:"If we can teach people about wildlife, they will be touched. Share my wildlife with me.", author:"Steve Irwin", src:"attributed"},
-  {id:"q429", text:"Study nature, love nature, stay close to nature. It will never fail you.", author:"Frank Lloyd Wright", src:"attributed"},
-  {id:"q430", text:"The two most important days in your life are the day you are born and the day you find out why.", author:"Mark Twain", src:"attributed"},
-  {id:"q431", text:"Dwell in possibility.", author:"Emily Dickinson", src:"attributed"},
-  {id:"q432", text:"Once you make a decision, the universe conspires to make it happen.", author:"Ralph Waldo Emerson", src:"attributed"},
-  {id:"q433", text:"The person who has not pleasure in a good novel must be intolerably stupid.", author:"Jane Austen", src:"Northanger Abbey"},
-  {id:"q434", text:"Have a heart that never hardens, a temper that never tires, a touch that never hurts.", author:"Charles Dickens", src:"Our Mutual Friend"},
-  {id:"q435", text:"You can nearly always enjoy things if you make up your mind firmly that you will.", author:"L.M. Montgomery", src:"Anne of Green Gables"},
-  {id:"q436", text:"I arise in the morning torn between a desire to improve the world and a desire to enjoy the world.", author:"E.B. White", src:"attributed"},
-  {id:"q437", text:"Thank goodness I was never sent to school; it would have rubbed off some of the originality.", author:"Beatrix Potter", src:"attributed"},
-  {id:"q438", text:"You are never too old to set another goal or to dream a new dream.", author:"C.S. Lewis", src:"attributed"},
-  {id:"q439", text:"Little by little, one travels far.", author:"J.R.R. Tolkien", src:"attributed"},
-  {id:"q440", text:"Somewhere inside all of us is the power to change the world.", author:"Roald Dahl", src:"Matilda"},
-  {id:"q441", text:"Maybe you have to know the darkness before you can appreciate the light.", author:"Madeleine L'Engle", src:"attributed"},
-  {id:"q442", text:"Sometimes I've believed as many as six impossible things before breakfast.", author:"Lewis Carroll", src:"Through the Looking-Glass"},
-  {id:"q443", text:"There is nothing half so much worth doing as simply messing about in boats.", author:"Kenneth Grahame", src:"The Wind in the Willows"},
-  {id:"q444", text:"Where words fail, music speaks.", author:"Hans Christian Andersen", src:"attributed"},
-  {id:"q445", text:"Slow but steady wins the race.", author:"Aesop", src:"Aesop's Fables"},
-  {id:"q446", text:"United we stand, divided we fall.", author:"Aesop", src:"Aesop's Fables"},
-  {id:"q447", text:"If you want to fly, you have to give up the things that weigh you down.", author:"Toni Morrison", src:"attributed"},
-  {id:"q448", text:"You must stay drunk on writing so reality cannot destroy you.", author:"Ray Bradbury", src:"Zen in the Art of Writing"},
-  {id:"q449", text:"It is never too late to be what you might have been.", author:"George Eliot", src:"attributed"},
-  {id:"q450", text:"A goal without a plan is just a wish.", author:"Antoine de Saint-Exupéry", src:"attributed"},
-  {id:"q451", text:"Perfection is achieved not when there is nothing more to add, but when there is nothing left to take away.", author:"Antoine de Saint-Exupéry", src:"attributed"},
-  {id:"q452", text:"When we do the best we can, we never know what miracle is wrought in our life.", author:"Helen Keller", src:"attributed"},
-  {id:"q453", text:"What would life be if we had no courage to attempt anything?", author:"Vincent van Gogh", src:"letters"},
-  {id:"q454", text:"I must have flowers, always, and always.", author:"Claude Monet", src:"attributed"},
-  {id:"q455", text:"There are always flowers for those who want to see them.", author:"Henri Matisse", src:"attributed"},
-  {id:"q456", text:"The meaning of life is to find your gift. The purpose of life is to give it away.", author:"Pablo Picasso", src:"attributed"},
-  {id:"q457", text:"Art is not what you see, but what you make others see.", author:"Edgar Degas", src:"attributed"},
-  {id:"q458", text:"The greater danger lies not in setting our aim too high and falling short, but in setting our aim too low and reaching it.", author:"Michelangelo", src:"attributed"},
-  {id:"q459", text:"Simplicity is the ultimate sophistication.", author:"Leonardo da Vinci", src:"attributed"},
-  {id:"q460", text:"The music is not in the notes, but in the silence between.", author:"Wolfgang Amadeus Mozart", src:"attributed"},
-  {id:"q461", text:"Music is a higher revelation than all wisdom and philosophy.", author:"Ludwig van Beethoven", src:"attributed"},
-  {id:"q462", text:"I was obliged to be industrious. Whoever is equally industrious will succeed equally well.", author:"Johann Sebastian Bach", src:"attributed"},
-  {id:"q463", text:"I merely took the energy it takes to pout and wrote some blues.", author:"Duke Ellington", src:"attributed"},
-  {id:"q464", text:"It isn't where you came from, it's where you're going that counts.", author:"Ella Fitzgerald", src:"attributed"},
-  {id:"q465", text:"Free the child's potential, and you will transform the world.", author:"Maria Montessori", src:"attributed"},
-  {id:"q466", text:"Be ashamed to die until you have won some victory for humanity.", author:"Horace Mann", src:"attributed"},
-  {id:"q467", text:"Education is not preparation for life; education is life itself.", author:"John Dewey", src:"attributed"},
-  {id:"q468", text:"The goal of education is to create people capable of doing new things.", author:"Jean Piaget", src:"attributed"},
-  {id:"q469", text:"By three methods we may learn wisdom: by reflection, by imitation, and by experience.", author:"Confucius", src:"attributed"},
-  {id:"q470", text:"Knowing others is wisdom; knowing yourself is enlightenment.", author:"Lao Tzu", src:"Tao Te Ching"},
-  {id:"q471", text:"Education is the kindling of a flame, not the filling of a vessel.", author:"Socrates", src:"attributed"},
-  {id:"q472", text:"The beginning is the most important part of the work.", author:"Plato", src:"The Republic"},
-  {id:"q473", text:"We are what we repeatedly do. Excellence, then, is not an act, but a habit.", author:"Will Durant", src:"The Story of Philosophy"},
-  {id:"q474", text:"Knowing yourself is the beginning of all wisdom.", author:"Aristotle", src:"attributed"},
-  {id:"q475", text:"Dwell on the beauty of life. Watch the stars, and see yourself running with them.", author:"Marcus Aurelius", src:"Meditations"},
-  {id:"q476", text:"Luck is what happens when preparation meets opportunity.", author:"Seneca", src:"attributed"},
-  {id:"q477", text:"We have two ears and one mouth, so we should listen more than we say.", author:"Epictetus", src:"attributed"},
-  {id:"q478", text:"Raise your words, not your voice. It is rain that grows flowers, not thunder.", author:"Rumi", src:"attributed"},
-  {id:"q479", text:"Work is love made visible.", author:"Khalil Gibran", src:"The Prophet"},
-  {id:"q480", text:"Let me not pray to be sheltered from dangers, but to be fearless in facing them.", author:"Rabindranath Tagore", src:"attributed"},
-  {id:"q481", text:"Think of all the beauty still left around you and be happy.", author:"Anne Frank", src:"The Diary of a Young Girl"},
-  {id:"q482", text:"No one can make you feel inferior without your consent.", author:"Eleanor Roosevelt", src:"attributed"},
-  {id:"q483", text:"Few things help an individual more than to place responsibility upon him and let him know that you trust him.", author:"Booker T. Washington", src:"Up From Slavery"},
-  {id:"q484", text:"Whatever you are, be a good one.", author:"Abraham Lincoln", src:"attributed"},
-  {id:"q485", text:"In the end, it is not the years in your life that count, it is the life in your years.", author:"Abraham Lincoln", src:"attributed"},
-  {id:"q486", text:"Do what you can, with what you have, where you are.", author:"Theodore Roosevelt", src:"attributed"},
-  {id:"q487", text:"An investment in knowledge pays the best interest.", author:"Benjamin Franklin", src:"attributed"},
-  {id:"q488", text:"How very little can be done under the spirit of fear.", author:"Florence Nightingale", src:"attributed"},
-  {id:"q489", text:"I have an almost complete disregard of precedent, and a faith in the possibility of something better.", author:"Clara Barton", src:"attributed"},
-  {id:"q490", text:"The good we secure for ourselves is precarious until it is secured for all of us.", author:"Jane Addams", src:"attributed"},
-  {id:"q491", text:"Failure is impossible.", author:"Susan B. Anthony", src:"attributed"},
-  {id:"q492", text:"Truth is powerful and it prevails.", author:"Sojourner Truth", src:"attributed"},
-  {id:"q493", text:"Nothing will work unless you do.", author:"Maya Angelou", src:"attributed"},
-  {id:"q494", text:"Find something you're passionate about and keep tremendously interested in it.", author:"Julia Child", src:"attributed"},
-  {id:"q495", text:"Believe that you can do it, because you can do it.", author:"Bob Ross", src:"attributed"},
-  {id:"q496", text:"The greatest gift you can give is your honest self.", author:"Fred Rogers", src:"attributed"},
-  {id:"q497", text:"I'm a big believer that your imagination is something to be exercised daily.", author:"LeVar Burton", src:"attributed"},
-  {id:"q498", text:"The camera teaches you how to see without a camera.", author:"Dorothea Lange", src:"attributed"},
-  {id:"q499", text:"When you really feel a connection through music, it is like a handshake between souls.", author:"Yo-Yo Ma", src:"attributed"}
+  {id:"q399", text:"Sometimes being a friend means mastering the art of timing.", author:"Octavia Butler", src:"attributed"}
 ];
 
 /* -------- Seeded PRNG (mulberry32) + string hash -------- */
@@ -1277,62 +1150,51 @@ const FUNCTION_WORDS = new Set([
   "from","into","onto","with"
 ]);
 
-function buildPuzzle(seed, opts){
-  const secretCount = (opts && opts.secretCount) || 1;
+function buildPuzzle(seed){
   const rng = mulberry32(xfnv1a("quotable:"+seed));
   const idx = Math.floor(rng()*QUOTES.length);
   const q = QUOTES[idx];
   const words = tokenize(q.text);
   const lastIdx = words.length - 1;
 
-  // mystery words: "load-bearing" content words — key nouns/verbs/adjectives/
-  // adverbs that carry the quote's meaning, not generic function words. A clean
-  // 4–8 letter word that isn't the first or last word and appears only once.
-  // We may pick up to `secretCount` of them (hard mode wants two). Longer words
-  // are preferred; for the second pick we prefer one the SAME length as the first
-  // so both masked blanks look identical and are fully interchangeable.
+  // secret word FIRST: a "load-bearing" content word — a key noun/verb/adjective/
+  // adverb that carries the quote's meaning, not a generic function word (about,
+  // would, there, these…). It's a clean 5–8 letter word that isn't the first or
+  // last word and appears only once. Chosen before anchors so any qualifying quote
+  // always yields a mystery word; among candidates we prefer the most substantive
+  // (longest) one. -1 only if nothing qualifies.
   const norm = w => w.replace(/[^A-Za-z]/g, "").toLowerCase();
   const coreCount = {};
   words.forEach(w=>{ const c = norm(w); if(c) coreCount[c] = (coreCount[c]||0) + 1; });
   const cands = words
     .map((w,i)=> ({w,i,core:norm(w)}))
     .filter(o=> o.i !== 0 && o.i !== lastIdx
-               && o.core.length >= 4 && o.core.length <= 8
+               && o.core.length >= 5 && o.core.length <= 8
                && /^[A-Za-z]+[.,;:!?]?$/.test(o.w)   // letters + at most one trailing mark
                && coreCount[o.core] === 1
                && !FUNCTION_WORDS.has(o.core));      // skip generic/filler words
-  // longest-first, with a deterministic shuffle within equal lengths
-  cands.sort((a,b)=> b.core.length - a.core.length || (rng()-0.5));
-  const secretIndices = [];
+  let secretIndex = -1;
   if(cands.length){
-    const first = cands[0]; secretIndices.push(first.i);
-    for(let n=1; n<secretCount; n++){
-      const remaining = cands.filter(o=> !secretIndices.includes(o.i));
-      if(!remaining.length) break;
-      const prevLen = norm(words[secretIndices[secretIndices.length-1]]).length;
-      const sameLen = remaining.find(o=> o.core.length === prevLen);
-      secretIndices.push((sameLen || remaining[0]).i);
-    }
+    const maxLen = Math.max(...cands.map(o=> o.core.length));
+    const top = cands.filter(o=> o.core.length === maxLen);   // most substantive
+    secretIndex = top[Math.floor(rng()*top.length)].i;
   }
-  secretIndices.sort((a,b)=> a-b);
-  const secretIndex = secretIndices.length ? secretIndices[0] : -1;
-  const secretSet = new Set(secretIndices);
 
-  // pre-placed anchors: index 0 is always given; last word and the mystery words
+  // pre-placed anchors: index 0 is always given; last word and the secret word
   // are never given. Longer quotes get more footholds.
   const anchors = new Set([0]);
   const interiorTarget = Math.floor(words.length / 8);  // 0 short · 1 medium · 2–3 long
   let guard = 0;
   while(anchors.size - 1 < interiorTarget && words.length > 2 && guard++ < 80){
     const cand = 1 + Math.floor(rng()*(words.length-2));  // interior positions only
-    if(!secretSet.has(cand)) anchors.add(cand);
+    if(cand !== secretIndex) anchors.add(cand);
   }
 
-  // bank = the non-anchor words (incl. the mystery words), shuffled deterministically
+  // bank = the non-anchor words (incl. the secret), shuffled deterministically
   const bankIdx = words.map((_,i)=>i).filter(i=>!anchors.has(i));
   const bankOrder = seededShuffle(bankIdx, rng);
 
-  return { quote:q, words, anchors, bankOrder, index:idx, secretIndex, secretIndices };
+  return { quote:q, words, anchors, bankOrder, index:idx, secretIndex };
 }
 
 /* ---- Curated PBS.org links, keyed by the person quoted ----
@@ -1419,44 +1281,17 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "3b";
+  const VERSION = "3.0";
   let mode = "normal";   // "normal" | "hard"
 
   let state = null, drag = null, justDragged = false;
   const DRAG_THRESHOLD = 6;
   const rkey = () => "r" + Math.random().toString(36).slice(2);
 
-  /* -------- completed-puzzle tracking (avoid repeats) -------- */
-  const COMPLETED_KEY = "verbatim_completed";
-  function loadCompleted(){
-    try{ return new Set(JSON.parse(localStorage.getItem(COMPLETED_KEY) || "[]")); }
-    catch(e){ return new Set(); }
-  }
-  function markCompleted(quoteId){
-    if(!quoteId) return;
-    try{
-      const set = loadCompleted(); set.add(quoteId);
-      localStorage.setItem(COMPLETED_KEY, JSON.stringify([...set]));
-    }catch(e){}
-  }
-  function quoteIdForSeed(seed){
-    try{ return buildPuzzle(seed).quote.id; }catch(e){ return null; }
-  }
-  // a fresh random seed whose quote hasn't been completed yet (best effort)
-  function pickUnplayedSeed(){
-    const done = loadCompleted();
-    if(done.size >= QUOTES.length){ toast && toast("You've completed every quote — replaying past ones."); }
-    for(let tries=0; tries<400; tries++){
-      const seed = Math.floor(Math.random()*100000);
-      if(!done.has(quoteIdForSeed(seed))) return seed;
-    }
-    return Math.floor(Math.random()*100000);   // all done (or unlucky) → allow a repeat
-  }
-
   function getInitialSeed(){
     const us = new URLSearchParams(location.search).get("seed");
     if(us !== null && us.trim() !== "" && !isNaN(Number(us))) return Number(us);
-    return pickUnplayedSeed();
+    return Math.floor(Math.random()*100000);
   }
   function puzzleUrl(seed){
     const base = (location.origin && location.origin !== "null")
@@ -1467,7 +1302,7 @@ if(typeof module !== "undefined" && module.exports){
 
   /* -------- (re)start a game -------- */
   function initGame(seed){
-    const pz = buildPuzzle(seed, { secretCount: mode==="hard" ? 2 : 1 });
+    const pz = buildPuzzle(seed);
     const anchors = pz.anchors;
 
     // hold back the final word's punctuation
@@ -1483,41 +1318,33 @@ if(typeof module !== "undefined" && module.exports){
     const bank = pz.bankOrder.map((wi,n)=> ({key:"b"+n, word:words[wi], wi}));
     const minMoves = slots.filter(s=>!s.fixed).length;
 
-    // mystery words (1 in normal, up to 2 in hard) — each masked, and any masked
-    // chip may be dropped into any mystery slot (they're interchangeable).
-    const secretIndices = pz.secretIndices.slice();
-    const secretByIndex = {};
-    const secretKeys = new Set();
-    secretIndices.forEach(si=>{
-      const raw = words[si];
-      const wordU = raw.replace(/[^A-Za-z]/g, "").toUpperCase();
-      const punct = (raw.match(/[.,;:!?]+$/) || [""])[0];
-      const item = bank.find(b=> b.wi === si);
-      if(item) secretKeys.add(item.key);
-      secretByIndex[si] = { index:si, word:wordU, len:wordU.length, punct, solved:false, guesses:0, key:item?item.key:null };
-    });
-
-    const scrData = (mode==="hard")
-      ? buildScrambles(seed, words, secretIndices, anchors, pz.quote.author)
-      : { wordList:[], nameList:[], authorTokens:(pz.quote.author||"").split(/\s+/) };
+    // secret word
+    const secretIndex = pz.secretIndex;
+    let secretWord = null, secretLen = 0, secretKey = null, secretPunct = "";
+    if(secretIndex >= 0){
+      secretWord = words[secretIndex].replace(/[^A-Za-z]/g, "").toUpperCase();  // letters only
+      secretLen = secretWord.length;
+      secretPunct = (words[secretIndex].match(/[.,;:!?]+$/) || [""])[0];        // keep a trailing comma etc.
+      const item = bank.find(b=> b.wi === secretIndex);
+      secretKey = item ? item.key : null;
+    }
 
     state = {
       seed, quote:pz.quote, words, lastIdx, tailPunct, anchors, slots, bank, minMoves,
       moves:0, solved:false, startTime:Date.now(), elapsedMs:0, score:0, placeSeq:0,
-      phase:"assemble",
-      secretIndices, secretByIndex, secretKeys,
-      activeSecret:-1, guesses:[], current:"", keyStatus:{},
-      mode,
-      wordScrambles: scrData.wordList,
-      nameScrambles: scrData.nameList,
-      authorTokens: scrData.authorTokens,
-      scrambleWordIndex: (scrData.wordList[0] && typeof scrData.wordList[0].wordIndex === "number") ? scrData.wordList[0].wordIndex : -1,
-      activeScrambles: [], scrambleKind:null,
-      scrambleIdx:0, scramSel:null
+      phase:"assemble", secretIndex, secretWord, secretLen, secretKey, secretPunct,
+      guesses:[], current:"", keyStatus:{}, secretGuesses:0, secretSolved:false,
+      mode, hard: (mode==="hard") ? buildHard(seed, words, secretIndex, anchors, pz.quote.author) : null,
+      steps:[], stepIdx:-1, curScramble:null, scramSel:null
     };
+    // step order after assembly: scrambled word -> mystery word -> first name -> last name
+    if(state.hard && state.hard.word) state.steps.push("word");
+    if(secretIndex >= 0) state.steps.push("wordle");
+    if(state.hard && state.hard.first) state.steps.push("first");
+    if(state.hard && state.hard.last) state.steps.push("last");
 
     $("puzzleNum").textContent = "№ " + seed;
-    renderAttribution();   // hard mode shows the author's name scrambled (in a yellow box) until solved
+    // byline is rendered by renderAttribution() (scrambled in hard mode)
     const _src = (pz.quote.src || "").trim();
     $("attrSrc").textContent = (_src && !/^(attributed|house line)$/i.test(_src)) ? _src : "";
     promptEl.textContent = PROMPT_DEFAULT;
@@ -1541,117 +1368,69 @@ if(typeof module !== "undefined" && module.exports){
   }
 
   function firstEmptySlot(){ return state.slots.findIndex(s=>!s.fixed && !s.locked && s.word===null); }
-  function isSecretKey(k){ return state.secretKeys && state.secretKeys.has(k) && state.phase!=="done"; }
-  function isSecretSlot(i){
-    if(!state.secretIndices || state.phase==="done") return false;
-    const e = state.secretByIndex[i];
-    return !!e && !e.solved;
-  }
-  function maskFromEntry(e){ return e ? ("_".repeat(e.len) + (e.punct || "")) : ""; }
-  function maskForSlot(i){ return maskFromEntry(state.secretByIndex[i]); }
-  function maskForChipWi(wi){ return maskFromEntry(state.secretByIndex[wi]); }
-  // What (if anything) a token sitting in slot i should be masked as. A mystery
-  // chip stays masked WHEREVER it sits — including a wrong slot — so dropping it
-  // somewhere incorrect never reveals the word. Returns the mask string, or null.
-  function slotMaskText(slot, i){
-    if(state.phase === "done") return null;
-    if(slot.locked && state.secretByIndex[i]){           // locked into a mystery slot (bound to that word)
-      return state.secretByIndex[i].solved ? null : maskForSlot(i);
-    }
-    if(slot._fromKey && state.secretKeys.has(slot._fromKey)){   // a mystery chip placed loose anywhere
-      const e = state.secretByIndex[slot._wi];
-      return (e && e.solved) ? null : maskForChipWi(slot._wi);
-    }
-    return null;
-  }
-  // In hard mode the quote-word that gets unscrambled shows SCRAMBLED (yellow box)
-  // everywhere it appears — bank and line — until it's actually unscrambled.
-  function scrambleDisplayFor(wi){
-    if(state.mode !== "hard") return null;
-    if(typeof wi !== "number" || wi < 0 || wi !== state.scrambleWordIndex) return null;
-    const sc = state.wordScrambles[0];
-    if(!sc || sc.solved) return null;
-    return sc.order.map(id=> sc.tiles[id].ch).join("");
-  }
+  function isSecretKey(k){ return state.secretIndex>=0 && k===state.secretKey && !state.secretSolved && state.phase!=="done"; }
+  function maskStr(){ return "_".repeat(state.secretLen) + (state.secretPunct || ""); }
 
-  /* -------- attribution (author name) --------
-     In hard mode the first/last name show SCRAMBLED (each in a yellow box) for the
-     whole game, and only resolve once the player unscrambles them in the final phase. */
-  function reduceMotion(){ return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches; }
+  /* -------- scrambled-word display helpers (hard mode) -------- */
+  function applyCaseLike(scr, orig){
+    let out = "";
+    for(let i=0;i<scr.length;i++){
+      const o = orig[i] || "a";
+      out += (o === o.toUpperCase() && o !== o.toLowerCase()) ? scr[i].toUpperCase() : scr[i].toLowerCase();
+    }
+    return out;
+  }
+  function scramDisplay(sc, origToken){
+    const core = origToken.replace(/[^A-Za-z]/g,"");
+    const punct = (origToken.match(/[.,;:!?]+$/) || [""])[0];
+    return applyCaseLike(scrambledStr(sc), core) + punct;
+  }
+  function escapeHtml(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;"); }
+  function scrWordActive(){ return state.hard && state.hard.word && !state.hard.word.solved ? state.hard.word : null; }
   function renderAttribution(){
-    const by = $("attrBy");
-    const author = state.quote.author || "";
-    const names = state.nameScrambles || [];
-    if(state.mode !== "hard" || !names.length){
-      by.textContent = "— " + author;
-      return;
-    }
-    const byTok = {}; names.forEach(s=> byTok[s.tokenIndex] = s);
-    by.innerHTML = "";
-    by.appendChild(document.createTextNode("— "));
-    state.authorTokens.forEach((tok, idx)=>{
-      if(idx>0) by.appendChild(document.createTextNode(" "));
-      const sc = byTok[idx];
+    const s = state, byEl = $("attrBy");
+    if(!s.hard || (!s.hard.first && !s.hard.last)){ byEl.textContent = "— " + s.quote.author; return; }
+    let html = "&mdash; ";
+    s.hard.authorTokens.forEach((t, idx)=>{
+      let piece = escapeHtml(t);
+      const sc = (s.hard.first && idx===s.hard.firstTokIdx) ? s.hard.first
+               : (s.hard.last  && idx===s.hard.lastTokIdx)  ? s.hard.last : null;
       if(sc && !sc.solved){
-        const span = document.createElement("span");
-        span.className = "scram-name";
-        span.textContent = sc.order.map(id=> sc.tiles[id].ch).join("");
-        by.appendChild(span);
-      } else {
-        by.appendChild(document.createTextNode(tok));
+        const solving = (s.phase==="scramble" && s.curScramble===sc) ? " solving-hl" : "";
+        piece = '<span class="scram-name'+solving+'">'+escapeHtml(scramDisplay(sc, t))+'</span>';
       }
+      html += piece + (idx < s.hard.authorTokens.length-1 ? " " : "");
     });
+    byEl.innerHTML = html;
   }
-
-  /* -------- letter "juice": a quick burst of VFX behind a placed letter -------- */
-  function spawnCellJuice(cell, opts){
-    if(!cell || reduceMotion()) return;
-    opts = opts || {};
-    const j = document.createElement("span"); j.className = "cell-juice";
-    const glow = document.createElement("span"); glow.className = "glow"; j.appendChild(glow);
-    const ring = document.createElement("span"); ring.className = "ring"; j.appendChild(ring);
-    const N = opts.n || 7;
-    for(let i=0;i<N;i++){
-      const s = document.createElement("span"); s.className = "spark";
-      const ang = (Math.PI*2*i/N) + (Math.random()*0.6 - 0.3);
-      const dist = 15 + Math.random()*17;
-      s.style.setProperty("--tx", (Math.cos(ang)*dist).toFixed(1) + "px");
-      s.style.setProperty("--ty", (Math.sin(ang)*dist).toFixed(1) + "px");
-      if(opts.color) s.style.setProperty("--jc", opts.color);
-      s.style.animationDelay = (Math.random()*40).toFixed(0) + "ms";
-      j.appendChild(s);
-    }
-    cell.appendChild(j);
-    setTimeout(()=> j.remove(), 720);
-  }
-  function popCell(cell){ if(!cell) return; cell.classList.remove("pop"); void cell.offsetWidth; cell.classList.add("pop"); }
 
   /* -------- render the line + bank -------- */
   function render(){
     const s = state;
     if(typeof undoBtn !== "undefined" && undoBtn){ undoBtn.disabled = (s.phase !== "assemble") || undoableSlot() < 0; }
+    const scrW = scrWordActive();
+    const scrCls = (slotOrItemWi)=> scrW && slotOrItemWi === scrW.wi
+      ? " scrambled-word" + ((s.phase==="scramble" && s.curScramble===scrW) ? " solving-hl" : "") : "";
+    const scrText = (wi, fallback)=> (scrW && wi === scrW.wi) ? scramDisplay(scrW, s.words[scrW.wi]) : fallback;
     lineEl.innerHTML = "";
     const activeIdx = firstEmptySlot();
     s.slots.forEach((slot,i)=>{
       let node;
-      const maskTxt = slotMaskText(slot, i);            // mystery chip stays masked anywhere
-      const secret = maskTxt !== null;
-      const activeSecret = state.phase==="wordle" && i===state.activeSecret;  // the one you're solving now
-      const scram = scrambleDisplayFor(slot._wi);   // scrambled letters, or null
+      const secret = slot._fromKey && isSecretKey(slot._fromKey);
       if(slot.fixed){
         node = document.createElement("span");
         node.className = "tok anchor"; node.textContent = slot.word;
       } else if(slot.locked){
         node = document.createElement("span");
-        node.className = "tok lock" + (slot.justLocked ? " glow" : "") + (secret ? " masked" : "") + (activeSecret ? " active-secret" : "") + (scram!=null ? " scram-tile" : "");
-        node.textContent = secret ? maskTxt : (scram!=null ? scram : slot.word);
+        node.className = "tok lock" + (slot.justLocked ? " glow" : "") + (secret ? " masked" : "") + scrCls(slot._wi);
+        node.textContent = secret ? maskStr() : scrText(slot._wi, slot.word);
         slot.justLocked = false;
       } else if(slot.word!==null){
         node = document.createElement("button");
-        node.className = "tok placed" + (secret ? " secret masked" : "") + (scram!=null ? " scram-tile" : "");
-        node.textContent = secret ? maskTxt : (scram!=null ? scram : slot.word);
+        node.className = "tok placed" + (secret ? " secret masked" : "") + scrCls(slot._wi);
+        node.textContent = secret ? maskStr() : scrText(slot._wi, slot.word);
         node.dataset.slot = i; if(slot._fromKey) node.dataset.key = slot._fromKey;
-        node.setAttribute("aria-label", (secret?"Mystery word":(scram!=null?"Scrambled word":"Placed word "))+". Tap to return it, or drag to move it.");
+        node.setAttribute("aria-label", (secret?"Mystery word":"Placed word ")+". Tap to return it, or drag to move it.");
         attachDraggable(node, {srcType:"slot", fromIdx:i});
       } else {
         node = document.createElement("span");
@@ -1665,16 +1444,15 @@ if(typeof module !== "undefined" && module.exports){
     s.bank.forEach(item=>{
       const b = document.createElement("button");
       const secret = isSecretKey(item.key);
-      const scram = scrambleDisplayFor(item.wi);
-      b.className = "chip" + (secret ? " secret masked" : "") + (scram!=null ? " scram-tile" : "");
-      b.textContent = secret ? maskForChipWi(item.wi) : (scram!=null ? scram : item.word);
+      b.className = "chip" + (secret ? " secret masked" : "") + scrCls(item.wi);
+      b.textContent = secret ? maskStr() : scrText(item.wi, item.word);
       b.dataset.key = item.key;
-      b.setAttribute("aria-label", secret ? "Mystery word, place it like the others"
-                                  : (scram!=null ? "Scrambled word, place it like the others" : ("Place the word "+item.word)));
+      b.setAttribute("aria-label", secret ? "Mystery word, place it like the others" : ("Place the word "+b.textContent));
       attachDraggable(b, {srcType:"bank", key:item.key});
       bankEl.appendChild(b);
     });
     moveCountEl.textContent = s.moves;
+    renderAttribution();
   }
 
   /* -------- tap + drag (assemble phase only) -------- */
@@ -1754,14 +1532,9 @@ if(typeof module !== "undefined" && module.exports){
   /* -------- state ops -------- */
   function commit(slotIdx){
     const s = state.slots[slotIdx];
-    if(!s || s.fixed || s.locked || s.word === null) return;
-    // A mystery slot accepts ANY mystery chip — the two masked blanks are
-    // interchangeable. We bind the slot to its own correct word so the line and
-    // the per-slot Wordle stay consistent regardless of which blank was dropped.
-    if(isSecretSlot(slotIdx) && isSecretKey(s._fromKey)){
-      s.word = s.correct; s.locked = true; s.justLocked = true; return;
+    if(s && !s.fixed && !s.locked && s.word !== null && s.word === s.correct){
+      s.locked = true; s.justLocked = true;
     }
-    if(s.word === s.correct){ s.locked = true; s.justLocked = true; }
   }
   function bankToSlot(key, slotIdx){
     const s = state.slots[slotIdx]; if(!s || s.fixed || s.locked) return;
@@ -1810,229 +1583,199 @@ if(typeof module !== "undefined" && module.exports){
   function afterChange(){
     render();
     if(state.phase === "assemble" && assembleComplete()){
-      if(state.mode === "hard" && state.nameScrambles.length) enterScramble("name");
-      else if(state.mode === "hard" && state.wordScrambles.length) enterScramble("word");
-      else if(state.secretIndices.length) enterWordle();
-      else finishSolve();
+      state.stepIdx = -1;
+      nextStep();
     }
   }
 
-  /* ===================== Hard mode: unscramble sub-puzzles ===================== */
-  function letterScramble(word, rng){
-    const target = word.replace(/[^A-Za-z]/g,"").toUpperCase();
+  /* ===================== Hard mode: scrambles + step sequencing ===================== */
+  function letterScramble(letters, rng){
+    const target = letters;                       // already letters-only, uppercase
     const tiles = target.split("").map((ch,i)=>({ch, id:i}));
     let order = tiles.map(t=>t.id);
-    for(let attempt=0; attempt<60; attempt++){
+    for(let a=0;a<80;a++){
       for(let i=order.length-1;i>0;i--){ const j=Math.floor(rng()*(i+1)); const t=order[i]; order[i]=order[j]; order[j]=t; }
-      if(order.map(id=>tiles[id].ch).join("") !== target) break;   // ensure it's actually scrambled
+      if(order.map(id=>tiles[id].ch).join("") !== target) break;   // make sure it isn't already solved
     }
     return {target, tiles, order, solved:false, label:""};
   }
-  function buildScrambles(seed, words, secretIndices, anchors, author){
+  function scrambledStr(sc){ return sc.order.map(id=>sc.tiles[id].ch).join(""); }
+  function buildHard(seed, words, secretIndex, anchors, author){
     const rng = mulberry32(xfnv1a("scramble:"+seed));
-    const isSecret = (typeof secretIndices === "number")
-      ? (i => i === secretIndices)
-      : (i => secretIndices && secretIndices.indexOf(i) >= 0);
-    const wordList = [];
-    // one quote word (placed by the player): letters-only length 4–8, longest wins
+    const hard = { word:null, first:null, last:null, authorTokens:(author||"").split(/\s+/), firstTokIdx:-1, lastTokIdx:-1 };
+    // one scrambled quote word (placed by the player): letters-only length 4–8, longest wins
     const cands = [];
     for(let i=0;i<words.length;i++){
-      if(isSecret(i) || anchors.has(i)) continue;
+      if(i===secretIndex || anchors.has(i)) continue;
       const core = words[i].replace(/[^A-Za-z]/g,"");
-      if(core.length>=4 && core.length<=8) cands.push({len:core.length, word:words[i], i});
+      if(core.length>=4 && core.length<=8) cands.push({i, len:core.length, core});
     }
     if(cands.length){
       cands.sort((a,b)=> b.len-a.len || (rng()-0.5));
-      const s = letterScramble(cands[0].word, rng); s.label = "quote word"; s.wordIndex = cands[0].i; wordList.push(s);
+      const sc = letterScramble(cands[0].core.toUpperCase(), rng); sc.wi = cands[0].i; sc.label = "scrambled word"; hard.word = sc;
     }
-    // author's first & last names — each its own scramble, kept separate.
-    // We track tokenIndex so the attribution can render token-by-token.
-    const rawToks = (author||"").split(/\s+/);
-    const eligible = rawToks
-      .map((t,idx)=> ({idx, core:t.replace(/[^A-Za-z]/g,"")}))
-      .filter(o=> o.core.length>=3);
-    const nameList = [];
-    if(eligible.length){
-      const first = eligible[0];
-      const s1 = letterScramble(first.core, rng); s1.label = "first name"; s1.tokenIndex = first.idx; nameList.push(s1);
-      if(eligible.length>1){
-        const last = eligible[eligible.length-1];
-        const s2 = letterScramble(last.core, rng); s2.label = "last name"; s2.tokenIndex = last.idx; nameList.push(s2);
-      }
-    }
-    return { wordList, nameList, authorTokens: rawToks };
+    // author's first & last names — each its own scramble (tokens with ≥3 letters)
+    const toks = hard.authorTokens.map(t=> t.replace(/[^A-Za-z]/g,""));
+    let fi=-1, li=-1;
+    for(let t=0;t<toks.length;t++){ if(toks[t].length>=3){ fi=t; break; } }
+    for(let t=toks.length-1;t>=0;t--){ if(toks[t].length>=3){ li=t; break; } }
+    if(fi>=0){ const sc = letterScramble(toks[fi].toUpperCase(), rng); sc.label = "first name"; hard.first = sc; hard.firstTokIdx = fi; }
+    if(li>=0 && li!==fi){ const sc = letterScramble(toks[li].toUpperCase(), rng); sc.label = "last name"; hard.last = sc; hard.lastTokIdx = li; }
+    return hard;
   }
-  function enterScramble(kind){
-    state.phase = "scramble";
-    state.scrambleKind = kind;                    // "word" | "name"
-    state.activeScrambles = (kind === "name") ? state.nameScrambles : state.wordScrambles;
-    state.scrambleIdx = 0; state.scramSel = null;
+
+  // step sequence after assembly: [scrambled word] -> [mystery word] -> [first name] -> [last name]
+  function nextStep(){
+    state.stepIdx++;
+    const step = state.steps[state.stepIdx];
+    if(!step){ finishSolve(); return; }
+    if(step === "wordle") enterWordle();
+    else {
+      const sc = step==="word" ? state.hard.word : step==="first" ? state.hard.first : state.hard.last;
+      enterScramble(sc);
+    }
+  }
+  function enterScramble(sc){
+    state.phase = "scramble"; state.curScramble = sc; state.scramSel = null;
     undoBtn.classList.remove("show");
-    wordleEl.classList.remove("show");            // in case we came from the wordle phase
     [bankLabelEl, bankEl, controlsEl].forEach(el=> el.classList.add("is-faded"));
     setTimeout(()=> [bankLabelEl, bankEl, controlsEl].forEach(el=> el.classList.add("is-hidden")), 450);
+    wordleEl.classList.remove("show"); wordleEl.classList.add("is-hidden");
     scrambleEl.classList.add("show");
+    promptEl.innerHTML = 'Unscramble the <b>'+sc.label+'</b> — drag a letter onto another, or tap two to swap';
+    render();           // reflect the scramble in the quote / attribution
     renderScramble();
   }
   function renderScramble(){
-    const sc = state.activeScrambles[state.scrambleIdx];
-    if(!sc){ finishScrambleSet(); return; }
+    const sc = state.curScramble; if(!sc) return;
     const L = sc.target.length;
-    // size tiles so the whole word stays on ONE line (no wrap), shrinking as needed
-    const cardW = (boardEl && boardEl.clientWidth) ? boardEl.clientWidth : 360;
-    const avail = Math.max(180, cardW - 52 /*card padding*/ - 28 /*scrow padding*/ - 6);
-    const gap = L > 10 ? 4 : (L > 8 ? 5 : 6);
-    let sc_px = Math.floor((avail - (L-1)*gap) / L);
-    sc_px = Math.max(16, Math.min(46, sc_px));
-    scrowEl.style.setProperty("--sc", sc_px + "px");
-    scrowEl.style.setProperty("--scfs", Math.max(0.72, Math.min(1.3, sc_px/34)).toFixed(2) + "rem");
-    scrowEl.style.gap = gap + "px";
-    const what = sc.label === "quote word" ? "this <b>word</b>"
-               : sc.label === "first name" ? "the author's <b>first name</b>"
-               : sc.label === "last name"  ? "the author's <b>last name</b>"
-               : "the <b>"+sc.label+"</b>";
-    promptEl.innerHTML = 'Unscramble ' + what + ' — drag a letter onto another to swap';
+    scrowEl.style.setProperty("--sc", (L>=9?34 : L>=8?38 : L>=7?42 : 46) + "px");
     scrowEl.innerHTML = "";
     sc.order.forEach((tileId, pos)=>{
       const ch = sc.tiles[tileId].ch;
       const correct = ch === sc.target[pos];
       const cell = document.createElement("button");
       cell.type = "button";
-      cell.className = "scell" + (correct?" correct":"") + (state.scramSel===pos?" sel":"");
-      const chSpan = document.createElement("span"); chSpan.className = "ch"; chSpan.textContent = ch;
-      cell.appendChild(chSpan);
-      if(!correct) cell.addEventListener("pointerdown", e=> onScramPointerDown(e, pos, cell));
+      cell.className = "scell " + (correct?"correct":"scrambled") + (state.scramSel===pos?" sel":"");
+      cell.textContent = ch; cell.dataset.pos = pos;
+      if(!correct) attachScrambleCell(cell, pos);
       scrowEl.appendChild(cell);
     });
   }
-
-  /* swap two tile positions, with juice on any letter that lands home */
-  function doScramSwap(a, b){
-    const sc = state.activeScrambles[state.scrambleIdx];
-    if(a === b) return;
-    const wasA = sc.tiles[sc.order[a]].ch === sc.target[a];
-    const wasB = sc.tiles[sc.order[b]].ch === sc.target[b];
-    const t = sc.order[a]; sc.order[a] = sc.order[b]; sc.order[b] = t;
-    state.scramSel = null;
-    const nowA = sc.tiles[sc.order[a]].ch === sc.target[a];
-    const nowB = sc.tiles[sc.order[b]].ch === sc.target[b];
-    const newlyCorrect = [];
-    if(nowA && !wasA) newlyCorrect.push(a);
-    if(nowB && !wasB) newlyCorrect.push(b);
-    const solvedNow = sc.order.every((id,i)=> sc.tiles[id].ch === sc.target[i]);
-    haptic(solvedNow ? 32 : (newlyCorrect.length ? 24 : 14));
-    renderScramble();
-    // juice behind each letter that just snapped into its correct spot
-    newlyCorrect.forEach(pos=>{ const cell = scrowEl.children[pos]; popCell(cell); spawnCellJuice(cell, {n:8}); });
-    if(solvedNow){
-      sc.solved = true;
-      if(state.scrambleKind === "name") renderAttribution();   // reveal that name token in the byline
-      [...scrowEl.children].forEach((c,i)=>{ popCell(c); setTimeout(()=> spawnCellJuice(c, {n:6}), i*45); });
-      setTimeout(advanceScramble, 760);
-    }
+  function attachScrambleCell(cell, pos){
+    cell.addEventListener("pointerdown", e=> onScramDown(e, pos));
+    cell.addEventListener("click", ()=>{ if(scramDragMoved){ scramDragMoved=false; return; } onScrambleTap(pos); });
   }
   function onScrambleTap(pos){
-    const sc = state.activeScrambles[state.scrambleIdx];
-    if(sc.tiles[sc.order[pos]].ch === sc.target[pos]) return;   // already locked correct
+    const sc = state.curScramble; if(!sc) return;
+    if(sc.tiles[sc.order[pos]].ch === sc.target[pos]) return;     // locked correct
     if(state.scramSel === null){ state.scramSel = pos; haptic(10); renderScramble(); return; }
     if(state.scramSel === pos){ state.scramSel = null; renderScramble(); return; }
     doScramSwap(state.scramSel, pos);
   }
-
-  /* ---- drag a letter onto another to swap (with tap-to-swap fallback) ---- */
-  let scramDrag = null;
-  function onScramPointerDown(e, pos, cell){
-    const sc = state.activeScrambles[state.scrambleIdx];
-    if(sc.tiles[sc.order[pos]].ch === sc.target[pos]) return;   // locked correct — no drag
-    if(e.pointerType === "mouse" && e.button !== 0) return;
+  // drag-and-drop letters
+  let scramDrag = null, scramDragMoved = false;
+  function scramTargetAt(x,y){
+    const cells = [...scrowEl.querySelectorAll(".scell")];
+    for(const c of cells){ const r=c.getBoundingClientRect(); if(x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom) return +c.dataset.pos; }
+    return null;
+  }
+  function onScramDown(e, pos){
+    if(state.phase!=="scramble") return;
+    if(e.pointerType==="mouse" && e.button!==0) return;
+    scramDrag = {pos, startX:e.clientX, startY:e.clientY, clone:null}; scramDragMoved = false;
     haptic(10);
-    scramDrag = { pos, cell, startX:e.clientX, startY:e.clientY, moved:false, clone:null, hover:null,
-                  ch: sc.tiles[sc.order[pos]].ch };
-    document.addEventListener("pointermove", onScramPointerMove);
-    document.addEventListener("pointerup", onScramPointerUp);
-    document.addEventListener("pointercancel", onScramPointerUp);
+    document.addEventListener("pointermove", onScramMove);
+    document.addEventListener("pointerup", onScramUp);
+    document.addEventListener("pointercancel", onScramUp);
   }
-  function onScramPointerMove(e){
+  function onScramMove(e){
     if(!scramDrag) return;
-    const dx = e.clientX - scramDrag.startX, dy = e.clientY - scramDrag.startY;
-    if(!scramDrag.moved && Math.hypot(dx,dy) > DRAG_THRESHOLD){
-      scramDrag.moved = true;
-      const r = scramDrag.cell.getBoundingClientRect();
-      const c = document.createElement("div"); c.className = "scell-clone"; c.textContent = scramDrag.ch;
-      c.style.width = r.width+"px"; c.style.height = r.height+"px";
-      document.body.appendChild(c); scramDrag.clone = c;
-      scramDrag.cell.classList.add("dragging");
+    const dx=e.clientX-scramDrag.startX, dy=e.clientY-scramDrag.startY;
+    if(!scramDragMoved && Math.hypot(dx,dy) > DRAG_THRESHOLD){
+      scramDragMoved = true;
+      const cell = scrowEl.querySelector('.scell[data-pos="'+scramDrag.pos+'"]');
+      if(cell){
+        const r = cell.getBoundingClientRect();
+        const c = cell.cloneNode(true); c.className = "scell scramble-clone";
+        c.style.cssText = "position:fixed;left:"+r.left+"px;top:"+r.top+"px;width:"+r.width+"px;height:"+r.height+"px;margin:0;z-index:9999;pointer-events:none;";
+        document.body.appendChild(c); scramDrag.clone = c; cell.classList.add("dragging");
+      }
     }
-    if(scramDrag.moved){
-      e.preventDefault();
-      scramDrag.clone.style.left = e.clientX+"px"; scramDrag.clone.style.top = e.clientY+"px";
-      if(scramDrag.hover){ scramDrag.hover.classList.remove("drop-hover"); scramDrag.hover = null; }
-      const under = document.elementFromPoint(e.clientX, e.clientY);
-      const tgt = under && under.closest && under.closest(".scell");
-      if(tgt && tgt !== scramDrag.cell && scrowEl.contains(tgt)){ tgt.classList.add("drop-hover"); scramDrag.hover = tgt; }
+    if(scramDragMoved && scramDrag.clone){
+      scramDrag.clone.style.transform = "translate("+dx+"px,"+dy+"px)";
+      scrowEl.querySelectorAll(".scell.drop-hover").forEach(c=> c.classList.remove("drop-hover"));
+      const tgt = scramTargetAt(e.clientX, e.clientY);
+      if(tgt!=null && tgt!==scramDrag.pos){ const tc=scrowEl.querySelector('.scell[data-pos="'+tgt+'"]'); if(tc) tc.classList.add("drop-hover"); }
     }
   }
-  function onScramPointerUp(e){
+  function onScramUp(e){
+    document.removeEventListener("pointermove", onScramMove);
+    document.removeEventListener("pointerup", onScramUp);
+    document.removeEventListener("pointercancel", onScramUp);
     if(!scramDrag) return;
-    document.removeEventListener("pointermove", onScramPointerMove);
-    document.removeEventListener("pointerup", onScramPointerUp);
-    document.removeEventListener("pointercancel", onScramPointerUp);
     const d = scramDrag; scramDrag = null;
-    if(d.hover) d.hover.classList.remove("drop-hover");
     if(d.clone) d.clone.remove();
-    if(d.cell) d.cell.classList.remove("dragging");
-    if(!d.moved){ onScrambleTap(d.pos); return; }   // no real drag → treat as a tap
-    const under = document.elementFromPoint(e.clientX, e.clientY);
-    const tgt = under && under.closest && under.closest(".scell");
-    if(tgt && tgt !== d.cell && scrowEl.contains(tgt)){
-      const targetPos = [...scrowEl.children].indexOf(tgt);
-      if(targetPos >= 0) doScramSwap(d.pos, targetPos);
+    scrowEl.querySelectorAll(".scell.drop-hover").forEach(c=> c.classList.remove("drop-hover"));
+    if(scramDragMoved){
+      const tgt = scramTargetAt(e.clientX, e.clientY);
+      if(tgt!=null && tgt!==d.pos) doScramSwap(d.pos, tgt);
+      else renderScramble();
+    }
+  }
+  function doScramSwap(a, b){
+    const sc = state.curScramble;
+    const before = sc.order.map((id,i)=> sc.tiles[id].ch === sc.target[i]);
+    const t = sc.order[a]; sc.order[a] = sc.order[b]; sc.order[b] = t;
+    state.scramSel = null;
+    const after = sc.order.map((id,i)=> sc.tiles[id].ch === sc.target[i]);
+    const solvedNow = after.every(Boolean);
+    haptic(solvedNow ? 32 : 18);
+    renderScramble();
+    after.forEach((c,i)=>{ if(c && !before[i]) sparkAt(scrowEl, i); });   // juice behind newly-correct letters
+    if(solvedNow){
+      sc.solved = true;
+      [...scrowEl.children].forEach(c=> c.classList.add("pop"));
+      setTimeout(()=>{ scrambleEl.classList.remove("show"); nextStep(); }, 720);
     }
   }
 
-  function advanceScramble(){
-    state.scrambleIdx++; state.scramSel = null;
-    if(state.scrambleIdx < state.activeScrambles.length) renderScramble();
-    else finishScrambleSet();
+  /* juice / vfx behind a correctly-placed letter */
+  function sparkAt(container, pos){
+    const cell = container.querySelector('.scell[data-pos="'+pos+'"]');
+    if(cell) spawnSpark(cell, container);
   }
-  function finishScrambleSet(){
-    scrambleEl.classList.remove("show");
-    if(state.scrambleKind === "name"){
-      // name (2nd) done → unscramble a word → then the mystery word(s), last
-      renderAttribution();   // ensure the byline shows the fully-revealed name
-      if(state.wordScrambles.length) enterScramble("word");
-      else if(state.secretIndices.length) enterWordle();
-      else finishSolve();
-    } else {
-      // word done → mystery word(s) are the final phase
-      if(state.secretIndices.length) enterWordle();
-      else finishSolve();
+  function spawnSpark(cellEl, container){
+    if(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const cr = cellEl.getBoundingClientRect(), pr = container.getBoundingClientRect();
+    const cx = cr.left - pr.left + cr.width/2, cy = cr.top - pr.top + cr.height/2;
+    const spark = document.createElement("span"); spark.className = "spark";
+    spark.style.left = cx+"px"; spark.style.top = cy+"px";
+    const ring = document.createElement("span"); ring.className = "spark-ring"; spark.appendChild(ring);
+    for(let i=0;i<7;i++){
+      const p = document.createElement("span"); p.className = "spark-dot";
+      const ang = Math.PI*2*i/7 + Math.random()*0.5, dist = 16 + Math.random()*16;
+      p.style.setProperty("--tx", (Math.cos(ang)*dist).toFixed(1)+"px");
+      p.style.setProperty("--ty", (Math.sin(ang)*dist).toFixed(1)+"px");
+      spark.appendChild(p);
     }
+    container.appendChild(spark);
+    setTimeout(()=> spark.remove(), 720);
   }
 
-  /* ===================== Phase B: Wordle (one or two mystery words) ===================== */
-  function activeSecretEntry(){ return state.secretByIndex[state.activeSecret]; }
+  /* ===================== Phase B: Wordle ===================== */
   function enterWordle(){
     state.phase = "wordle";
+    state.guesses = []; state.current = ""; state.keyStatus = {}; state.secretGuesses = 0;
+    state._evaluating = false; state._shakeRow = false; state._justTyped = -1;
+    promptEl.innerHTML = 'Now uncover the <b>mystery word</b> — it checks itself on the last letter';
     undoBtn.classList.remove("show");         // no words to place in Phase B
     [bankLabelEl, bankEl, controlsEl].forEach(el=> el.classList.add("is-faded"));
     setTimeout(()=> [bankLabelEl, bankEl, controlsEl].forEach(el=> el.classList.add("is-hidden")), 450);
+    scrambleEl.classList.remove("show");
+    wordleEl.classList.remove("is-hidden");
     wordleEl.classList.add("show");
-    startNextSecret();
-  }
-  function startNextSecret(){
-    const next = state.secretIndices.find(si=> !state.secretByIndex[si].solved);
-    if(next === undefined){ finishSolve(); return; }
-    state.activeSecret = next;
-    state.guesses = []; state.current = ""; state.keyStatus = {}; state._animNew = false;
-    const total = state.secretIndices.length;
-    if(total > 1){
-      const num = state.secretIndices.filter(si=> state.secretByIndex[si].solved).length + 1;
-      promptEl.innerHTML = 'Mystery word <b>' + num + ' of ' + total + '</b> — uncover it';
-    } else {
-      promptEl.innerHTML = 'Now uncover the <b>mystery word</b> — crack it to finish';
-    }
-    render();              // re-render so the masked slots show (solved ones reveal)
+    render();              // re-render so the secret slot shows masked
     renderWordle();
   }
 
@@ -2043,55 +1786,43 @@ if(typeof module !== "undefined" && module.exports){
     return marks;
   }
   function typeLetter(ch){
-    if(state.phase!=="wordle") return;
-    const e = activeSecretEntry(); if(!e) return;
-    if(state.current.length<e.len){
-      state.current+=ch.toUpperCase();
+    if(state.phase!=="wordle" || state._evaluating) return;
+    if(state.current.length<state.secretLen){
+      state.current += ch.toUpperCase();
+      state._justTyped = state.current.length-1;   // squash-stretch on the letter you just typed
       renderWordleGrid();
-      const activeRow = wgridEl.querySelector(".wrow.active");
-      if(activeRow){
-        const cell = activeRow.children[state.current.length-1];
-        if(cell){ popCell(cell); spawnCellJuice(cell, {n:6}); }
-      }
-      haptic(12);
+      // auto-check the word the moment the last letter lands — no Enter needed
+      if(state.current.length===state.secretLen) setTimeout(autoSubmit, 170);
     }
   }
-  function delLetter(){ if(state.phase!=="wordle") return; state.current=state.current.slice(0,-1); renderWordleGrid(); }
+  function delLetter(){ if(state.phase!=="wordle" || state._evaluating) return; state.current=state.current.slice(0,-1); renderWordleGrid(); }
+  function autoSubmit(){
+    if(state.phase!=="wordle" || state._evaluating || state.current.length!==state.secretLen) return;
+    if(state.current.toUpperCase() === state.secretWord){ submitGuess(); return; }   // straight into the win animation
+    // wrong: shake the row "no", then file it with the previous attempts
+    state._evaluating = true; state._shakeRow = true;
+    renderWordleGrid();
+    haptic([24,60,24]);
+    setTimeout(()=>{ state._evaluating = false; state._shakeRow = false; submitGuess(); }, 480);
+  }
   function submitGuess(){
-    if(state.phase!=="wordle") return;
-    const e = activeSecretEntry(); if(!e || state.current.length!==e.len) return;
+    if(state.phase!=="wordle" || state._evaluating || state.current.length!==state.secretLen) return;
     const guess = state.current.toUpperCase();
-    const marks = scoreGuess(guess, e.word);
+    const marks = scoreGuess(guess, state.secretWord);
     state.guesses.push({word:guess, marks});
+    state.secretGuesses = state.guesses.length;
     const rank = {correct:3, present:2, absent:1};
     for(let i=0;i<guess.length;i++){ const c=guess[i], cur=state.keyStatus[c]; if(!cur || rank[marks[i]]>rank[cur]) state.keyStatus[c]=marks[i]; }
-    const won = guess === e.word;
+    const won = guess === state.secretWord;
     state.current = "";
     state._animNew = true;          // animate the new guess landing on top
     renderWordle();
-    // celebratory juice behind every letter that landed in its correct spot
-    if(!reduceMotion()){
-      requestAnimationFrame(()=>{
-        const newest = wgridEl.querySelector(".wrow.dropin")
-                    || [...wgridEl.querySelectorAll(".wrow")].find(r=> !r.classList.contains("active"));
-        if(newest){
-          [...newest.children].forEach((cell,i)=>{
-            if(marks[i]==="correct"){ setTimeout(()=>{ popCell(cell); spawnCellJuice(cell, {n:9}); }, 140 + i*70); }
-          });
-        }
-      });
-    }
-    if(won){ e.solved = true; e.guesses = state.guesses.length; setTimeout(afterSecretSolved, 620); }
-  }
-  // After a mystery word is cracked: solve the next one, or finish.
-  function afterSecretSolved(){
-    if(state.secretIndices.some(si=> !state.secretByIndex[si].solved)) startNextSecret();
-    else finishSolve();
+    if(won) setTimeout(()=>{ state.secretSolved = true; render(); nextStep(); }, 700);
   }
 
   function renderWordle(){ renderWordleGrid(); buildKeys(); }
   function renderWordleGrid(){
-    const e = activeSecretEntry(); const L = e ? e.len : 0;
+    const L = state.secretLen;
     // shrink cells for longer words so they never exceed the puzzle area
     const wc = L>=8 ? 32 : L===7 ? 36 : 40;
     const fs = L>=8 ? 1.02 : L===7 ? 1.18 : 1.35;
@@ -2100,24 +1831,22 @@ if(typeof module !== "undefined" && module.exports){
     wgridEl.innerHTML = "";
     // the next blank attempt stays pinned at the TOP
     if(state.phase==="wordle"){
-      const row = document.createElement("div"); row.className = "wrow active";
+      const row = document.createElement("div"); row.className = "wrow active" + (state._shakeRow ? " shakeno" : "");
       for(let i=0;i<L;i++){
-        const c=document.createElement("div"); c.className="wcell"+(state.current[i]?" filled":"");
-        const ch=document.createElement("span"); ch.className="ch"; ch.textContent=state.current[i]||""; c.appendChild(ch);
+        const c=document.createElement("div");
+        c.className="wcell"+(state.current[i]?" filled":"")+(i===state._justTyped?" pop":"");
+        c.textContent=state.current[i]||"";
         row.appendChild(c);
       }
       wgridEl.appendChild(row);
+      state._justTyped = -1;
     }
     // submitted guesses, most recent first — older attempts sit further down
     for(let k=state.guesses.length-1; k>=0; k--){
       const g = state.guesses[k];
       const row = document.createElement("div"); row.className = "wrow";
       if(state._animNew && k===state.guesses.length-1) row.classList.add("dropin");
-      for(let i=0;i<L;i++){
-        const c=document.createElement("div"); c.className="wcell "+g.marks[i];
-        const ch=document.createElement("span"); ch.className="ch"; ch.textContent=g.word[i]; c.appendChild(ch);
-        row.appendChild(c);
-      }
+      for(let i=0;i<L;i++){ const c=document.createElement("div"); c.className="wcell "+g.marks[i]; c.textContent=g.word[i]; row.appendChild(c); }
       wgridEl.appendChild(row);
     }
     state._animNew = false;
@@ -2140,12 +1869,12 @@ if(typeof module !== "undefined" && module.exports){
 
   /* ===================== Final solve ===================== */
   function finishSolve(){
-    state.solved = true; state.phase = "done";
+    state.solved = true; state.phase = "done"; state.secretSolved = true;
     state.elapsedMs = Date.now() - state.startTime;
-    markCompleted(state.quote && state.quote.id);   // never serve this quote again
     wordleEl.classList.remove("show"); wordleEl.classList.add("is-hidden");
+    scrambleEl.classList.remove("show");
     undoBtn.classList.remove("show");
-    render();                 // reveal the mystery word(s) in the line
+    render();                 // reveal the secret word in the line
     solveSequence();
   }
 
@@ -2153,14 +1882,12 @@ if(typeof module !== "undefined" && module.exports){
     const elapsedSec = Math.round(state.elapsedMs/1000);
     const tiles = state.words.length;          // full quote length (difficulty)
     const n = state.minMoves;                  // tiles the player actually places
-    const secrets = state.secretIndices || [];
-    const hasSecret = secrets.length > 0;
-    const s = secrets.reduce((a,si)=> a + state.secretByIndex[si].len, 0);   // total hidden letters
-    const totalGuesses = secrets.reduce((a,si)=> a + (state.secretByIndex[si].guesses||1), 0);
-    // par scales with difficulty: more words + longer hidden words = more time allowed
+    const hasSecret = state.secretIndex>=0;
+    const s = hasSecret ? state.secretLen : 0;
+    // par scales with difficulty: more words + a longer hidden word = more time allowed
     const par = 25 + tiles*6 + s*5;
     const extraMoves = Math.max(0, state.moves - n);
-    const extraGuesses = hasSecret ? Math.max(0, totalGuesses - secrets.length) : 0;  // one free guess per word
+    const extraGuesses = hasSecret ? Math.max(0, (state.secretGuesses||1) - 1) : 0;
     const over = Math.max(0, elapsedSec - par);
     // per-move penalty eases on longer puzzles, so it's the RATE of mistakes that
     // matters, not the raw count — a few slips on a 20-word quote shouldn't tank it
@@ -2198,11 +1925,8 @@ if(typeof module !== "undefined" && module.exports){
     state.score = score;
     $("timeLine").textContent = "Solved in " + fmtTime(elapsedSec);
     $("scoreLine").textContent = score + " points · " + state.moves + (state.moves===1?" move":" moves");
-    const _secWords = (state.secretIndices||[]).map(si=> state.secretByIndex[si].word);
-    const _secGuesses = (state.secretIndices||[]).reduce((a,si)=> a + (state.secretByIndex[si].guesses||0), 0);
-    $("mysteryLine").textContent = _secWords.length
-      ? ("Mystery word" + (_secWords.length>1?"s":"") + ": " + _secWords.join(", ") +
-         " — " + _secGuesses + (_secGuesses===1?" guess":" guesses"))
+    $("mysteryLine").textContent = state.secretIndex>=0
+      ? "Mystery word: " + state.secretWord + " — " + state.secretGuesses + (state.secretGuesses===1?" guess":" guesses")
       : "";
     // reset the love/heart control for this quote
     if(typeof heartBtn !== "undefined" && heartBtn){ heartBtn.classList.remove("loved"); heartBtn.setAttribute("aria-pressed","false"); }
@@ -2229,8 +1953,7 @@ if(typeof module !== "undefined" && module.exports){
     return { game:"verbatim", seed:state.seed, puzzleNumber:state.seed, quoteId:state.quote.id,
              author:state.quote.author, moves:state.moves, solved:true,
              timeMs:state.elapsedMs, score:state.score,
-             secretWords:(state.secretIndices||[]).map(si=> state.secretByIndex[si].word),
-             secretGuesses:(state.secretIndices||[]).reduce((a,si)=> a + (state.secretByIndex[si].guesses||0), 0) };
+             secretWord:state.secretWord, secretGuesses:state.secretGuesses };
   }
 
   /* -------- share -------- */
@@ -2296,7 +2019,7 @@ if(typeof module !== "undefined" && module.exports){
     // TODO(analytics): record love for state.quote.id — left out for now
   });
 
-  $("newBtn").addEventListener("click", ()=> initGame(pickUnplayedSeed()));
+  $("newBtn").addEventListener("click", ()=> initGame(Math.floor(Math.random()*100000)));
   $("puzzleNo").addEventListener("click", async ()=>{
     try{ await navigator.clipboard.writeText(puzzleUrl(state.seed)); toast("Puzzle link copied"); }
     catch(e){ toast(puzzleUrl(state.seed)); }
@@ -2312,7 +2035,7 @@ if(typeof module !== "undefined" && module.exports){
     const now = Date.now();
     skipTaps = (now - skipLast < 600) ? skipTaps + 1 : 1;
     skipLast = now;
-    if(skipTaps >= 4){ skipTaps = 0; initGame(pickUnplayedSeed()); }
+    if(skipTaps >= 4){ skipTaps = 0; initGame(Math.floor(Math.random()*100000)); }
   }, true);
 
   // ---------- password gate ----------
