@@ -60,6 +60,7 @@
   .logo{height:27px;flex:0 0 auto;display:block;justify-self:start}
   .brandwrap{display:flex;flex-direction:column;align-items:center;text-align:center;line-height:1;gap:2px}
   .gamename{
+    cursor:pointer;
     font-family:var(--serif);
     font-weight:600;
     font-size:1.5rem;
@@ -595,23 +596,97 @@
   @keyframes gateShake{ 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(7px)} 60%{transform:translateX(-5px)} 80%{transform:translateX(3px)} }
   @media (prefers-reduced-motion:reduce){ .gate-card.shake{ animation:none; } }
 
-  /* ---------- main menu ---------- */
-  .menu{ position:fixed; inset:0; z-index:9998; display:none; align-items:center; justify-content:center; background:var(--page); padding:24px; }
-  .menu.show{ display:flex; }
-  .menu-card{ background:var(--paper); border:1px solid var(--paper-edge); border-radius:10px; padding:34px 26px 22px; width:100%; max-width:360px; text-align:center; box-shadow:0 18px 50px rgba(10,20,90,.18); }
-  .menu-name{ font-family:var(--serif); font-weight:600; font-size:2.1rem; color:var(--navy); }
-  .menu-sub{ font-family:var(--ui); font-size:.66rem; letter-spacing:.16em; text-transform:uppercase; color:var(--ink-soft); margin:4px 0 20px; font-weight:700; }
-  .menu-pick{ font-family:var(--serif); font-style:italic; color:var(--navy); font-size:1.02rem; margin:0 0 14px; }
-  .mode-btn{ display:block; width:100%; text-align:left; cursor:pointer; margin:10px 0; padding:14px 16px; border-radius:10px;
-    background:#fff; border:1.5px solid var(--paper-edge); transition:border-color .15s ease, box-shadow .15s ease, transform .1s ease;
-    -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
-  .mode-btn:hover{ border-color:var(--pbs-blue); box-shadow:0 4px 14px rgba(38,56,196,.12); }
-  .mode-btn:active{ transform:translateY(1px); }
-  .mode-btn:focus-visible{ outline:3px solid var(--pbs-blue); outline-offset:2px; }
-  .mode-title{ display:block; font-family:var(--serif); font-weight:600; font-size:1.25rem; color:var(--navy); }
-  .mode-btn.hard .mode-title{ color:var(--pbs-blue); }
-  .mode-desc{ display:block; font-family:var(--ui); font-size:.78rem; color:var(--ink-soft); margin-top:3px; line-height:1.35; }
-  .menu-ver{ font-family:var(--ui); font-size:.66rem; letter-spacing:.08em; color:var(--ink-soft); margin:16px 0 0; }
+  /* ---------- home screen ---------- */
+  .home{ position:fixed; inset:0; z-index:9000; display:none; background:var(--page); overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  .home.show{ display:block; }
+  .home-inner{ max-width:560px; margin:0 auto; padding:20px 18px 42px; }
+  .home-brand{ text-align:center; margin:6px 0 18px; }
+  .hb-logo svg{ height:26px; display:block; margin:0 auto 8px; }
+  .hb-name{ display:block; font-family:var(--serif); font-weight:600; font-size:1.9rem; color:var(--navy); }
+  .hb-sub{ display:block; font-family:var(--ui); font-size:.62rem; letter-spacing:.18em; text-transform:uppercase; color:var(--ink-soft); font-weight:700; margin-top:3px; }
+  .hero-card{
+    display:block; width:100%; text-align:left; cursor:pointer; border:none; border-radius:18px;
+    background:var(--pbs-blue); color:#fff; padding:22px 20px 18px; position:relative;
+    box-shadow:0 12px 30px rgba(38,56,196,.28); -webkit-tap-highlight-color:transparent; touch-action:manipulation;
+    transition:transform .12s ease, box-shadow .15s ease;
+  }
+  .hero-card:active{ transform:scale(.985); }
+  .hero-label{ display:block; font-family:var(--serif); font-weight:600; font-size:1.7rem; }
+  .hero-date{ display:block; font-family:var(--ui); font-size:.78rem; letter-spacing:.1em; text-transform:uppercase; color:#C9D0F2; font-weight:700; margin-top:4px; }
+  .hero-author{ display:block; font-family:var(--serif); font-style:italic; font-size:1.05rem; margin-top:12px; color:#fff; }
+  .hero-play{ position:absolute; right:18px; bottom:16px; font-family:var(--ui); font-weight:700; font-size:.85rem; background:#fff; color:var(--pbs-blue); border-radius:999px; padding:7px 14px; }
+  .mode-tog{ display:flex; margin:14px 0 20px; border:1.5px solid var(--paper-edge); border-radius:999px; overflow:hidden; background:#fff; }
+  .mode-tog button{ flex:1; padding:9px 0; border:none; background:none; cursor:pointer; font-family:var(--ui); font-weight:700; font-size:.85rem; color:var(--ink-soft); -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
+  .mode-tog button.on{ background:var(--pbs-blue); color:#fff; }
+  .row-label{ font-family:var(--ui); font-size:.68rem; letter-spacing:.16em; text-transform:uppercase; color:var(--ink-soft); font-weight:700; margin:0 0 10px; }
+  .week-row{ display:flex; gap:12px; overflow-x:auto; padding:2px 2px 16px; scroll-snap-type:x proximity; }
+  .day-card{
+    flex:0 0 128px; scroll-snap-align:start; min-height:126px; cursor:pointer; border:none; border-radius:14px;
+    background:#C7D2F7; color:var(--navy); padding:14px 12px; text-align:left; display:flex; flex-direction:column; gap:3px;
+    -webkit-tap-highlight-color:transparent; touch-action:manipulation; transition:transform .12s ease;
+  }
+  .day-card:active{ transform:scale(.97); }
+  .day-card.today{ background:#8FA4F0; }
+  .dc-label{ font-family:var(--serif); font-weight:600; font-size:1.12rem; }
+  .dc-date{ font-family:var(--ui); font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; font-weight:700; color:#3A4899; }
+  .dc-author{ font-family:var(--serif); font-style:italic; font-size:.78rem; margin-top:auto; color:#26307A; overflow:hidden; text-overflow:ellipsis; }
+  .day-card{ position:relative; }
+  .dc-check{
+    position:absolute; top:9px; right:9px; width:20px; height:20px; border-radius:50%;
+    background:var(--pbs-blue); color:#fff; font-size:.68rem; font-weight:800;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .hero-done{
+    position:absolute; top:16px; right:18px; background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.5);
+    color:#fff; border-radius:999px; padding:4px 11px; font-family:var(--ui); font-weight:700; font-size:.7rem; letter-spacing:.04em;
+  }
+  .ad-check{
+    position:absolute; top:6px; left:6px; width:18px; height:18px; border-radius:50%;
+    background:var(--pbs-blue); color:#fff; font-size:.6rem; font-weight:800;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .day-card.arch{ background:var(--paper); border:1.5px solid var(--paper-edge); align-items:flex-start; }
+  .day-card.arch .dc-ico{ font-size:1.3rem; margin-top:auto; }
+  .menu-ver{ font-family:var(--ui); font-size:.66rem; letter-spacing:.08em; color:var(--ink-soft); margin:16px 0 0; text-align:center; }
+
+  /* ---------- quote archive ---------- */
+  .archive{ position:fixed; inset:0; z-index:9100; display:none; background:var(--page); overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  .archive.show{ display:block; }
+  .archive-head{ position:sticky; top:0; background:var(--page); display:flex; align-items:center; gap:12px; padding:14px 18px; border-bottom:1px solid rgba(10,20,90,.08); z-index:2; }
+  .arch-back{ background:#fff; border:1.5px solid var(--paper-edge); border-radius:999px; width:36px; height:36px; font-size:1rem; cursor:pointer; color:var(--navy); -webkit-tap-highlight-color:transparent; }
+  .arch-title{ font-family:var(--serif); font-weight:600; font-size:1.3rem; color:var(--navy); }
+  .archive-body{ max-width:560px; margin:0 auto; padding:16px 18px 48px; }
+  .arch-month{ font-family:var(--serif); font-weight:600; font-size:1.05rem; color:var(--navy); margin:18px 0 10px; }
+  .arch-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(100px,1fr)); gap:10px; }
+  .arch-day{
+    position:relative; background:#fff; border:1.5px solid var(--paper-edge); border-radius:12px; padding:10px 8px 9px;
+    text-align:center; cursor:pointer; -webkit-tap-highlight-color:transparent; touch-action:manipulation; transition:transform .12s ease, border-color .15s ease;
+  }
+  .arch-day:active{ transform:scale(.96); }
+  .arch-day:hover{ border-color:var(--pbs-blue); }
+  .ad-w{ display:block; font-family:var(--ui); font-size:.58rem; letter-spacing:.14em; color:var(--ink-soft); font-weight:700; }
+  .ad-n{ display:block; font-family:var(--serif); font-weight:600; font-size:1.45rem; color:var(--navy); line-height:1.25; }
+  .ad-a{ display:block; font-family:var(--ui); font-size:.6rem; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ad-lock{
+    position:absolute; top:6px; right:6px; width:18px; height:18px; border-radius:50%;
+    background:var(--yellow); color:var(--navy); font-size:.62rem; display:flex; align-items:center; justify-content:center;
+  }
+
+  /* ---------- Passport gate ---------- */
+  .passport{ position:fixed; inset:0; z-index:9500; display:none; align-items:center; justify-content:center; background:#14172A; padding:26px 22px; text-align:center; }
+  .passport.show{ display:flex; }
+  .pass-back{ position:fixed; top:16px; left:16px; background:none; border:none; color:#AEB6E8; font-family:var(--ui); font-weight:700; font-size:.85rem; cursor:pointer; }
+  .pass-card{ max-width:620px; }
+  .pass-title{ font-family:var(--ui); font-weight:800; font-size:1.5rem; color:#fff; margin:0 0 14px; }
+  .pass-star{ display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:50%; background:#5A6FD8; color:#fff; font-size:.85rem; vertical-align:middle; position:relative; top:-2px; margin:0 2px; }
+  .pass-body{ color:#E4E7F7; font-family:var(--ui); font-size:1.02rem; line-height:1.5; margin:0 0 22px; }
+  .pass-btns{ display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-bottom:20px; }
+  .pass-primary{ background:#5A6FD8; color:#fff; border:none; border-radius:999px; padding:12px 24px; font-family:var(--ui); font-weight:700; font-size:.95rem; cursor:pointer; }
+  .pass-primary:hover{ background:#6C80E4; }
+  .pass-secondary{ background:transparent; color:#fff; border:1.5px solid #fff; border-radius:999px; padding:12px 22px; font-family:var(--ui); font-weight:700; font-size:.95rem; cursor:pointer; }
+  .pass-signin{ color:#fff; font-family:var(--ui); font-size:.9rem; }
+  .pass-signin a{ color:var(--yellow); font-weight:800; cursor:pointer; text-decoration:none; }
+  .pass-sep{ color:#7C86C2; margin:0 6px; }
 
   /* ---------- hard-mode scramble panel ---------- */
   .scramble{ display:none; flex-direction:column; align-items:center; gap:14px; margin-top:6px; }
@@ -695,20 +770,47 @@
   </div>
 </div>
 
-<div class="menu" id="menu" role="dialog" aria-modal="true" aria-label="Choose a mode">
-  <div class="menu-card">
-    <div class="menu-name">Verbatim</div>
-    <p class="menu-sub">A daily quote puzzle from PBS</p>
-    <p class="menu-pick">Choose your mode</p>
-    <button class="mode-btn" id="modeNormal" type="button">
-      <span class="mode-title">Normal</span>
-      <span class="mode-desc">Set the quote, then crack one hidden word.</span>
+<div class="home" id="home" aria-label="Verbatim home">
+  <div class="home-inner">
+    <div class="home-brand">
+      <span class="hb-logo" id="homeLogo" aria-hidden="true"></span>
+      <span class="hb-name">Verbatim</span>
+      <span class="hb-sub">A Daily Quote Puzzle from PBS</span>
+    </div>
+    <button class="hero-card" id="heroCard" type="button">
+      <span class="hero-label">Today&rsquo;s Quote</span>
+      <span class="hero-date" id="heroDate"></span>
+      <span class="hero-author" id="heroAuthor"></span>
+      <span class="hero-play">Play &rarr;</span>
     </button>
-    <button class="mode-btn hard" id="modeHard" type="button">
-      <span class="mode-title">Hard</span>
-      <span class="mode-desc">A scrambled word, the mystery word, then unscramble the author's name.</span>
-    </button>
+    <div class="mode-tog" role="group" aria-label="Mode">
+      <button id="togNormal" class="on" type="button">Normal</button>
+      <button id="togHard" type="button">Hard</button>
+    </div>
+    <p class="row-label">This week</p>
+    <div class="week-row" id="weekRow"></div>
     <p class="menu-ver" id="menuVer"></p>
+  </div>
+</div>
+
+<div class="archive" id="archive" aria-label="Quote Archive">
+  <div class="archive-head">
+    <button class="arch-back" id="archBack" type="button" aria-label="Back to home">&larr;</button>
+    <span class="arch-title">Quote Archive</span>
+  </div>
+  <div class="archive-body" id="archBody"></div>
+</div>
+
+<div class="passport" id="passport" role="dialog" aria-modal="true" aria-label="PBS Passport">
+  <button class="pass-back" id="passBack" type="button">&larr; Back</button>
+  <div class="pass-card">
+    <h3 class="pass-title">Play this puzzle with PBS <span class="pass-star">&#10022;</span> Passport</h3>
+    <p class="pass-body">This puzzle is part of an extended library of daily quote puzzles available with PBS Passport for a donation of at least $8 per month or $96 per year.</p>
+    <div class="pass-btns">
+      <button class="pass-primary" id="passStart" type="button">Start Playing</button>
+      <button class="pass-secondary" id="passWhat" type="button">What is Passport?</button>
+    </div>
+    <p class="pass-signin">Already a Member of PBS? <a id="passSignin" role="button" tabindex="0">Sign In</a> <span class="pass-sep">|</span> <a id="passSupport" href="https://help.pbs.org" target="_blank" rel="noopener">Contact PBS Support</a></p>
   </div>
 </div>
 <header>
@@ -773,6 +875,7 @@
       <div class="controls">
         <button class="btn btn-primary" id="shareBtn">Share this quote</button>
         <button class="btn btn-ghost" id="newBtn">Try another</button>
+        <button class="btn btn-ghost" id="homeBtn">Home</button>
       </div>
       <p class="tomorrow">A new quotation arrives each morning.</p>
       <div class="pbs-links" id="pbsBox"></div>
@@ -1150,9 +1253,10 @@ const FUNCTION_WORDS = new Set([
   "from","into","onto","with"
 ]);
 
-function buildPuzzle(seed){
+function buildPuzzle(seed, forceIdx){
   const rng = mulberry32(xfnv1a("quotable:"+seed));
-  const idx = Math.floor(rng()*QUOTES.length);
+  const r0 = rng();                                    // consumed either way, so old seeds are unchanged
+  const idx = (forceIdx!=null) ? forceIdx : Math.floor(r0*QUOTES.length);
   const q = QUOTES[idx];
   const words = tokenize(q.text);
   const lastIdx = words.length - 1;
@@ -1281,7 +1385,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "3.0";
+  const VERSION = "4.0a";
   let mode = "normal";   // "normal" | "hard"
 
   let state = null, drag = null, justDragged = false;
@@ -1300,9 +1404,50 @@ if(typeof module !== "undefined" && module.exports){
   }
   function fmtTime(sec){ const m=Math.floor(sec/60), s=sec%60; return m + ":" + String(s).padStart(2,"0"); }
 
+  /* -------- daily puzzles: date → quote, easy Mondays → hard Sundays -------- */
+  const ARCHIVE_START = new Date(2026, 7, 1);        // August 1, 2026
+  const DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  function d0(d){ return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+  function todayDate(){ const t = d0(new Date()); return t < ARCHIVE_START ? new Date(ARCHIVE_START) : t; }
+  function addDays(d, n){ const x = new Date(d); x.setDate(x.getDate()+n); return x; }
+  function daysBetween(a,b){ return Math.round((d0(b) - d0(a)) / 86400000); }
+  function dateKey(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+  function parseDateKey(k){ const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(k||""); return m ? new Date(+m[1], +m[2]-1, +m[3]) : null; }
+  function fmtLong(d){ return DAYS[d.getDay()] + ", " + MONTHS[d.getMonth()] + " " + d.getDate(); }
+  function fmtShort(d){ return MONTHS[d.getMonth()].slice(0,3) + " " + d.getDate(); }
+  let _buckets = null;
+  function diffBuckets(){          // 7 buckets of quote indices, shortest quotes → longest
+    if(_buckets) return _buckets;
+    const idxs = QUOTES.map((q,i)=>({i, n:tokenize(q.text).length})).sort((a,b)=> a.n-b.n || a.i-b.i).map(o=>o.i);
+    _buckets = []; const N = idxs.length;
+    for(let k=0;k<7;k++) _buckets.push(idxs.slice(Math.floor(k*N/7), Math.floor((k+1)*N/7)));
+    return _buckets;
+  }
+  function quoteIdxForDate(d){
+    const w = (d.getDay()+6)%7;                          // Mon=0 … Sun=6
+    const b = diffBuckets()[w];
+    const w0 = (ARCHIVE_START.getDay()+6)%7;
+    const firstOffset = (w - w0 + 7) % 7;                // first calendar day with this weekday
+    const days = daysBetween(ARCHIVE_START, d);
+    const occ = days >= firstOffset ? Math.floor((days - firstOffset)/7) : 0;
+    return b[occ % b.length];                            // wraps to reuse puzzles if we run out
+  }
+  function dateSeed(d){ return 20000 + daysBetween(ARCHIVE_START, d); }
+  function isLockedDate(d){ return daysBetween(d, todayDate()) > 6; }   // beyond the free week → Passport
+  function passportOk(){ try{ return localStorage.getItem("verbatim_passport") === "1"; }catch(e){ return false; } }
+  /* -------- completion tracking (replay always allowed) -------- */
+  function doneMap(){ try{ return JSON.parse(localStorage.getItem("verbatim_done") || "{}"); }catch(e){ return {}; } }
+  function markDone(){
+    if(!state) return;
+    const k = state.date ? "d:" + dateKey(state.date) : "s:" + state.seed;
+    try{ const m = doneMap(); m[k] = 1; localStorage.setItem("verbatim_done", JSON.stringify(m)); }catch(e){}
+  }
+  function isDoneDate(d){ return !!doneMap()["d:" + dateKey(d)]; }
+
   /* -------- (re)start a game -------- */
-  function initGame(seed){
-    const pz = buildPuzzle(seed);
+  function initGame(seed, opts){
+    const pz = buildPuzzle(seed, opts && opts.quoteIdx != null ? opts.quoteIdx : undefined);
     const anchors = pz.anchors;
 
     // hold back the final word's punctuation
@@ -1335,7 +1480,8 @@ if(typeof module !== "undefined" && module.exports){
       phase:"assemble", secretIndex, secretWord, secretLen, secretKey, secretPunct,
       guesses:[], current:"", keyStatus:{}, secretGuesses:0, secretSolved:false,
       mode, hard: (mode==="hard") ? buildHard(seed, words, secretIndex, anchors, pz.quote.author) : null,
-      steps:[], stepIdx:-1, curScramble:null, scramSel:null
+      steps:[], stepIdx:-1, curScramble:null, scramSel:null,
+      date: (opts && opts.date) ? d0(opts.date) : null
     };
     // step order after assembly: scrambled word -> mystery word -> first name -> last name
     if(state.hard && state.hard.word) state.steps.push("word");
@@ -1343,7 +1489,9 @@ if(typeof module !== "undefined" && module.exports){
     if(state.hard && state.hard.first) state.steps.push("first");
     if(state.hard && state.hard.last) state.steps.push("last");
 
-    $("puzzleNum").textContent = "№ " + seed;
+    const noLab = document.querySelector("#puzzleNo .lab");
+    if(state.date){ if(noLab) noLab.textContent = "DAILY"; $("puzzleNum").textContent = fmtShort(state.date); }
+    else { if(noLab) noLab.textContent = "PUZZLE"; $("puzzleNum").textContent = "№ " + seed; }
     // byline is rendered by renderAttribution() (scrambled in hard mode)
     const _src = (pz.quote.src || "").trim();
     $("attrSrc").textContent = (_src && !/^(attributed|house line)$/i.test(_src)) ? _src : "";
@@ -1363,8 +1511,12 @@ if(typeof module !== "undefined" && module.exports){
     chromeEls.forEach(el=> el.classList.remove("is-faded","is-hidden"));
     wgridEl.innerHTML = ""; wkeysEl.innerHTML = "";
 
-    try{ history.replaceState(null, "", puzzleUrl(seed)); }catch(e){}
+    try{ history.replaceState(null, "", currentUrl()); }catch(e){}
     render();
+  }
+  function currentUrl(){
+    const base = (location.origin && location.origin !== "null") ? location.origin + location.pathname : location.pathname;
+    return state && state.date ? base + "?date=" + dateKey(state.date) : puzzleUrl(state.seed);
   }
 
   function firstEmptySlot(){ return state.slots.findIndex(s=>!s.fixed && !s.locked && s.word===null); }
@@ -1871,6 +2023,7 @@ if(typeof module !== "undefined" && module.exports){
   function finishSolve(){
     state.solved = true; state.phase = "done"; state.secretSolved = true;
     state.elapsedMs = Date.now() - state.startTime;
+    markDone();
     wordleEl.classList.remove("show"); wordleEl.classList.add("is-hidden");
     scrambleEl.classList.remove("show");
     undoBtn.classList.remove("show");
@@ -1959,9 +2112,10 @@ if(typeof module !== "undefined" && module.exports){
   /* -------- share -------- */
   function shareText(){
     const { score, elapsedSec } = computeScore();
-    return "Verbatim № " + state.seed + " — " + score + " pts in " + fmtTime(elapsedSec) +
+    const label = state.date ? fmtShort(state.date) : ("№ " + state.seed);
+    return "Verbatim " + label + " — " + score + " pts in " + fmtTime(elapsedSec) +
       "\n\n\u201C" + state.quote.text + "\u201D\n— " + state.quote.author +
-      "\n\n" + puzzleUrl(state.seed);
+      "\n\n" + currentUrl();
   }
   async function doShare(){
     const txt = shareText();
@@ -1977,6 +2131,7 @@ if(typeof module !== "undefined" && module.exports){
 
   /* -------- one-time setup -------- */
   $("footLogo").innerHTML = '<svg class="ft-logo" viewBox="0 0 135 56" aria-label="PBS" role="img" xmlns="http://www.w3.org/2000/svg"><path fill="#2638C4" d="M126.155 24.889c-3.072-1.595-5.522-2.878-5.522-5.328 0-1.75 1.478-2.8 4.006-2.8 2.955 0 5.6.972 7.622 2.178V12.6c-2.1-.894-5.017-1.672-7.622-1.672-7.389 0-10.695 4.394-10.695 9.177 0 5.6 3.773 8.284 7.895 10.462 4.083 2.177 5.639 3.11 5.639 5.444 0 1.983-1.711 3.111-4.589 3.111-4.006 0-6.806-1.828-8.672-3.305v6.727c1.711 1.206 5.405 2.645 8.594 2.645 7.156 0 11.706-3.733 11.706-9.761.038-6.3-5.289-8.945-8.362-10.54zM71.478 11.2h-8.867v33.6h6.611V34.106h1.323c8.283 0 13.416-4.395 13.416-11.473.04-7.155-4.627-11.433-12.483-11.433m-2.256 5.6h1.945c3.889 0 6.378 2.255 6.378 5.717 0 3.772-2.295 5.91-6.34 5.91h-1.983zm35.895 9.917c2.256-1.556 3.344-3.85 3.344-6.923 0-5.289-3.888-8.594-10.189-8.594H88.006v33.6H98.7c8.206 0 11.939-5.289 11.939-10.189.039-3.85-2.1-6.844-5.522-7.894m-7.35-9.84c2.606 0 4.278 1.595 4.278 4.123s-1.828 4.161-4.628 4.161h-2.8v-8.244h3.15zM94.617 39.2v-8.79h4.2c3.344 0 5.328 1.633 5.328 4.356 0 2.916-1.984 4.394-5.95 4.394h-3.578v.039zM56 28c0 15.478-12.522 28-28 28S0 43.478 0 28 12.522 0 28 0s28 12.522 28 28"/><path fill="#fff" d="m48.416 28.272-3.11.622v5.756c0 1.944-1.595 3.461-3.656 3.461h-1.595V44.8h-5.133v-6.689h1.594c2.061 0 3.656-1.555 3.656-3.461v-5.756l3.111-.622c.661-.155 1.011-.894.7-1.478L35.816 11.2h5.095l8.166 15.594c.35.584 0 1.361-.66 1.478zM37.916 26.794 29.75 11.2h-8.44c-7.66 0-14.194 6.261-14 13.961.118 5.717 3.812 9.995 8.945 11.628V44.8h12.6v-6.689h1.595c2.06 0 3.655-1.555 3.655-3.461v-5.756l3.111-.622c.7-.116 1.05-.894.7-1.478M27.34 25.9a3.203 3.203 0 0 1-3.19-3.189 3.203 3.203 0 0 1 3.19-3.189 3.203 3.203 0 0 1 3.189 3.19 3.203 3.203 0 0 1-3.19 3.188z"/></svg>';
+  $("homeLogo").innerHTML = $("footLogo").innerHTML;
 
   document.addEventListener("keydown", e=>{
     if(!state || state.phase!=="wordle") return;
@@ -2021,8 +2176,8 @@ if(typeof module !== "undefined" && module.exports){
 
   $("newBtn").addEventListener("click", ()=> initGame(Math.floor(Math.random()*100000)));
   $("puzzleNo").addEventListener("click", async ()=>{
-    try{ await navigator.clipboard.writeText(puzzleUrl(state.seed)); toast("Puzzle link copied"); }
-    catch(e){ toast(puzzleUrl(state.seed)); }
+    try{ await navigator.clipboard.writeText(currentUrl()); toast("Puzzle link copied"); }
+    catch(e){ toast(currentUrl()); }
   });
 
   // Hidden gesture: tap the bottom-left corner 4× in quick succession → skip to
@@ -2042,26 +2197,112 @@ if(typeof module !== "undefined" && module.exports){
   const PASSWORD = "fredrogers";
   const GATE_KEY = "verbatim_unlocked";
   let gameStarted = false;
+  const DONATE_URL = "https://give.weta.org/page/11241/donate/1?ea.tracking.id=pbs_player_ppt_learn_more&supporter.appealCode=D2500AW03002PP&referrer=https%3A//www.pbs.org/video/majestic-pine-kKtOrq/";
 
-  // ---------- main menu (mode select) ----------
-  function showMenu(){
-    $("menuVer").textContent = "Version " + VERSION;
-    if(!showMenu._wired){
-      showMenu._wired = true;
-      $("modeNormal").addEventListener("click", ()=> chooseMode("normal"));
-      $("modeHard").addEventListener("click", ()=> chooseMode("hard"));
-    }
-    $("menu").classList.add("show");
-  }
-  function chooseMode(m){
-    mode = m;
-    $("menu").classList.remove("show");
-    initGame(getInitialSeed());   // first game uses ?seed= if present, else random
+  // ---------- home screen ----------
+  function hideOverlays(){ $("home").classList.remove("show"); $("archive").classList.remove("show"); $("passport").classList.remove("show"); }
+  function playDate(d){
+    hideOverlays();
     gameStarted = true;
+    initGame(dateSeed(d), { date:d, quoteIdx: quoteIdxForDate(d) });
+    window.scrollTo(0,0);
   }
+  function showHome(){
+    $("archive").classList.remove("show"); $("passport").classList.remove("show");
+    renderHome();
+    $("home").classList.add("show");
+  }
+  function renderHome(){
+    const t = todayDate();
+    $("heroDate").textContent = fmtLong(t);
+    $("heroAuthor").textContent = "— " + QUOTES[quoteIdxForDate(t)].author;
+    const heroDone = $("heroCard").querySelector(".hero-done");
+    if(heroDone) heroDone.remove();
+    if(isDoneDate(t)){
+      const chip = document.createElement("span"); chip.className = "hero-done";
+      chip.innerHTML = "&#10003; Solved"; $("heroCard").appendChild(chip);
+    }
+    $("menuVer").textContent = "Version " + VERSION;
+    const row = $("weekRow"); row.innerHTML = "";
+    for(let i=0;i<7;i++){
+      const d = addDays(t, -i);
+      if(d0(d) < ARCHIVE_START) break;
+      const card = document.createElement("button");
+      card.type = "button"; card.className = "day-card" + (i===0 ? " today" : "");
+      card.innerHTML = '<span class="dc-label">'+(i===0 ? "Today" : DAYS[d.getDay()])+'</span>'
+        + '<span class="dc-date">'+fmtShort(d)+'</span>'
+        + '<span class="dc-author">'+escapeHtml(QUOTES[quoteIdxForDate(d)].author)+'</span>'
+        + (isDoneDate(d) ? '<span class="dc-check" aria-label="Solved">&#10003;</span>' : '');
+      card.addEventListener("click", ()=> playDate(d));
+      row.appendChild(card);
+    }
+    const arch = document.createElement("button");
+    arch.type = "button"; arch.className = "day-card arch";
+    arch.innerHTML = '<span class="dc-label">Quote Archive</span><span class="dc-date">Since Aug 1</span><span class="dc-ico">&#128451;</span>';
+    arch.addEventListener("click", showArchive);
+    row.appendChild(arch);
+  }
+  $("heroCard").addEventListener("click", ()=> playDate(todayDate()));
+  $("togNormal").addEventListener("click", ()=>{ mode="normal"; $("togNormal").classList.add("on"); $("togHard").classList.remove("on"); });
+  $("togHard").addEventListener("click", ()=>{ mode="hard"; $("togHard").classList.add("on"); $("togNormal").classList.remove("on"); });
+
+  // ---------- quote archive (month by month) ----------
+  function showArchive(){ renderArchive(); $("archive").classList.add("show"); }
+  $("archBack").addEventListener("click", ()=> $("archive").classList.remove("show"));
+  function renderArchive(){
+    const body = $("archBody"); body.innerHTML = "";
+    const t = todayDate();
+    let monthKey = "";
+    let grid = null;
+    for(let d = new Date(t); d0(d) >= ARCHIVE_START; d = addDays(d, -1)){
+      const mk = d.getFullYear()+"-"+d.getMonth();
+      if(mk !== monthKey){
+        monthKey = mk;
+        const h = document.createElement("div"); h.className = "arch-month";
+        h.textContent = MONTHS[d.getMonth()] + " " + d.getFullYear();
+        body.appendChild(h);
+        grid = document.createElement("div"); grid.className = "arch-grid";
+        body.appendChild(grid);
+      }
+      const locked = isLockedDate(d) && !passportOk();
+      const card = document.createElement("button");
+      card.type = "button"; card.className = "arch-day";
+      card.innerHTML = '<span class="ad-w">'+DAYS[d.getDay()].slice(0,3).toUpperCase()+'</span>'
+        + '<span class="ad-n">'+d.getDate()+'</span>'
+        + '<span class="ad-a">'+escapeHtml(QUOTES[quoteIdxForDate(d)].author)+'</span>'
+        + (locked ? '<span class="ad-lock" aria-label="PBS Passport">&#10022;</span>' : '')
+        + (isDoneDate(d) ? '<span class="ad-check" aria-label="Solved">&#10003;</span>' : '');
+      const dd = new Date(d);
+      card.addEventListener("click", ()=>{ (isLockedDate(dd) && !passportOk()) ? openPassport(dd) : playDate(dd); });
+      grid.appendChild(card);
+    }
+  }
+
+  // ---------- Passport gate for the extended library ----------
+  let pendingDate = null;
+  function openPassport(d){ pendingDate = d; $("passport").classList.add("show"); }
+  $("passBack").addEventListener("click", ()=> $("passport").classList.remove("show"));
+  $("passStart").addEventListener("click", ()=>{ window.open(DONATE_URL, "_blank"); });
+  $("passWhat").addEventListener("click", ()=>{ window.open("https://www.pbs.org/passport/", "_blank"); });
+  $("passSignin").addEventListener("click", ()=>{
+    try{ localStorage.setItem("verbatim_passport", "1"); }catch(e){}
+    $("passport").classList.remove("show");
+    if(pendingDate){ const d = pendingDate; pendingDate = null; playDate(d); }
+  });
+
+  // header title returns home once unlocked
+  document.querySelector(".gamename").addEventListener("click", ()=>{ if(gameStarted || state) showHome(); });
+  const homeBtnEl = $("homeBtn");
+  if(homeBtnEl) homeBtnEl.addEventListener("click", showHome);
+
   function startGame(){
     if(gameStarted) return;
-    showMenu();                   // present the menu before the first game
+    const usp = new URLSearchParams(location.search);
+    const dk = parseDateKey(usp.get("date"));
+    if(dk && d0(dk) >= ARCHIVE_START && d0(dk) <= todayDate()){ playDate(dk); return; }
+    const sd = usp.get("seed");
+    if(sd !== null && sd.trim() !== "" && !isNaN(Number(sd))){ gameStarted = true; initGame(Number(sd)); return; }
+    showHome();
   }
   function unlock(){
     try{ localStorage.setItem(GATE_KEY, "1"); }catch(e){}
