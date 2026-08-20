@@ -664,6 +664,15 @@
   }
   .hb-name{ display:block; font-family:var(--serif); font-weight:600; font-size:1.9rem; color:var(--navy); }
   .hb-sub{ display:block; font-family:var(--ui); font-size:.62rem; letter-spacing:.18em; text-transform:uppercase; color:var(--ink-soft); font-weight:700; margin-top:3px; }
+  .continue-card{
+    display:flex; align-items:center; gap:10px; width:100%; text-align:left; cursor:pointer;
+    background:var(--navy); color:#fff; border:none; border-radius:14px; padding:13px 16px; margin-bottom:12px;
+    -webkit-tap-highlight-color:transparent; touch-action:manipulation; transition:transform .12s ease;
+  }
+  .continue-card:active{ transform:scale(.985); }
+  .cc-label{ font-family:var(--serif); font-weight:600; font-size:1.1rem; }
+  .cc-sub{ font-family:var(--ui); font-size:.72rem; letter-spacing:.06em; color:#C9D0F2; font-weight:700; text-transform:uppercase; }
+  .cc-arrow{ margin-left:auto; font-size:1.1rem; }
   .hero-card{
     display:block; width:100%; text-align:left; cursor:pointer; border:none; border-radius:18px;
     background:var(--pbs-blue); color:#fff; padding:22px 20px 18px; position:relative;
@@ -756,7 +765,7 @@
     width:var(--sc,46px); height:var(--sc,46px); border:2px solid var(--paper-edge); border-radius:6px; box-sizing:border-box;
     display:flex; align-items:center; justify-content:center; cursor:pointer; background:#fff;
     font-family:var(--serif); font-size:1.3rem; font-weight:600; color:var(--navy); text-transform:uppercase;
-    -webkit-tap-highlight-color:transparent; touch-action:manipulation; user-select:none;
+    -webkit-tap-highlight-color:transparent; touch-action:none; user-select:none;  /* pointer-drag owns the gesture (same as word chips) */
     transition:transform .1s ease, background .15s ease, border-color .15s ease, color .15s ease;
   }
   .scell.sel{ border-color:var(--pbs-blue); box-shadow:0 0 0 3px rgba(38,56,196,.18); transform:translateY(-2px); }
@@ -844,6 +853,11 @@
       <span class="hb-name">Verbatim</span>
       <span class="hb-sub">A Daily Quote Puzzle from PBS</span>
     </div>
+    <button class="continue-card" id="continueCard" type="button" hidden>
+      <span class="cc-label">Continue</span>
+      <span class="cc-sub" id="continueSub"></span>
+      <span class="cc-arrow">&rarr;</span>
+    </button>
     <button class="hero-card" id="heroCard" type="button">
       <span class="hero-label">Today&rsquo;s Quote</span>
       <span class="hero-date" id="heroDate"></span>
@@ -1529,8 +1543,16 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.5d";
+  const VERSION = "0.5g";
+  const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "normal" | "hard"
+  try{ if(localStorage.getItem(MODE_KEY) === "hard") mode = "hard"; }catch(e){}
+  function setMode(m){
+    mode = m;
+    try{ localStorage.setItem(MODE_KEY, m); }catch(e){}
+    const tn = document.getElementById("togNormal"), th = document.getElementById("togHard");
+    if(tn && th){ tn.classList.toggle("on", m==="normal"); th.classList.toggle("on", m==="hard"); }
+  }
 
   let state = null, drag = null, justDragged = false;
   const DRAG_THRESHOLD = 6;
@@ -1589,6 +1611,89 @@ if(typeof module !== "undefined" && module.exports){
     try{ const m = doneMap(); m[k] = 1; localStorage.setItem("verbatim_done", JSON.stringify(m)); }catch(e){}
   }
   function isDoneDate(d){ return !!doneMap()["d:" + dateKey(d)]; }
+  /* -------- resume: persist the in-progress puzzle -------- */
+  const SAVE_KEY = "verbatim_progress";
+  function saveProgress(){
+    if(!state || state.solved || state.phase === "done" || state.phase === "over"){ clearProgress(); return; }
+    try{
+      const sc = state.hard && state.hard.word ? { order:state.hard.word.order.slice(), solved:!!state.hard.word.solved } : null;
+      localStorage.setItem(SAVE_KEY, JSON.stringify({
+        v:2, seed:state.seed, mode:state.mode,
+        date: state.date ? dateKey(state.date) : null,
+        pack: state.pack, packIdx: state.packIdx, packOrd: state.packOrd,
+        quoteIdx: QUOTES.indexOf(state.quote),
+        moves: state.moves, errorsLeft: state.errorsLeft, placeSeq: state.placeSeq,
+        elapsed: Date.now() - state.startTime,
+        phase: state.phase, stepIdx: state.stepIdx,
+        slots: state.slots.map(s=> s.fixed ? null : {w:s.word, k:s._fromKey, wi:s._wi, l:!!s.locked, p:s._placedAt||0}),
+        bank: state.bank.map(b=> b.key),
+        scramble: sc,
+        guesses: state.guesses.map(g=>({w:g.word, m:g.marks})),
+        keyStatus: state.keyStatus, current: state.current,
+        secretGuesses: state.secretGuesses, secretSolved: !!state.secretSolved
+      }));
+    }catch(e){}
+  }
+  function clearProgress(){ try{ localStorage.removeItem(SAVE_KEY); }catch(e){} }
+  function loadProgress(){
+    try{ const s = JSON.parse(localStorage.getItem(SAVE_KEY) || "null"); return (s && s.v===2) ? s : null; }catch(e){ return null; }
+  }
+  function progressLabel(sv){
+    if(sv.pack){ const pk = packById(sv.pack); return (pk?pk.title:"Pack") + " · " + (sv.packOrd || (sv.packIdx+1)) + " of " + (pk?pk.count:"?"); }
+    if(sv.date){ const d = parseDateKey(sv.date); return "Daily · " + (d ? fmtShort(d) : sv.date); }
+    return "Puzzle № " + sv.seed;
+  }
+  function resumeProgress(){
+    const sv = loadProgress(); if(!sv) return false;
+    const opts = {};
+    if(sv.date){ const d = parseDateKey(sv.date); if(d) opts.date = d; }
+    if(sv.pack){ opts.pack = sv.pack; opts.packIdx = sv.packIdx; opts.packOrd = sv.packOrd; }
+    if(sv.quoteIdx >= 0) opts.quoteIdx = sv.quoteIdx;
+    setMode(sv.mode || "normal");
+    hideOverlays();
+    gameStarted = true;
+    initGame(sv.seed, opts);
+    // rebuild progress on top of the fresh init
+    sv.slots.forEach((ss,i)=>{
+      if(!ss) return;
+      const slot = state.slots[i];
+      if(ss.w != null){
+        const bi = state.bank.findIndex(b=> b.key === ss.k);
+        if(bi >= 0) state.bank.splice(bi,1);
+        slot.word = ss.w; slot._fromKey = ss.k; slot._wi = ss.wi; slot.locked = ss.l; slot._placedAt = ss.p;
+        slot.justLocked = false;
+      }
+    });
+    state.moves = sv.moves; state.placeSeq = sv.placeSeq || 0;
+    if(state.errorsLeft != null && sv.errorsLeft != null) state.errorsLeft = sv.errorsLeft;
+    state.startTime = Date.now() - (sv.elapsed || 0);
+    state.secretGuesses = sv.secretGuesses || 0;
+    state.secretSolved = !!sv.secretSolved;
+    if(sv.scramble && state.hard && state.hard.word){
+      state.hard.word.order = sv.scramble.order;
+      state.hard.word.solved = sv.scramble.solved;
+    }
+    state.guesses = (sv.guesses||[]).map(g=>({word:g.w, marks:g.m}));
+    state.keyStatus = sv.keyStatus || {};
+    state.current = "";
+    updateTurnUI();
+    render();
+    // re-enter the saved phase
+    if(sv.phase === "scramble" && state.hard && state.hard.word && !state.hard.word.solved){
+      state.stepIdx = state.steps.indexOf("word");
+      enterScramble(state.hard.word);
+    } else if(sv.phase === "wordle"){
+      state.stepIdx = state.steps.indexOf("wordle");
+      enterWordle();
+      // restore prior guesses over the fresh wordle state
+      state.guesses = (sv.guesses||[]).map(g=>({word:g.w, marks:g.m}));
+      state.keyStatus = sv.keyStatus || {};
+      state.secretGuesses = sv.secretGuesses || 0;
+      renderWordle();
+    }
+    window.scrollTo(0,0);
+    return true;
+  }
   /* -------- puzzle packs -------- */
   const PACKS = [
     { id:"local",   title:"Local History", sub:"D.C. & Northern Virginia", presenter:"weta", presenterName:"WETA", start:PACK_START,     count:20 },
@@ -1665,6 +1770,7 @@ if(typeof module !== "undefined" && module.exports){
       state.errorBudget = Math.ceil(placeable * 0.6)
         + (secretIndex >= 0 ? 3 : 0)
         + (state.hard && state.hard.word ? 2 : 0);
+      state.errorBudget = Math.max(1, Math.floor(state.errorBudget * 0.75));   // 25% tighter, rounded down
       state.errorsLeft = state.errorBudget;
     } else { state.errorBudget = null; state.errorsLeft = null; }
     // step order after assembly: scrambled word -> mystery word
@@ -1703,7 +1809,7 @@ if(typeof module !== "undefined" && module.exports){
     chromeEls.forEach(el=> el.classList.remove("is-faded","is-hidden"));
     wgridEl.innerHTML = ""; wkeysEl.innerHTML = "";
 
-    try{ history.replaceState(null, "", currentUrl()); }catch(e){}
+    saveProgress();
     render();
   }
   function updateTurnUI(){
@@ -1724,6 +1830,7 @@ if(typeof module !== "undefined" && module.exports){
   }
   function gameOver(){
     state.phase = "over";
+    clearProgress();
     setTimeout(updateTurnUI, 0);
     // reveal the full answer so the player sees how it reads
     state.slots.forEach(s=>{ if(!s.fixed){ s.word = s.correct; s.locked = true; s.justLocked = false; } });
@@ -2057,6 +2164,7 @@ if(typeof module !== "undefined" && module.exports){
   }
 
   function afterChange(){
+    saveProgress();
     render();
     if(state.phase === "assemble" && assembleComplete()){
       state.stepIdx = -1;
@@ -2167,6 +2275,7 @@ if(typeof module !== "undefined" && module.exports){
   }
   function onScramMove(e){
     if(!scramDrag) return;
+    e.preventDefault();   // keep iOS from turning the drag into a scroll
     const dx=e.clientX-scramDrag.startX, dy=e.clientY-scramDrag.startY;
     if(!scramDragMoved && Math.hypot(dx,dy) > DRAG_THRESHOLD){
       scramDragMoved = true;
@@ -2212,6 +2321,7 @@ if(typeof module !== "undefined" && module.exports){
     haptic(solvedNow ? 32 : 18);
     const fixedAny = after.some((c,i)=> c && !before[i]);
     if(!fixedAny && !spendError()) return;   // a swap that fixes nothing costs a mistake
+    saveProgress();
     renderScramble();
     flipWords(_first, null);
     if(!reduceMotion()){                                        // letters get the full Letterati squash
@@ -2302,6 +2412,7 @@ if(typeof module !== "undefined" && module.exports){
     for(let i=0;i<guess.length;i++){ const c=guess[i], cur=state.keyStatus[c]; if(!cur || rank[marks[i]]>rank[cur]) state.keyStatus[c]=marks[i]; }
     const won = guess === state.secretWord;
     if(!won && !spendError()) return;   // a wrong mystery guess costs a mistake
+    setTimeout(saveProgress, 0);
     state.current = "";
     state._animNew = true;          // animate the new guess landing on top
     renderWordle();
@@ -2360,6 +2471,7 @@ if(typeof module !== "undefined" && module.exports){
     state.solved = true; state.phase = "done"; state.secretSolved = true;
     state.elapsedMs = Date.now() - state.startTime;
     updateTurnUI();
+    clearProgress();
     markDone();
     wordleEl.classList.remove("show"); wordleEl.classList.add("is-hidden");
     scrambleEl.classList.remove("show");
@@ -2551,6 +2663,10 @@ if(typeof module !== "undefined" && module.exports){
     $("home").classList.add("show");
   }
   function renderHome(){
+    const sv = loadProgress();
+    const cc = $("continueCard");
+    cc.hidden = !sv;
+    if(sv) $("continueSub").textContent = progressLabel(sv) + " · " + (sv.mode==="hard"?"Hard":"Normal");
     const t = todayDate();
     $("heroDate").textContent = fmtLong(t);
     $("heroAuthor").textContent = "— " + QUOTES[quoteIdxForDate(t)].author;
@@ -2624,8 +2740,10 @@ if(typeof module !== "undefined" && module.exports){
     window.scrollTo(0,0);
   }
   $("heroCard").addEventListener("click", ()=> playDate(todayDate()));
-  $("togNormal").addEventListener("click", ()=>{ mode="normal"; $("togNormal").classList.add("on"); $("togHard").classList.remove("on"); });
-  $("togHard").addEventListener("click", ()=>{ mode="hard"; $("togHard").classList.add("on"); $("togNormal").classList.remove("on"); });
+  $("continueCard").addEventListener("click", ()=>{ if(!resumeProgress()) renderHome(); });
+  $("togNormal").addEventListener("click", ()=> setMode("normal"));
+  $("togHard").addEventListener("click", ()=> setMode("hard"));
+  setMode(mode);   // reflect the saved difficulty on the toggle at startup
 
   // ---------- quote archive (month by month) ----------
   function showArchive(){ renderArchive(); $("archive").classList.add("show"); }
@@ -2682,13 +2800,9 @@ if(typeof module !== "undefined" && module.exports){
 
   function startGame(){
     if(gameStarted) return;
-    const usp = new URLSearchParams(location.search);
-    const pkId = usp.get("pack"), fct = parseInt(usp.get("fact") || "", 10);
-    if(pkId && packById(pkId) && !packById(pkId).soon && fct >= 1 && fct <= packById(pkId).count){ playPack(pkId, fct - 1); return; }
-    const dk = parseDateKey(usp.get("date"));
-    if(dk && d0(dk) >= ARCHIVE_START && d0(dk) <= todayDate()){ playDate(dk); return; }
-    const sd = usp.get("seed");
-    if(sd !== null && sd.trim() !== "" && !isNaN(Number(sd))){ gameStarted = true; initGame(Number(sd)); return; }
+    // the app always opens to the main menu; clear any stale puzzle params
+    // (old bookmarks captured mid-game URLs like ?seed=22816)
+    try{ if(location.search) history.replaceState(null, "", location.pathname); }catch(e){}
     showHome();
   }
   function unlock(){
