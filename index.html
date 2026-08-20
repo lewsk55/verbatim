@@ -1633,7 +1633,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.5l";
+  const VERSION = "0.5m";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "normal" | "hard"
   try{ if(localStorage.getItem(MODE_KEY) === "hard") mode = "hard"; }catch(e){}
@@ -1873,13 +1873,20 @@ if(typeof module !== "undefined" && module.exports){
     {
       const mrng = mulberry32(xfnv1a("music:" + seed));
       const roots = [48,50,51,53,55,56,58,60];                        // GGW's root pool
+      const mkey = { root: roots[Math.floor(mrng()*roots.length)],
+                     scale: mrng() < 0.35 ? SCALE_LYDIAN : SCALE_MAJOR,   // GGW bright-mood scale pick
+                     mood: "bright" };
+      const mprog = PROG_BRIGHT[Math.floor(mrng()*PROG_BRIGHT.length)];
       state.music = {
-        key: { root: roots[Math.floor(mrng()*roots.length)],
-               scale: mrng() < 0.35 ? SCALE_LYDIAN : SCALE_MAJOR,     // GGW bright-mood scale pick
-               mood: "bright" },
+        key: mkey,
+        prog: mprog,
+        ladder: buildLadder(mkey, mprog, mrng,
+          bank.length
+          + (state.hard && state.hard.word ? state.hard.word.target.length : 0)
+          + (secretIndex >= 0 ? 1 : 0) + 2),   // sized to this puzzle's max correct events
         rng: mrng,
-        noteIdx: 0,       // where we are on the ascending 6/9 ladder
-        played: [],       // every note earned — replayed as the reveal chord
+        noteIdx: 0,
+        played: [],
         total: bank.length + (state.hard && state.hard.word ? 1 : 0) + (secretIndex >= 0 ? 1 : 0)
       };
     }
@@ -2309,15 +2316,46 @@ if(typeof module !== "undefined" && module.exports){
     if(state.secretSolved) done++;
     return Math.min(1, done / Math.max(1, state.music.total));
   }
-  /* Every correct move plays ONE note, climbing an ascending major 6/9
-     arpeggio (root-3-5-6 up through the octaves — the warm jazz major sound)
-     in the puzzle's key. The reveal replays every note earned as a single
-     chord, rolled low-to-high alongside the gold sweep. */
-  const LADDER_IV = [0, 4, 7, 9];   // major 6/9 chord tones
-  function ladderNote(M, i){
-    i = Math.min(i, 11);            // cap ~3 octaves so long puzzles stay musical
-    return M.key.root + 12 * Math.floor(i / 4) + LADDER_IV[i % 4];
+  /* Every correct move plays ONE note on a precomputed ascending ladder.
+     The ladder starts LOW (an octave under the puzzle's root) and climbs the
+     key's scale, pulled toward the chord tones of a seeded 4-chord bright
+     progression that rotates every few notes — so a long solve drifts through
+     several warm jazz chords on its way up, never repeating a note, with real
+     headroom into the high register. The reveal then gathers the earned notes
+     into ONE proper tonic chord (not every note makes the cut) and rolls it
+     with rubato timing. */
+  function buildLadder(key, prog, rng, count){
+    // The ladder is sized to THIS puzzle: `count` covers the maximum possible
+    // correct events, and the climb is paced so the final note lands near the
+    // top of the piano without ever running out or repeating. Short puzzles
+    // take big arpeggio-like leaps; long ones climb in tighter scale steps.
+    const scale = key.scale;
+    const start = key.root - 12;                                // begin an octave under the root
+    const ceiling = 99;                                         // ~D#7 — high but still piano-like
+    const chordEvery = 3 + Math.floor(rng() * 2);               // harmony rotates every 3-4 notes
+    const midiAt = s => start + 12 * Math.floor(s / 7) + scale[s % 7];
+    let maxDeg = 0; while(midiAt(maxDeg + 1) <= ceiling) maxDeg++;
+    const ladder = [];
+    let si = 0;
+    for(let i = 0; i < count; i++){
+      const remainingNotes = count - i;
+      const remainingDeg = maxDeg - si;
+      const base = remainingDeg / remainingNotes;               // even pacing to the top
+      let step = Math.max(1, Math.round(base + (rng() - 0.5) * 0.9));
+      step = Math.min(step, Math.max(1, remainingDeg - (remainingNotes - 1)));  // leave room for the rest
+      const [degree, quality] = prog[Math.floor(i / chordEvery) % prog.length];
+      const tonePCs = new Set(buildChordNotes(key, degree, quality).map(n => ((n % 12) + 12) % 12));
+      let chosen = si + step;                                   // snap to a nearby chord tone when possible
+      for(let k = 0; k <= 1; k++){
+        const c = si + step + k;
+        if(c <= maxDeg - (remainingNotes - 1) + 1 && tonePCs.has(((midiAt(c) % 12) + 12) % 12)){ chosen = c; break; }
+      }
+      si = Math.min(chosen, maxDeg);
+      ladder.push(midiAt(si));
+    }
+    return ladder;
   }
+  function ladderNote(M, i){ return M.ladder[Math.min(i, M.ladder.length - 1)]; }
   function playStepNote(vol, sustain){
     const M = state && state.music; if(!M) return;
     const n = ladderNote(M, M.noteIdx++);
@@ -2327,17 +2365,29 @@ if(typeof module !== "undefined" && module.exports){
   function playWordChord(){  playStepNote(0.065, 2.2 + (state.music ? state.music.rng() : 0) * 1.0); }
   function playLetterPing(){ playStepNote(0.05,  1.8); }
   function playSecretChord(){ playStepNote(0.07, 2.8); }
-  // final reveal: every earned note returns as one chord, unfurling low-to-high
+  // final reveal: earned notes distilled into ONE proper tonic chord (6/9 or maj9) —
+  // only the notes that belong to it return — rolled with humanized rubato timing
   function playRevealChord(){
     const M = state && state.music; if(!M) return;
-    let notes = M.played.slice();
-    if(!notes.length){ notes = [0,1,2,3,4].map(i=> ladderNote(M, i)); }
-    notes = [...new Set(notes)].sort((a,b)=> a - b);
-    notes.unshift(notes[0] - 12);                       // low root anchor grounds the roll
+    const quality = M.rng() < 0.5 ? "69" : "M9";
+    const tonePCs = new Set(buildChordNotes(M.key, 0, quality).map(n => ((n % 12) + 12) % 12));
+    let notes = [...new Set(M.played)].filter(n => tonePCs.has(((n % 12) + 12) % 12)).sort((a,b)=> a - b);
+    if(notes.length < 4){                                       // short puzzles: fill out the voicing
+      const base = M.key.root;
+      [0,4,7,quality === "69" ? 9 : 11,14].forEach(iv=>{ const n = base + iv; if(!notes.includes(n)) notes.push(n); });
+      notes.sort((a,b)=> a - b);
+    }
+    while(notes.length > 7){                                    // keep it a chord, not a cluster —
+      notes.splice(1 + Math.floor(M.rng() * (notes.length - 2)), 1);   // thin the middle, keep bass + top
+    }
+    notes.unshift(notes[0] - 12);                               // low root anchor grounds the roll
     const sustain = 3.2;
-    notes.forEach((n, i)=> playPianoNote(n, i === 0 ? 0.055 : 0.048 + M.rng() * 0.008, i * 0.12, sustain));
-    const top = notes[notes.length - 1];
-    playPianoNote(top + 12, 0.026, notes.length * 0.12 + 0.35, sustain * 0.6);   // grace note floating above
+    let t = 0;
+    notes.forEach((n, i)=>{
+      if(i > 0) t += 0.04 + M.rng() * 0.17;                     // rubato: uneven gaps, human roll
+      playPianoNote(n, i === 0 ? 0.055 : 0.044 + M.rng() * 0.014, t, sustain + M.rng() * 0.5);
+    });
+    playPianoNote(Math.min(notes[notes.length - 1] + 12, 103), 0.026, t + 0.3 + M.rng() * 0.3, sustain * 0.6);
   }
 
   function haptic(p){
