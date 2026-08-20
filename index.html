@@ -721,6 +721,20 @@
 
   /* ---------- quote archive ---------- */
   .archive{ position:fixed; inset:0; z-index:9100; display:none; background:var(--page); overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  [hidden]{ display:none !important; }
+  .settings-link{ display:block; margin:10px auto 0; background:none; border:none; cursor:pointer; font-family:var(--ui); font-weight:700; font-size:.85rem; color:var(--ink-soft); -webkit-tap-highlight-color:transparent; padding:8px 14px; }
+  .set-row{ display:flex; align-items:center; gap:14px; background:#fff; border:1.5px solid var(--paper-edge); border-radius:14px; padding:16px; margin-top:14px; }
+  .set-row.set-col{ flex-direction:column; align-items:flex-start; }
+  .set-info{ flex:1; }
+  .set-name{ display:block; font-family:var(--serif); font-weight:600; font-size:1.05rem; color:var(--navy); }
+  .set-sub{ display:block; font-family:var(--ui); font-size:.8rem; color:var(--ink-soft); margin-top:3px; }
+  .set-toggle{ width:52px; height:30px; border-radius:999px; border:none; cursor:pointer; background:var(--pbs-blue); position:relative; transition:background .18s ease; -webkit-tap-highlight-color:transparent; flex:none; }
+  .set-toggle .set-knob{ position:absolute; top:3px; left:25px; width:24px; height:24px; border-radius:50%; background:#fff; transition:left .18s ease; box-shadow:0 1px 3px rgba(10,20,90,.3); }
+  .set-toggle.off{ background:rgba(10,20,90,.22); }
+  .set-toggle.off .set-knob{ left:3px; }
+  .set-danger{ color:#B3382C; border-color:rgba(179,56,44,.4); }
+  .set-danger-solid{ background:#B3382C; }
+  .set-confirm{ width:100%; }
   .archive.show{ display:block; }
   .archive-head{ position:sticky; top:0; background:var(--page); display:flex; align-items:center; gap:12px; padding:14px 18px; border-bottom:1px solid rgba(10,20,90,.08); z-index:2; }
   .arch-back{ background:#fff; border:1.5px solid var(--paper-edge); border-radius:999px; width:36px; height:36px; font-size:1rem; cursor:pointer; color:var(--navy); -webkit-tap-highlight-color:transparent; }
@@ -874,7 +888,39 @@
     <div class="week-row" id="weekRow"></div>
     <p class="row-label">Packs</p>
     <div class="pack-row" id="packRow"></div>
+    <button class="settings-link" id="settingsBtnHome" type="button">&#9881; Settings</button>
     <p class="menu-ver" id="menuVer"></p>
+  </div>
+</div>
+
+<div class="archive" id="settings" aria-label="Settings" style="z-index:9300;">
+  <div class="archive-head">
+    <button class="arch-back" id="setBack" type="button" aria-label="Back">&larr;</button>
+    <span class="arch-title">Settings</span>
+  </div>
+  <div class="archive-body">
+    <div class="set-row">
+      <div class="set-info">
+        <span class="set-name">Sound effects</span>
+        <span class="set-sub">Piano notes on correct moves and reveals.</span>
+      </div>
+      <button class="set-toggle" id="muteToggle" type="button" aria-pressed="false"><span class="set-knob"></span></button>
+    </div>
+    <div class="set-row set-col">
+      <div class="set-info">
+        <span class="set-name">Wipe progress</span>
+        <span class="set-sub">Clears every solved puzzle, star, and saved game on this device.</span>
+      </div>
+      <button class="btn btn-ghost set-danger" id="wipeBtn" type="button">Wipe progress</button>
+      <div class="set-confirm" id="wipeConfirm" hidden>
+        <p class="set-sub" style="margin:0 0 10px;">Are you sure? This can&rsquo;t be undone.</p>
+        <div class="controls" style="margin:0;">
+          <button class="btn btn-primary set-danger-solid" id="wipeYes" type="button">Yes, wipe everything</button>
+          <button class="btn btn-ghost" id="wipeNo" type="button">Cancel</button>
+        </div>
+      </div>
+      <p class="set-sub" id="wipeDone" hidden style="color:var(--navy); font-weight:700;">Progress wiped.</p>
+    </div>
   </div>
 </div>
 
@@ -995,6 +1041,7 @@
 <div class="rule" id="ruleBelow"><span class="orn">&#10087;</span></div>
 <p class="prompt" id="prompt">Place the words to set the quotation</p>
 <div class="menu-btn-wrap"><button class="menu-btn" id="menuBtn" type="button">Main Menu</button></div>
+<div class="menu-btn-wrap"><button class="settings-link" id="settingsBtnGame" type="button">&#9881; Settings</button></div>
 
 <details class="how">
   <summary>How to play</summary>
@@ -1586,7 +1633,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.5k";
+  const VERSION = "0.5l";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "normal" | "hard"
   try{ if(localStorage.getItem(MODE_KEY) === "hard") mode = "hard"; }catch(e){}
@@ -1719,6 +1766,17 @@ if(typeof module !== "undefined" && module.exports){
     state.guesses = (sv.guesses||[]).map(g=>({word:g.w, marks:g.m}));
     state.keyStatus = sv.keyStatus || {};
     state.current = "";
+    if(state.music){   // continue the ascending ladder from restored progress
+      let doneN = state.slots.filter(x=> !x.fixed && x.locked).length;
+      if(state.hard && state.hard.word && state.hard.word.solved) doneN += 3;
+      if(state.secretSolved) doneN += 1;
+      state.music.noteIdx = doneN;
+      state.music.played = [];
+      for(let i = 0; i < doneN; i++){
+        const n = ladderNote(state.music, i);
+        if(state.music.played[state.music.played.length-1] !== n) state.music.played.push(n);
+      }
+    }
     updateTurnUI();
     render();
     // re-enter the saved phase
@@ -1819,9 +1877,9 @@ if(typeof module !== "undefined" && module.exports){
         key: { root: roots[Math.floor(mrng()*roots.length)],
                scale: mrng() < 0.35 ? SCALE_LYDIAN : SCALE_MAJOR,     // GGW bright-mood scale pick
                mood: "bright" },
-        prog: PROG_BRIGHT[Math.floor(mrng()*PROG_BRIGHT.length)],
-        chordIdx: 0,
         rng: mrng,
+        noteIdx: 0,       // where we are on the ascending 6/9 ladder
+        played: [],       // every note earned — replayed as the reveal chord
         total: bank.length + (state.hard && state.hard.word ? 1 : 0) + (secretIndex >= 0 ? 1 : 0)
       };
     }
@@ -2152,6 +2210,7 @@ if(typeof module !== "undefined" && module.exports){
     }catch(e){ _wafLoading = false; }
   }
   function playPianoNote(midi, vol, delayS, sustainMult){
+    try{ if(localStorage.getItem("verbatim_muted") === "1") return; }catch(e){}
     vol = vol || 0.05; delayS = delayS || 0; sustainMult = sustainMult || 1.0;
     const ac = getAC(); if(!ac) return;
     if(!_wafLoading && !_wafReady && typeof WebAudioFontPlayer !== "undefined") initWebAudioFont();
@@ -2250,65 +2309,35 @@ if(typeof module !== "undefined" && module.exports){
     if(state.secretSolved) done++;
     return Math.min(1, done / Math.max(1, state.music.total));
   }
-  // one correct word = the next chord of the puzzle's progression;
-  // early chords are thinned to 1-2 notes, later ones play fuller (GGW thinning inverted onto progress)
-  function playWordChord(){
-    const M = state && state.music; if(!M) return;
-    const p = musicProgress();
-    const [degree, quality] = M.prog[M.chordIdx % M.prog.length]; M.chordIdx++;
-    const raw = buildChordNotes(M.key, degree, quality);
-    const notes = voiceChord(raw, M.rng);
-    // keep bass + top always; interior notes survive more often as the puzzle fills in
-    const keepChance = 0.15 + p * 0.95;
-    let picked = notes.filter((_, i)=> i === 0 || i === notes.length - 1 || M.rng() < keepChance);
-    if(p < 0.18) picked = [notes[0], notes[notes.length - 1]];       // opening: bare root + color tone
-    if(M.chordIdx === 1) picked = [notes[0]];                        // very first placement: one note
-    const sustain = 2.0 + M.rng() * 1.5;                             // GGW bright-mood sustain
-    picked.forEach((n, i)=>{
-      const stagger = i * (0.02 + M.rng() * 0.06);                   // GGW humanized roll
-      const noteVol = i === 0 ? 0.06 : 0.05 + M.rng() * 0.012;
-      playPianoNote(n, noteVol, stagger, sustain);
-    });
+  /* Every correct move plays ONE note, climbing an ascending major 6/9
+     arpeggio (root-3-5-6 up through the octaves — the warm jazz major sound)
+     in the puzzle's key. The reveal replays every note earned as a single
+     chord, rolled low-to-high alongside the gold sweep. */
+  const LADDER_IV = [0, 4, 7, 9];   // major 6/9 chord tones
+  function ladderNote(M, i){
+    i = Math.min(i, 11);            // cap ~3 octaves so long puzzles stay musical
+    return M.key.root + 12 * Math.floor(i / 4) + LADDER_IV[i % 4];
   }
-  // scramble letter landing correct = GGW sparse fill (BOTW-style fragment, high register)
-  function playLetterPing(){
+  function playStepNote(vol, sustain){
     const M = state && state.music; if(!M) return;
-    const key = M.key, roll = M.rng();
-    const vol = 0.04 + M.rng() * 0.015, sustain = 1.5 + M.rng() * 1.5;
-    if(roll < 0.45){                                                  // root + fifth anchor
-      const oct = M.rng() < 0.4 ? 24 : 12;
-      playPianoNote(key.root + oct, vol, 0, sustain);
-      playPianoNote(key.root + key.scale[4] + oct, vol * 0.8, 0.08 + M.rng() * 0.1, sustain * 0.9);
-    } else {                                                          // single contemplative scale note
-      const deg = Math.floor(M.rng() * 7);
-      playPianoNote(key.root + key.scale[deg] + (M.rng() < 0.5 ? 24 : 12), vol * 0.9, 0, sustain);
-    }
+    const n = ladderNote(M, M.noteIdx++);
+    if(M.played[M.played.length - 1] !== n) M.played.push(n);
+    playPianoNote(n, vol, 0, sustain);
   }
-  // mystery word cracked = full voiced chord + GGW's floating melodic embellishment
-  function playSecretChord(){
-    const M = state && state.music; if(!M) return;
-    const [degree, quality] = M.prog[M.chordIdx % M.prog.length]; M.chordIdx++;
-    const raw = buildChordNotes(M.key, degree, quality);
-    const notes = voiceChord(raw, M.rng);
-    const sustain = 2.4 + M.rng() * 1.2;
-    notes.forEach((n, i)=> playPianoNote(n, i === 0 ? 0.06 : 0.05 + M.rng() * 0.012, i * (0.03 + M.rng() * 0.05), sustain));
-    const mel = raw[0] + 12 + (raw[Math.floor(M.rng() * raw.length)] - raw[0]);
-    playPianoNote(mel, 0.03, 0.5 + M.rng() * 0.4, sustain * 0.6);
-  }
-  // final reveal = the tonic as a wide-spread maj9 / 6-9, un-thinned, rolled slowly
-  // low-to-high with extra sustain — unfurls alongside the gold sweep
+  function playWordChord(){  playStepNote(0.065, 2.2 + (state.music ? state.music.rng() : 0) * 1.0); }
+  function playLetterPing(){ playStepNote(0.05,  1.8); }
+  function playSecretChord(){ playStepNote(0.07, 2.8); }
+  // final reveal: every earned note returns as one chord, unfurling low-to-high
   function playRevealChord(){
     const M = state && state.music; if(!M) return;
-    const quality = M.rng() < 0.5 ? "M9" : "69";
-    const raw = buildChordNotes(M.key, 0, quality);
-    let v = raw.slice();
-    for(let i = 1; i < v.length; i += 2) v[i] += 12;                  // GGW wide-spread voicing
-    v.unshift(raw[0] - 12);                                           // low root anchor first
-    v.sort((a,b)=> a - b);
+    let notes = M.played.slice();
+    if(!notes.length){ notes = [0,1,2,3,4].map(i=> ladderNote(M, i)); }
+    notes = [...new Set(notes)].sort((a,b)=> a - b);
+    notes.unshift(notes[0] - 12);                       // low root anchor grounds the roll
     const sustain = 3.2;
-    v.forEach((n, i)=> playPianoNote(n, i === 0 ? 0.055 : 0.045 + M.rng() * 0.01, i * 0.12, sustain));
-    const mel = raw[0] + 24 + (raw[Math.floor(M.rng() * raw.length)] - raw[0]);
-    playPianoNote(mel, 0.028, v.length * 0.12 + 0.35, sustain * 0.6); // grace note floating above
+    notes.forEach((n, i)=> playPianoNote(n, i === 0 ? 0.055 : 0.048 + M.rng() * 0.008, i * 0.12, sustain));
+    const top = notes[notes.length - 1];
+    playPianoNote(top + 12, 0.026, notes.length * 0.12 + 0.35, sustain * 0.6);   // grace note floating above
   }
 
   function haptic(p){
@@ -3044,6 +3073,40 @@ if(typeof module !== "undefined" && module.exports){
   setMode(mode);   // reflect the saved difficulty on the toggle at startup
 
   // ---------- quote archive (month by month) ----------
+  /* -------- settings: mute + wipe -------- */
+  const MUTE_KEY = "verbatim_muted";
+  function isMuted(){ try{ return localStorage.getItem(MUTE_KEY) === "1"; }catch(e){ return false; } }
+  function renderMuteToggle(){
+    const t = $("muteToggle");
+    t.classList.toggle("off", isMuted());
+    t.setAttribute("aria-pressed", isMuted() ? "true" : "false");
+  }
+  $("muteToggle").addEventListener("click", ()=>{
+    try{ localStorage.setItem(MUTE_KEY, isMuted() ? "0" : "1"); }catch(e){}
+    renderMuteToggle();
+  });
+  function openSettings(){
+    $("wipeConfirm").hidden = true; $("wipeBtn").hidden = false; $("wipeDone").hidden = true;
+    renderMuteToggle();
+    $("settings").classList.add("show");
+  }
+  $("settingsBtnHome").addEventListener("click", openSettings);
+  $("settingsBtnGame").addEventListener("click", openSettings);
+  $("setBack").addEventListener("click", ()=>{
+    $("settings").classList.remove("show");
+    if($("home").classList.contains("show")) renderHome();   // reflect a wipe immediately
+  });
+  $("wipeBtn").addEventListener("click", ()=>{ $("wipeBtn").hidden = true; $("wipeConfirm").hidden = false; });
+  $("wipeNo").addEventListener("click", ()=>{ $("wipeConfirm").hidden = true; $("wipeBtn").hidden = false; });
+  $("wipeYes").addEventListener("click", ()=>{
+    try{
+      localStorage.removeItem("verbatim_done");
+      localStorage.removeItem("verbatim_progress");
+    }catch(e){}
+    $("wipeConfirm").hidden = true; $("wipeDone").hidden = false;
+    haptic(24);
+  });
+
   function showArchive(){ renderArchive(); $("archive").classList.add("show"); }
   $("archBack").addEventListener("click", ()=> $("archive").classList.remove("show"));
   function renderArchive(){
