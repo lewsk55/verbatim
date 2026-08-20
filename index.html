@@ -833,6 +833,7 @@
   }
   @media (prefers-reduced-motion:reduce){ .wrow.shakeno{ animation:none; } }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/webaudiofont@3.0.4/npm/dist/WebAudioFontPlayer.js"></script>
 </head>
 <body>
 <div class="gate" id="gate" role="dialog" aria-modal="true" aria-label="Enter password to play Verbatim">
@@ -1585,7 +1586,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.5i";
+  const VERSION = "0.5k";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "normal" | "hard"
   try{ if(localStorage.getItem(MODE_KEY) === "hard") mode = "hard"; }catch(e){}
@@ -1809,6 +1810,22 @@ if(typeof module !== "undefined" && module.exports){
       pack: (opts && opts.pack) || null, packIdx: (opts && opts.packIdx != null) ? opts.packIdx : null,
       packOrd: (opts && opts.packOrd) || null
     };
+    // one major key + one bright progression per puzzle, chosen from the seed
+    // (GGW picks these per hole; here the seed makes every chord in a puzzle agree)
+    {
+      const mrng = mulberry32(xfnv1a("music:" + seed));
+      const roots = [48,50,51,53,55,56,58,60];                        // GGW's root pool
+      state.music = {
+        key: { root: roots[Math.floor(mrng()*roots.length)],
+               scale: mrng() < 0.35 ? SCALE_LYDIAN : SCALE_MAJOR,     // GGW bright-mood scale pick
+               mood: "bright" },
+        prog: PROG_BRIGHT[Math.floor(mrng()*PROG_BRIGHT.length)],
+        chordIdx: 0,
+        rng: mrng,
+        total: bank.length + (state.hard && state.hard.word ? 1 : 0) + (secretIndex >= 0 ? 1 : 0)
+      };
+    }
+
     // hard mode: a mistake budget scaled to the puzzle's size — errors spend it, correct moves don't
     if(mode === "hard"){
       const placeable = bank.length;
@@ -2075,6 +2092,225 @@ if(typeof module !== "undefined" && module.exports){
   }
 
   /* -------- tap + drag (assemble phase only) -------- */
+
+  /* ---------- piano — ported from Golf Gone Wrong's per-level music system:
+     WebAudioFont sampled grand (Aspirin soundfont) through a generated hall
+     reverb, with GGW's synth-piano fallback while samples load. Chords come
+     from GGW's modal-jazz brain (maj9 / add9 / 6-9 / sus voicings, bright
+     progressions, jazz voicing + thinning), locked to one MAJOR key per
+     puzzle. Event-driven here rather than ambient-timed. ---------- */
+  let _ac = null;
+  function getAC(){
+    if(!_ac){ try{ _ac = new (window.AudioContext || window.webkitAudioContext)(); }catch(e){} }
+    if(_ac && _ac.state === "suspended"){ try{ _ac.resume(); }catch(e){} }
+    return _ac;
+  }
+  ["pointerdown","keydown","touchstart"].forEach(ev =>
+    document.addEventListener(ev, ()=>{ const ac = getAC(); if(ac) initWebAudioFont(); }, { passive:true }));
+
+  function midiToHz(m){ return 440 * Math.pow(2, (m - 69) / 12); }
+
+  /* -- hall reverb chain (GGW: 3.5s impulse, dry .55 / wet .45, 40ms predelay, LP 3500) -- */
+  let _pianoReverbDest = null;
+  function createPianoReverb(){
+    if(_pianoReverbDest) return;
+    const ac = getAC(); if(!ac) return;
+    const sampleRate = ac.sampleRate, length = sampleRate * 3.5;
+    const impulse = ac.createBuffer(2, length, sampleRate);
+    for(let ch = 0; ch < 2; ch++){
+      const data = impulse.getChannelData(ch);
+      for(let i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2.2);
+    }
+    const convolver = ac.createConvolver(); convolver.buffer = impulse;
+    _pianoReverbDest = ac.createGain(); _pianoReverbDest.gain.value = 1.0;
+    const dry = ac.createGain(); dry.gain.value = 0.55;
+    const wet = ac.createGain(); wet.gain.value = 0.45;
+    const preDelay = ac.createDelay(0.08); preDelay.delayTime.value = 0.04;
+    const reverbLP = ac.createBiquadFilter(); reverbLP.type = "lowpass"; reverbLP.frequency.value = 3500;
+    _pianoReverbDest.connect(dry); dry.connect(ac.destination);
+    _pianoReverbDest.connect(preDelay); preDelay.connect(convolver);
+    convolver.connect(reverbLP); reverbLP.connect(wet); wet.connect(ac.destination);
+  }
+  function getPianoTarget(){ createPianoReverb(); return _pianoReverbDest || getAC().destination; }
+
+  /* -- sampled grand: Aspirin soundfont, same file GGW loads -- */
+  let _wafPlayer = null, _wafPiano = null, _wafLoading = false, _wafReady = false;
+  function initWebAudioFont(){
+    if(_wafLoading || _wafReady || typeof WebAudioFontPlayer === "undefined") return;
+    _wafLoading = true;
+    try{
+      const ac = getAC();
+      _wafPlayer = new WebAudioFontPlayer();
+      const instrUrl = "https://cdn.jsdelivr.net/gh/surikov/webaudiofontdata@master/sound/0000_Aspirin_sf2_file.js";
+      const instrVar = "_tone_0000_Aspirin_sf2_file";
+      _wafPlayer.loader.startLoad(ac, instrUrl, instrVar);
+      _wafPlayer.loader.waitLoad(function(){
+        _wafPiano = window[instrVar];
+        if(_wafPiano){ _wafReady = true; _wafPlayer.loader.decodeAfterLoading(ac, instrVar); }
+        _wafLoading = false;
+      });
+    }catch(e){ _wafLoading = false; }
+  }
+  function playPianoNote(midi, vol, delayS, sustainMult){
+    vol = vol || 0.05; delayS = delayS || 0; sustainMult = sustainMult || 1.0;
+    const ac = getAC(); if(!ac) return;
+    if(!_wafLoading && !_wafReady && typeof WebAudioFontPlayer !== "undefined") initWebAudioFont();
+    try{
+      if(_wafReady && _wafPlayer && _wafPiano){
+        _wafPlayer.queueWaveTable(ac, getPianoTarget(), _wafPiano, ac.currentTime + delayS, midi, 6.0 * sustainMult, vol * 1.8);
+        return;
+      }
+      playPianoNoteSynth(midi, vol, delayS, sustainMult);
+    }catch(e){}
+  }
+  /* GGW's synth piano fallback (sawtooth hammer transient + detuned triangle
+     fundamental + decaying 2nd harmonic + low-register resonance) */
+  function playPianoNoteSynth(midi, vol, delayS, sustainMult){
+    const ac = getAC(), t = ac.currentTime + delayS;
+    const freq = midiToHz(midi);
+    const sustain = 6.0 * sustainMult;
+    const out = ac.createGain();
+    out.gain.setValueAtTime(0, t);
+    out.gain.linearRampToValueAtTime(vol, t + 0.008);
+    out.gain.setTargetAtTime(vol * 0.65, t + 0.008, 0.06);
+    out.gain.setTargetAtTime(0.0001, t + 0.3, sustain * 0.4);
+    out.connect(getPianoTarget());
+    const atk = ac.createOscillator(); atk.type = "sawtooth";
+    const atkEnv = ac.createGain(); atkEnv.gain.setValueAtTime(0.4, t);
+    atkEnv.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+    const atkHp = ac.createBiquadFilter(); atkHp.type = "highpass"; atkHp.frequency.value = freq * 2;
+    atk.frequency.value = freq; atk.connect(atkHp); atkHp.connect(atkEnv); atkEnv.connect(out);
+    atk.start(t); atk.stop(t + 0.05);
+    const fund = ac.createOscillator(); fund.type = "triangle";
+    fund.frequency.value = freq; fund.detune.value = (Math.random() - 0.5) * 3;
+    const fundG = ac.createGain(); fundG.gain.value = 1.0;
+    fund.connect(fundG); fundG.connect(out);
+    fund.start(t); fund.stop(t + sustain * 1.5 + 0.2);
+    const h2 = ac.createOscillator(); h2.type = "sine";
+    h2.frequency.value = freq * 2; h2.detune.value = (Math.random() - 0.5) * 5;
+    const h2G = ac.createGain(); h2G.gain.value = 0.18;
+    const h2Env = ac.createGain();
+    h2Env.gain.setValueAtTime(1, t); h2Env.gain.setTargetAtTime(0.001, t + 0.1, 0.35);
+    h2.connect(h2G); h2G.connect(h2Env); h2Env.connect(out);
+    h2.start(t); h2.stop(t + sustain + 0.2);
+    if(freq < 400){
+      const res = ac.createOscillator(); res.type = "sine";
+      res.frequency.value = freq * 1.5; res.detune.value = 1200;
+      const resG = ac.createGain(); resG.gain.value = 0.06;
+      const resEnv = ac.createGain();
+      resEnv.gain.setValueAtTime(0, t); resEnv.gain.linearRampToValueAtTime(1, t + 0.08);
+      resEnv.gain.setTargetAtTime(0.001, t + 0.3, sustain * 0.6);
+      res.connect(resG); resG.connect(resEnv); resEnv.connect(out);
+      res.start(t); res.stop(t + sustain + 0.3);
+    }
+  }
+
+  /* -- GGW's key / chord / progression brain, bright (major) moods only -- */
+  const SCALE_MAJOR  = [0,2,4,5,7,9,11];
+  const SCALE_LYDIAN = [0,2,4,6,7,9,11];
+  const CHORD_INTERVALS = {
+    "M":    [0,4,7],
+    "m7":   [0,3,7,10],
+    "M7":   [0,4,7,11],
+    "M9":   [0,4,7,11,14],      // maj9 — lush, dreamy
+    "m9":   [0,3,7,10,14],
+    "add9": [0,4,7,14],         // bright, open
+    "sus4": [0,5,7],
+    "sus2": [0,2,7],
+    "69":   [0,4,7,9,14],       // 6/9 — warm jazz color
+  };
+  // GGW PROG_BRIGHT — modal movement, no hard V-I cadences, all in a major key
+  const PROG_BRIGHT = [
+    [[0,"M9"],[3,"add9"],[1,"m7"],[5,"m9"]],
+    [[0,"sus2"],[3,"M9"],[5,"m7"],[4,"sus4"]],
+    [[0,"add9"],[2,"m7"],[3,"M7"],[1,"m9"]],
+    [[0,"69"],[3,"add9"],[0,"sus4"],[3,"M9"]],
+    [[3,"M9"],[2,"m7"],[1,"sus4"],[0,"add9"]],
+  ];
+  function buildChordNotes(key, degree, quality){
+    const scaleNote = key.scale[degree % 7];
+    const octaveShift = Math.floor(degree / 7) * 12;
+    const chordRoot = key.root + scaleNote + octaveShift;
+    return (CHORD_INTERVALS[quality] || [0,4,7]).map(i => chordRoot + i);
+  }
+  function voiceChord(notes, rng){   // GGW jazz voicings: inversions, drop-2, spread, open
+    const style = rng();
+    let v = notes.slice();
+    if(style < 0.2 && v.length >= 3){ v[0] += 12; }
+    else if(style < 0.35 && v.length >= 3){ v[0] += 12; v[1] += 12; }
+    else if(style < 0.5 && v.length >= 4){ v[v.length - 2] -= 12; }
+    else if(style < 0.65){ for(let i = 1; i < v.length; i += 2) v[i] += 12; }
+    else if(style < 0.78 && v.length >= 3){ v[0] -= 12; if(v.length > 2) v[v.length-1] += 12; }
+    return v;
+  }
+  function musicProgress(){
+    if(!state || !state.music) return 0;
+    let done = state.slots.filter(s=> !s.fixed && s.locked).length;
+    if(state.hard && state.hard.word && state.hard.word.solved) done++;
+    if(state.secretSolved) done++;
+    return Math.min(1, done / Math.max(1, state.music.total));
+  }
+  // one correct word = the next chord of the puzzle's progression;
+  // early chords are thinned to 1-2 notes, later ones play fuller (GGW thinning inverted onto progress)
+  function playWordChord(){
+    const M = state && state.music; if(!M) return;
+    const p = musicProgress();
+    const [degree, quality] = M.prog[M.chordIdx % M.prog.length]; M.chordIdx++;
+    const raw = buildChordNotes(M.key, degree, quality);
+    const notes = voiceChord(raw, M.rng);
+    // keep bass + top always; interior notes survive more often as the puzzle fills in
+    const keepChance = 0.15 + p * 0.95;
+    let picked = notes.filter((_, i)=> i === 0 || i === notes.length - 1 || M.rng() < keepChance);
+    if(p < 0.18) picked = [notes[0], notes[notes.length - 1]];       // opening: bare root + color tone
+    if(M.chordIdx === 1) picked = [notes[0]];                        // very first placement: one note
+    const sustain = 2.0 + M.rng() * 1.5;                             // GGW bright-mood sustain
+    picked.forEach((n, i)=>{
+      const stagger = i * (0.02 + M.rng() * 0.06);                   // GGW humanized roll
+      const noteVol = i === 0 ? 0.06 : 0.05 + M.rng() * 0.012;
+      playPianoNote(n, noteVol, stagger, sustain);
+    });
+  }
+  // scramble letter landing correct = GGW sparse fill (BOTW-style fragment, high register)
+  function playLetterPing(){
+    const M = state && state.music; if(!M) return;
+    const key = M.key, roll = M.rng();
+    const vol = 0.04 + M.rng() * 0.015, sustain = 1.5 + M.rng() * 1.5;
+    if(roll < 0.45){                                                  // root + fifth anchor
+      const oct = M.rng() < 0.4 ? 24 : 12;
+      playPianoNote(key.root + oct, vol, 0, sustain);
+      playPianoNote(key.root + key.scale[4] + oct, vol * 0.8, 0.08 + M.rng() * 0.1, sustain * 0.9);
+    } else {                                                          // single contemplative scale note
+      const deg = Math.floor(M.rng() * 7);
+      playPianoNote(key.root + key.scale[deg] + (M.rng() < 0.5 ? 24 : 12), vol * 0.9, 0, sustain);
+    }
+  }
+  // mystery word cracked = full voiced chord + GGW's floating melodic embellishment
+  function playSecretChord(){
+    const M = state && state.music; if(!M) return;
+    const [degree, quality] = M.prog[M.chordIdx % M.prog.length]; M.chordIdx++;
+    const raw = buildChordNotes(M.key, degree, quality);
+    const notes = voiceChord(raw, M.rng);
+    const sustain = 2.4 + M.rng() * 1.2;
+    notes.forEach((n, i)=> playPianoNote(n, i === 0 ? 0.06 : 0.05 + M.rng() * 0.012, i * (0.03 + M.rng() * 0.05), sustain));
+    const mel = raw[0] + 12 + (raw[Math.floor(M.rng() * raw.length)] - raw[0]);
+    playPianoNote(mel, 0.03, 0.5 + M.rng() * 0.4, sustain * 0.6);
+  }
+  // final reveal = the tonic as a wide-spread maj9 / 6-9, un-thinned, rolled slowly
+  // low-to-high with extra sustain — unfurls alongside the gold sweep
+  function playRevealChord(){
+    const M = state && state.music; if(!M) return;
+    const quality = M.rng() < 0.5 ? "M9" : "69";
+    const raw = buildChordNotes(M.key, 0, quality);
+    let v = raw.slice();
+    for(let i = 1; i < v.length; i += 2) v[i] += 12;                  // GGW wide-spread voicing
+    v.unshift(raw[0] - 12);                                           // low root anchor first
+    v.sort((a,b)=> a - b);
+    const sustain = 3.2;
+    v.forEach((n, i)=> playPianoNote(n, i === 0 ? 0.055 : 0.045 + M.rng() * 0.01, i * 0.12, sustain));
+    const mel = raw[0] + 24 + (raw[Math.floor(M.rng() * raw.length)] - raw[0]);
+    playPianoNote(mel, 0.028, v.length * 0.12 + 0.35, sustain * 0.6); // grace note floating above
+  }
+
   function haptic(p){
     try{
       if(window.navigator && navigator.vibrate){ navigator.vibrate(p); return; }
@@ -2175,6 +2411,7 @@ if(typeof module !== "undefined" && module.exports){
     state._movedKey = s._fromKey;
     commit(slotIdx);
     haptic(state.slots[slotIdx].locked ? 32 : 18);   // stronger on drop; strongest when correct
+    if(state.slots[slotIdx].locked) playWordChord();
     if(!state.slots[slotIdx].locked && !spendError()) return;   // wrong spot costs a mistake
   }
   function slotMove(fromIdx, toIdx){
@@ -2186,6 +2423,7 @@ if(typeof module !== "undefined" && module.exports){
     state._movedKey = state.slots[toIdx]._fromKey;
     commit(toIdx); commit(fromIdx);
     haptic((state.slots[toIdx].locked || state.slots[fromIdx].locked) ? 32 : 18);
+    if(state.slots[toIdx].locked || state.slots[fromIdx].locked) playWordChord();
     if(!(state.slots[toIdx].locked || state.slots[fromIdx].locked) && !spendError()) return;
   }
   function returnWord(i){
@@ -2376,6 +2614,7 @@ if(typeof module !== "undefined" && module.exports){
     const solvedNow = after.every(Boolean);
     haptic(solvedNow ? 32 : 18);
     const fixedAny = after.some((c,i)=> c && !before[i]);
+    if(fixedAny) playLetterPing();
     if(!fixedAny && !spendError()) return;   // a swap that fixes nothing costs a mistake
     saveProgress();
     renderScramble();
@@ -2472,6 +2711,7 @@ if(typeof module !== "undefined" && module.exports){
     state.current = "";
     state._animNew = true;          // animate the new guess landing on top
     renderWordle();
+    if(won) playSecretChord();
     if(won) setTimeout(()=>{ state.secretSolved = true; render(); nextStep(); }, 700);
   }
 
@@ -2557,6 +2797,7 @@ if(typeof module !== "undefined" && module.exports){
   }
 
   function solveSequence(){
+    playRevealChord();   // extended maj13 rolls low-to-high alongside the gold sweep
     const toks = [...lineEl.querySelectorAll(".tok")];
     const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const step = reduce ? 0 : 80;
