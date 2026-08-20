@@ -626,6 +626,7 @@
   .pc-sub{ font-family:var(--ui); font-size:.66rem; letter-spacing:.06em; color:var(--ink-soft); font-weight:700; text-transform:uppercase; }
   .pc-presenter{ margin-top:auto; display:flex; align-items:center; gap:6px; background:var(--paper); border:1px solid var(--paper-edge); border-radius:8px; padding:5px 8px; }
   .pc-presenter .pby{ font-family:var(--ui); font-size:.56rem; letter-spacing:.06em; color:var(--ink-soft); font-weight:700; text-transform:uppercase; }
+  .pby.special-tag{ color:#8A6D00; }
   .pc-presenter img, .pc-presenter svg{ height:14px; display:block; }
   .pack-card.soon{ opacity:.55; cursor:default; }
   .pack-card.soon:hover{ border-color:var(--paper-edge); }
@@ -760,11 +761,11 @@
   /* ---------- hard-mode scramble panel ---------- */
   .scramble{ display:none; flex-direction:column; align-items:center; gap:14px; margin-top:6px; }
   .scramble.show{ display:flex; }
-  .scrow{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
+  .scrow{ display:flex; gap:var(--scg,8px); flex-wrap:nowrap; justify-content:center; }
   .scell{
     width:var(--sc,46px); height:var(--sc,46px); border:2px solid var(--paper-edge); border-radius:6px; box-sizing:border-box;
     display:flex; align-items:center; justify-content:center; cursor:pointer; background:#fff;
-    font-family:var(--serif); font-size:1.3rem; font-weight:600; color:var(--navy); text-transform:uppercase;
+    font-family:var(--serif); font-size:var(--scfs,1.3rem); font-weight:600; color:var(--navy); text-transform:uppercase;
     -webkit-tap-highlight-color:transparent; touch-action:none; user-select:none;  /* pointer-drag owns the gesture (same as word chips) */
     transition:transform .1s ease, background .15s ease, border-color .15s ease, color .15s ease;
   }
@@ -1346,7 +1347,48 @@ QUOTES.push(
   {id:"ps17", label:"A Day Longer Than a Year", text:"Venus rotates so slowly that one full spin takes longer than its whole trip around the Sun.", author:"NOVA Science", src:"Presented by NOVA"},
   {id:"ps18", label:"Every Other Breath", text:"Roughly half the oxygen on Earth is produced by tiny drifting ocean organisms called phytoplankton.", author:"NOVA Science", src:"Presented by NOVA"},
   {id:"ps19", label:"Eight Million Strikes", text:"Lightning strikes our planet about eight million times every day, mostly over land in the tropics.", author:"NOVA Science", src:"Presented by NOVA"},
-  {id:"ps20", label:"Through the Impossible", text:"In quantum physics, particles can tunnel straight through barriers that classical rules say are impossible to cross.", author:"NOVA Science", src:"Presented by NOVA"}
+  {id:"ps20", label:"Through the Impossible", text:"In quantum physics, particles can tunnel straight through barriers that classical rules say are impossible to cross.", author:"NOVA Science", src:"Presented by NOVA"},
+  // ---- DC & Virginia Voices: quotes with local roots (special collection) ----
+  {id:"pv01", label:"Langston Hughes", text:"Hold fast to dreams, for when dreams go, life is a barren field frozen with snow.", author:"Langston Hughes", src:"Discovered as a poet while working in a D.C. hotel"},
+  {id:"pv02", label:"Duke Ellington", text:"Gray skies are just clouds passing over.", author:"Duke Ellington", src:"Born and raised in Washington, D.C."},
+  {id:"pv03", label:"Marvin Gaye", text:"If you cannot find peace within yourself, you will never find it anywhere else.", author:"Marvin Gaye", src:"Born in Washington, D.C."},
+  {id:"pv04", label:"José Andrés", text:"We should be building longer tables, not higher walls.", author:"José Andrés", src:"Chef who built his restaurant empire in D.C."},
+  {id:"pv05", label:"Dave Grohl", text:"That is one of the great things about music: you can sing a song to 85,000 people and they will sing it back for 85,000 different reasons.", author:"Dave Grohl", src:"Raised in Springfield, Virginia"},
+  {id:"pv06", label:"Ella Fitzgerald", text:"The only thing better than singing is more singing.", author:"Ella Fitzgerald", src:"Born in Newport News, Virginia"},
+  {id:"pv07", label:"Pearl Bailey", text:"What the world really needs is more love and less paperwork.", author:"Pearl Bailey", src:"Born in Newport News, Virginia"},
+  {id:"pv08", label:"Patsy Cline", text:"If you can not do it with feeling, do not do it at all.", author:"Patsy Cline", src:"From Winchester, Virginia"},
+  {id:"pv09", label:"Arthur Ashe", text:"True heroism is remarkably sober, very undramatic; it is the urge to serve others at whatever cost.", author:"Arthur Ashe", src:"Tennis champion from Richmond, Virginia"},
+  {id:"pv10", label:"Willa Cather", text:"Where there is great love, there are always miracles.", author:"Willa Cather", src:"Born near Winchester, Virginia"},
+  {id:"pv11", label:"Edgar Allan Poe", text:"Those who dream by day are cognizant of many things which escape those who dream only by night.", author:"Edgar Allan Poe", src:"Raised in Richmond, Virginia"},
+  {id:"pv12", label:"Booker T. Washington", text:"Character, not circumstances, makes the man.", author:"Booker T. Washington", src:"Born in Franklin County, Virginia"},
+  {id:"pv13", label:"Maggie L. Walker", text:"Have faith, have hope, have courage, and carry on.", author:"Maggie L. Walker", src:"Richmond banker, first Black woman to charter a bank"},
+  {id:"pv14", label:"John Denver", text:"Music does bring people together; it allows us to experience the same emotions.", author:"John Denver", src:"Born in Roanoke, Virginia"},
+  {id:"pv15", label:"Tom Wolfe", text:"You never realize how much of your background is sewn into the lining of your clothes.", author:"Tom Wolfe", src:"Born and raised in Richmond, Virginia"},
+  {id:"pv16", label:"Russell Baker", text:"An educated person is one who has learned that information almost always turns out to be at best incomplete.", author:"Russell Baker", src:"Born in Loudoun County, Virginia"},
+  {id:"pv17", label:"Katherine Johnson", text:"I counted everything: the steps, the dishes, the stars in the sky.", author:"Katherine Johnson", src:"Calculated space flights at NASA Langley in Hampton, Virginia"},
+  {id:"pv18", label:"Pharrell Williams", text:"If someone asks me what inspires me, I always say, that which is missing.", author:"Pharrell Williams", src:"From Virginia Beach, Virginia"},
+  {id:"pv19", label:"Frederick Douglass", text:"It is not light that is needed, but fire; it is not the gentle shower, but thunder.", author:"Frederick Douglass", src:"Lived at Cedar Hill in Washington's Anacostia"},
+  {id:"pv20", label:"Alma Thomas", text:"Through color, I have sought to concentrate on beauty and happiness.", author:"Alma Thomas", src:"Beloved painter and D.C. schoolteacher"},
+  {id:"pv21", label:"Helen Hayes", text:"The expert in anything was once a beginner.", author:"Helen Hayes", src:"Born in Washington, D.C."},
+  {id:"pv22", label:"John Philip Sousa", text:"A march should make a man with a wooden leg step out.", author:"John Philip Sousa", src:"The March King, born in Washington, D.C."},
+  {id:"pv23", label:"George C. Marshall", text:"The only way human beings can win a war is to prevent it.", author:"George C. Marshall", src:"Virginia Military Institute graduate who settled in Leesburg"},
+  {id:"pv24", label:"Patrick Henry", text:"I have but one lamp by which my feet are guided, and that is the lamp of experience.", author:"Patrick Henry", src:"Virginia's Revolutionary orator"},
+  {id:"pv25", label:"Thomas Jefferson", text:"I like the dreams of the future better than the history of the past.", author:"Thomas Jefferson", src:"Virginian, author of the Declaration of Independence"},
+  {id:"pv26", label:"George Washington", text:"It is better to offer no excuse than a bad one.", author:"George Washington", src:"Virginian of Mount Vernon"},
+  {id:"pv27", label:"James Madison", text:"Knowledge will forever govern ignorance.", author:"James Madison", src:"Virginian, father of the Constitution"},
+  {id:"pv28", label:"Samuel L. Jackson", text:"If you have an opportunity to use your voice, you should use it.", author:"Samuel L. Jackson", src:"Born in Washington, D.C."},
+  {id:"pv29", label:"Warren Beatty", text:"You have achieved success in your field when you do not know whether what you are doing is work or play.", author:"Warren Beatty", src:"Born in Richmond, Virginia"},
+  {id:"pv30", label:"Shirley MacLaine", text:"Fear makes strangers of people who would be friends.", author:"Shirley MacLaine", src:"Born in Richmond, Virginia"},
+  {id:"pv31", label:"Jim Henson", text:"The most sophisticated people I know — inside they are all children.", author:"Jim Henson", src:"Launched his puppets on Washington, D.C. television"},
+  {id:"pv32", label:"Nikki Giovanni", text:"Mistakes are a fact of life; it is the response to the error that counts.", author:"Nikki Giovanni", src:"Longtime Virginia Tech professor"},
+  {id:"pv33", label:"Rita Dove", text:"If we are going to solve the problems of the world, we have to learn how to talk to one another.", author:"Rita Dove", src:"Pulitzer-winning poet at the University of Virginia"},
+  {id:"pv34", label:"Ellen Glasgow", text:"The only difference between a rut and a grave are the dimensions.", author:"Ellen Glasgow", src:"Richmond novelist, Pulitzer winner"},
+  {id:"pv35", label:"Katie Couric", text:"Be fearless; have the courage to take risks and go where there are no guarantees.", author:"Katie Couric", src:"Raised in Arlington, Virginia"},
+  {id:"pv36", label:"Benjamin Banneker", text:"The colour of the skin is in no way connected with strength of the mind.", author:"Benjamin Banneker", src:"Helped survey the boundaries of the new capital"},
+  {id:"pv37", label:"Frances Hodgson Burnett", text:"If you look the right way, you can see that the whole world is a garden.", author:"Frances Hodgson Burnett", src:"Wrote her famous novels while living in Washington, D.C."},
+  {id:"pv38", label:"Carter G. Woodson", text:"If a race has no history, it has no worthwhile tradition.", author:"Carter G. Woodson", src:"Father of Black history, born in Buckingham County, Virginia"},
+  {id:"pv39", label:"Georgia Douglas Johnson", text:"Your world is as big as you make it.", author:"Georgia Douglas Johnson", src:"Hosted Washington's famed S Street literary salon"},
+  {id:"pv40", label:"Jean Toomer", text:"We learn the rope of life by untying its knots.", author:"Jean Toomer", src:"Harlem Renaissance writer born in Washington, D.C."}
 );
 
 /* -------- Seeded PRNG (mulberry32) + string hash -------- */
@@ -1543,7 +1585,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.5g";
+  const VERSION = "0.5i";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "normal" | "hard"
   try{ if(localStorage.getItem(MODE_KEY) === "hard") mode = "hard"; }catch(e){}
@@ -1698,6 +1740,7 @@ if(typeof module !== "undefined" && module.exports){
   const PACKS = [
     { id:"local",   title:"Local History", sub:"D.C. & Northern Virginia", presenter:"weta", presenterName:"WETA", start:PACK_START,     count:20 },
     { id:"science", title:"Science",       sub:"Factoids & laws",          presenter:"nova", presenterName:"NOVA", start:PACK_START+20,  count:20 },
+    { id:"voices",  title:"DC & Virginia Voices", sub:"Local legends, in their words", special:true, presenter:"weta", presenterName:"WETA", start:PACK_START+40, count:40 },
     { id:"us",      title:"US History",    sub:"Coming soon", soon:true },
     { id:"world",   title:"World History", sub:"Coming soon", soon:true },
     { id:"geo",     title:"Geography",     sub:"Coming soon", soon:true }
@@ -1717,9 +1760,11 @@ if(typeof module !== "undefined" && module.exports){
   function packSeed(pk, i){ return 31000 + PACKS.indexOf(pk)*100 + i; }
   function isDonePack(id, i){ return !!doneMap()["p:" + id + ":" + i]; }
   function presenterHTML(pk, big){
-    if(pk.presenter==="weta") return '<span class="pby">Presented by</span>' + document.getElementById("wetaMark").innerHTML;
-    if(pk.presenter==="nova") return '<span class="pby">Presented by</span>' + document.getElementById("novaMark").innerHTML;
-    return "";
+    let h = "";
+    if(pk.presenter==="weta") h = '<span class="pby">Presented by</span>' + document.getElementById("wetaMark").innerHTML;
+    else if(pk.presenter==="nova") h = '<span class="pby">Presented by</span>' + document.getElementById("novaMark").innerHTML;
+    if(pk.special) h = '<span class="pby special-tag">&#10022;</span>' + (h || '<span class="pby special-tag">Special Collection</span>');
+    return h;
   }
 
   /* -------- (re)start a game -------- */
@@ -1783,7 +1828,12 @@ if(typeof module !== "undefined" && module.exports){
     else { if(noLab) noLab.textContent = "PUZZLE"; $("puzzleNum").textContent = "№ " + seed; }
     // byline is rendered by renderAttribution() (scrambled in hard mode)
     const _src = (pz.quote.src || "").trim();
-    $("attrSrc").textContent = (_src && !/^(attributed|house line)$/i.test(_src)) ? _src : "";
+    let srcLine = (_src && !/^(attributed|house line)$/i.test(_src)) ? _src : "";
+    if(state.pack){
+      const pk = packById(state.pack);
+      if(pk && pk.presenterName && !/presented by/i.test(srcLine)) srcLine += (srcLine ? " \u00B7 " : "") + "Presented by " + pk.presenterName;
+    }
+    $("attrSrc").textContent = srcLine;
     // "quote" vs "fact" wording, depending on what's being assembled
     const NOUN = state.pack ? "fact" : "quotation";
     promptEl.textContent = "Place the words to set the " + NOUN;
@@ -2225,7 +2275,13 @@ if(typeof module !== "undefined" && module.exports){
   function renderScramble(){
     const sc = state.curScramble; if(!sc) return;
     const L = sc.target.length;
-    scrowEl.style.setProperty("--sc", (L>=9?34 : L>=8?38 : L>=7?42 : 46) + "px");
+    // size cells from the actual panel width so every word fits on ONE line
+    const gap = L >= 8 ? 5 : 8;
+    const avail = Math.max(200, (scrambleEl.clientWidth || 320) - 8);
+    const cell = Math.max(26, Math.min(46, Math.floor((avail - (L-1)*gap) / L)));
+    scrowEl.style.setProperty("--sc", cell + "px");
+    scrowEl.style.setProperty("--scg", gap + "px");
+    scrowEl.style.setProperty("--scfs", Math.max(0.85, (cell/46)*1.3).toFixed(2) + "rem");
     scrowEl.innerHTML = "";
     sc.order.forEach((tileId, pos)=>{
       const ch = sc.tiles[tileId].ch;
@@ -2715,6 +2771,7 @@ if(typeof module !== "undefined" && module.exports){
     const pk = packById(id); if(!pk) return;
     $("packTitle").textContent = pk.title;
     $("packPresenter").innerHTML = presenterHTML(pk, true);
+    $("packPresenter").style.display = $("packPresenter").innerHTML ? "" : "none";
     const list = $("packList"); list.innerHTML = "";
     const order = packOrder(pk);
     order.forEach((rawIdx, rank)=>{
@@ -2795,6 +2852,7 @@ if(typeof module !== "undefined" && module.exports){
   const homeBtnEl = $("homeBtn");
   if(homeBtnEl) homeBtnEl.addEventListener("click", showHome);
   $("menuBtn").addEventListener("click", showHome);
+  window.addEventListener("resize", ()=>{ if(state && state.phase === "scramble") renderScramble(); });
   $("retryBtn").addEventListener("click", ()=>{ if(lastInit) initGame(lastInit.seed, lastInit.opts); });
   $("goHomeBtn").addEventListener("click", showHome);
 
