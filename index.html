@@ -1664,7 +1664,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.5o";
+  const VERSION = "0.5p";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "normal" | "hard"
   try{ if(localStorage.getItem(MODE_KEY) === "hard") mode = "hard"; }catch(e){}
@@ -2411,23 +2411,28 @@ if(typeof module !== "undefined" && module.exports){
     M.played.push(n);
     playPianoNote(n, 0.07, 0, 2.8);
   }
-  // final reveal: a fixed, unambiguous tonic resolution. Bass root, major triad
-  // with the third ALWAYS present, at most a gentle 9th for shimmer, and the
-  // ROOT as the last note played — every puzzle ends on home.
-  // (The old 6th/maj7 colors could invert into minor-sounding dyads against the
-  // top root, and the random thinning sometimes dropped the third — both gone.)
+  // final reveal: four hand-vetted JAZZ voicings of the tonic — 6/9, maj9,
+  // add9, and a maj13 shell — that all obey the resolution rules the sour
+  // versions broke: bass is the root, the major third is always present,
+  // color tones (6th, maj7, 9th, 13th) live in the INNER voices where they
+  // glow instead of clash, the top two notes form a strong interval, and the
+  // ROOT is always the last note played. Seeded per puzzle for variety.
+  const REVEAL_VOICINGS = [
+    [-12, 0,  9, 14, 16, 19, 24, 36],   // 6/9: sixth + ninth tucked low-mid, octave-root crown
+    [-12, 0, 11, 16, 19, 26, 31, 36],   // maj9: maj7 deep in the stack, quartal 9-5-root top
+    [-12, 0,  7, 14, 16, 19, 36],       // add9: shimmer 9th beside the third, leap to the root
+    [-12, 0, 11, 16, 21, 31, 36],       // maj13 shell: 13th mid-voice, fourth-fall onto the root
+  ];
   function playRevealChord(){
     const M = state && state.music; if(!M) return;
     const r = M.key.root;
-    const notes = M.rng() < 0.55
-      ? [r - 12, r, r + 7, r + 14, r + 16, r + 19, r + 36]   // add9 spread: root 5 9 3 5 root
-      : [r - 12, r, r + 7, r + 16, r + 19, r + 24, r + 36];  // pure major spread, doubled root
+    const notes = REVEAL_VOICINGS[Math.floor(M.rng() * REVEAL_VOICINGS.length)].map(iv => r + iv);
     const sustain = 3.2;
     let t = 0;
     notes.forEach((n, i)=>{
       const last = i === notes.length - 1;
-      if(i > 0) t += (last ? 0.10 : 0.04) + M.rng() * 0.16;  // small breath before the landing root
-      const vol = i === 0 ? 0.058 : (last ? 0.055 : 0.044 + M.rng() * 0.012);
+      if(i > 0) t += (last ? 0.10 : 0.04) + M.rng() * 0.16;   // rubato, plus a breath before the landing root
+      const vol = i === 0 ? 0.058 : (last ? 0.055 : 0.042 + M.rng() * 0.014);
       playPianoNote(n, vol, t, last ? sustain + 0.8 : sustain + M.rng() * 0.4);
     });
   }
