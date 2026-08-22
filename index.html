@@ -799,11 +799,14 @@
   .scrow{ position:relative; }
   .juiced{ position:relative; z-index:40; will-change:transform; }
   .turns-line{ text-align:center; font-size:.84rem; color:var(--ink-soft); font-weight:700; margin-top:14px; }
-  .turns-line.low b{ color:var(--coral); }
+  .turns-line.warn b{ color:#B58900; }   /* between one and two thirds left */
+  .turns-line.low b{ color:var(--coral); }   /* a third or less left */
   .gameover{ display:none; text-align:center; padding:18px 0 6px; }
   .gameover.show{ display:block; }
   .go-title{ font-family:var(--serif); font-weight:600; font-size:1.5rem; color:var(--navy); }
   .go-sub{ font-family:var(--ui); font-size:.88rem; color:var(--ink-soft); margin:6px 0 14px; }
+  .go-controls{ flex-direction:column; align-items:center; gap:10px; }
+  .go-retry{ font-size:1.05rem; padding:14px 34px; width:min(280px, 90%); }
 
   /* a scrambled word shows on a yellow box anywhere it appears */
   .tok.scrambled-word, .chip.scrambled-word{
@@ -881,8 +884,8 @@
       <span class="hero-play">Play &rarr;</span>
     </button>
     <div class="mode-tog" role="group" aria-label="Mode">
-      <button id="togNormal" class="on" type="button">Normal</button>
-      <button id="togHard" type="button">Hard</button>
+      <button id="togEasy" type="button">Easy</button>
+      <button id="togNorm" class="on" type="button">Normal</button>
     </div>
     <p class="row-label">This week</p>
     <div class="week-row" id="weekRow"></div>
@@ -1008,9 +1011,8 @@
     <!-- Afterglow: appears in place once solved -->
     <div class="gameover" id="gameover">
       <div class="go-title">Out of mistakes</div>
-      <p class="go-sub">Here&rsquo;s how it reads &mdash; give it another try.</p>
-      <div class="controls">
-        <button class="btn btn-primary" id="retryBtn">Try again</button>
+      <div class="controls go-controls">
+        <button class="btn btn-primary go-retry" id="retryBtn">Try again</button>
         <button class="btn btn-ghost" id="goHomeBtn">Home</button>
       </div>
     </div>
@@ -1664,15 +1666,20 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.5p";
+  const VERSION = "0.5r";
   const MODE_KEY = "verbatim_mode";
-  let mode = "normal";   // "normal" | "hard"
-  try{ if(localStorage.getItem(MODE_KEY) === "hard") mode = "hard"; }catch(e){}
+  let mode = "normal";   // "easy" | "normal" — Normal (formerly Hard) is the default
+  try{
+    const saved = localStorage.getItem(MODE_KEY);
+    if(saved === "easy") mode = "easy";
+    else if(saved === "normal-legacy") mode = "easy";
+  }catch(e){}
   function setMode(m){
+    if(m !== "easy" && m !== "normal") m = "normal";
     mode = m;
     try{ localStorage.setItem(MODE_KEY, m); }catch(e){}
-    const tn = document.getElementById("togNormal"), th = document.getElementById("togHard");
-    if(tn && th){ tn.classList.toggle("on", m==="normal"); th.classList.toggle("on", m==="hard"); }
+    const te = document.getElementById("togEasy"), tn = document.getElementById("togNorm");
+    if(te && tn){ te.classList.toggle("on", m==="easy"); tn.classList.toggle("on", m==="normal"); }
   }
 
   let state = null, drag = null, justDragged = false;
@@ -1745,6 +1752,7 @@ if(typeof module !== "undefined" && module.exports){
         quoteIdx: QUOTES.indexOf(state.quote),
         moves: state.moves, errorsLeft: state.errorsLeft, placeSeq: state.placeSeq,
         elapsed: Date.now() - state.startTime,
+        attemptNum: state.attemptNum || 1,
         phase: state.phase, stepIdx: state.stepIdx,
         slots: state.slots.map(s=> s.fixed ? null : {w:s.word, k:s._fromKey, wi:s._wi, l:!!s.locked, p:s._placedAt||0}),
         bank: state.bank.map(b=> b.key),
@@ -1770,7 +1778,7 @@ if(typeof module !== "undefined" && module.exports){
     if(sv.date){ const d = parseDateKey(sv.date); if(d) opts.date = d; }
     if(sv.pack){ opts.pack = sv.pack; opts.packIdx = sv.packIdx; opts.packOrd = sv.packOrd; }
     if(sv.quoteIdx >= 0) opts.quoteIdx = sv.quoteIdx;
-    setMode(sv.mode || "normal");
+    setMode(sv.mode === "easy" ? "easy" : "normal");
     hideOverlays();
     gameStarted = true;
     initGame(sv.seed, opts);
@@ -1788,6 +1796,8 @@ if(typeof module !== "undefined" && module.exports){
     state.moves = sv.moves; state.placeSeq = sv.placeSeq || 0;
     if(state.errorsLeft != null && sv.errorsLeft != null) state.errorsLeft = sv.errorsLeft;
     state.startTime = Date.now() - (sv.elapsed || 0);
+    state.attemptNum = sv.attemptNum || 1;
+    attemptCarry = { seed:null, ms:0, tries:0 };
     state.secretGuesses = sv.secretGuesses || 0;
     state.secretSolved = !!sv.secretSolved;
     if(sv.scramble && state.hard && state.hard.word){
@@ -1894,7 +1904,7 @@ if(typeof module !== "undefined" && module.exports){
       moves:0, solved:false, startTime:Date.now(), elapsedMs:0, score:0, placeSeq:0,
       phase:"assemble", secretIndex, secretWord, secretLen, secretKey, secretPunct,
       guesses:[], current:"", keyStatus:{}, secretGuesses:0, secretSolved:false,
-      mode, hard: (mode==="hard") ? buildHard(seed, words, secretIndex, anchors, pz.quote.author) : null,
+      mode, hard: (mode==="normal") ? buildHard(seed, words, secretIndex, anchors, pz.quote.author) : null,
       steps:[], stepIdx:-1, curScramble:null, scramSel:null,
       date: (opts && opts.date) ? d0(opts.date) : null,
       pack: (opts && opts.pack) || null, packIdx: (opts && opts.packIdx != null) ? opts.packIdx : null,
@@ -1923,15 +1933,18 @@ if(typeof module !== "undefined" && module.exports){
       };
     }
 
-    // hard mode: a mistake budget scaled to the puzzle's size — errors spend it, correct moves don't
-    if(mode === "hard"){
+    // every mode has a mistake budget now — errors spend it, correct moves don't.
+    // Easy gets 50% more mistakes than Normal (and no scrambled-word phase).
+    {
       const placeable = bank.length;
-      state.errorBudget = Math.ceil(placeable * 0.6)
+      let budget = Math.ceil(placeable * 0.6)
         + (secretIndex >= 0 ? 3 : 0)
         + (state.hard && state.hard.word ? 2 : 0);
-      state.errorBudget = Math.max(1, Math.floor(state.errorBudget * 0.75));   // 25% tighter, rounded down
-      state.errorsLeft = state.errorBudget;
-    } else { state.errorBudget = null; state.errorsLeft = null; }
+      budget = Math.max(1, Math.floor(budget * 0.75));
+      if(mode === "easy") budget = Math.floor(budget * 1.5);   // 50% more turns on Easy
+      state.errorBudget = budget;
+      state.errorsLeft = budget;
+    }
     // step order after assembly: scrambled word -> mystery word
     if(state.hard && state.hard.word) state.steps.push("word");
     if(secretIndex >= 0) state.steps.push("wordle");
@@ -1971,6 +1984,12 @@ if(typeof module !== "undefined" && module.exports){
     scrambleEl.classList.remove("show","is-faded","is-hidden"); scrowEl.innerHTML = "";
     $("gameover").classList.remove("show");
     undoBtn.classList.add("show");
+    if(attemptCarry.seed === seed){        // retry: the clock keeps every prior attempt
+      state.startTime = Date.now() - attemptCarry.ms;
+      state.attemptNum = attemptCarry.tries + 1;
+    } else {
+      state.attemptNum = 1;
+    }
     updateTurnUI();
     chromeEls.forEach(el=> el.classList.remove("is-faded","is-hidden"));
     wgridEl.innerHTML = ""; wkeysEl.innerHTML = "";
@@ -1984,30 +2003,31 @@ if(typeof module !== "undefined" && module.exports){
     if(!state || state.errorsLeft == null || !activePhase){ wrap.hidden = true; return; }
     wrap.hidden = false;
     $("turnsLeft").textContent = Math.max(0, state.errorsLeft);
-    wrap.classList.toggle("low", state.errorsLeft <= 2);
+    const frac = state.errorBudget ? state.errorsLeft / state.errorBudget : 1;
+    wrap.classList.toggle("low",  frac <= 1/3);
+    wrap.classList.toggle("warn", frac > 1/3 && frac <= 2/3);
   }
   // an error spends the mistake budget; correct moves are free
   function spendError(){
-    if(!state || state.mode !== "hard" || state.phase === "done" || state.phase === "over") return true;
+    if(!state || state.errorsLeft == null || state.phase === "done" || state.phase === "over") return true;
     state.errorsLeft--;
     updateTurnUI();
     if(state.errorsLeft <= 0){ gameOver(); return false; }
     return true;
   }
+  // failed attempts accumulate here so the final solve time covers EVERY try
+  let attemptCarry = { seed:null, ms:0, tries:0 };
   function gameOver(){
     state.phase = "over";
+    const spent = Date.now() - state.startTime;   // startTime already includes prior carry
+    attemptCarry = { seed: state.seed, ms: spent, tries: (state.attemptNum || 1) };
     clearProgress();
     setTimeout(updateTurnUI, 0);
-    // reveal the full answer so the player sees how it reads
-    state.slots.forEach(s=>{ if(!s.fixed){ s.word = s.correct; s.locked = true; s.justLocked = false; } });
-    state.bank = [];
-    state.secretSolved = true;
-    if(state.hard && state.hard.word) state.hard.word.solved = true;
+    // no reveal — the quote stays unsolved so a retry means something
     wordleEl.classList.remove("show"); wordleEl.classList.add("is-hidden");
     scrambleEl.classList.remove("show");
     undoBtn.classList.remove("show");
     chromeEls.forEach(el=> el.classList.add("is-hidden"));
-    render();
     $("gameover").classList.add("show");
     haptic([40,80,40]);
     try{ $("gameover").scrollIntoView({behavior:"smooth", block:"center"}); }catch(e){}
@@ -2891,7 +2911,8 @@ if(typeof module !== "undefined" && module.exports){
   /* ===================== Final solve ===================== */
   function finishSolve(){
     state.solved = true; state.phase = "done"; state.secretSolved = true;
-    state.elapsedMs = Date.now() - state.startTime;
+    state.elapsedMs = Date.now() - state.startTime;   // spans every attempt via the carry
+    if(attemptCarry.seed === state.seed) attemptCarry = { seed:null, ms:0, tries:0 };
     updateTurnUI();
     clearProgress();
     markDone();
@@ -2949,7 +2970,13 @@ if(typeof module !== "undefined" && module.exports){
     const { score, elapsedSec } = computeScore();
     state.score = score;
     $("timeLine").textContent = "Solved in " + fmtTime(elapsedSec);
-    $("scoreLine").textContent = score + " points · " + state.moves + (state.moves===1?" move":" moves");
+    let scoreTxt = score + " points · " + state.moves + (state.moves===1?" move":" moves");
+    if((state.attemptNum || 1) > 1){
+      const n = state.attemptNum;
+      const ord = n===2?"2nd":n===3?"3rd":n+"th";
+      scoreTxt += " · " + ord + " try";
+    }
+    $("scoreLine").textContent = scoreTxt;
     $("mysteryLine").textContent = state.secretIndex>=0
       ? "Mystery word: " + state.secretWord + " — " + state.secretGuesses + (state.secretGuesses===1?" guess":" guesses")
       : "";
@@ -3089,7 +3116,7 @@ if(typeof module !== "undefined" && module.exports){
     const sv = loadProgress();
     const cc = $("continueCard");
     cc.hidden = !sv;
-    if(sv) $("continueSub").textContent = progressLabel(sv) + " · " + (sv.mode==="hard"?"Hard":"Normal");
+    if(sv) $("continueSub").textContent = progressLabel(sv) + " · " + (sv.mode==="easy"?"Easy":"Normal");
     const t = todayDate();
     $("heroDate").textContent = fmtLong(t);
     $("heroAuthor").textContent = "— " + QUOTES[quoteIdxForDate(t)].author;
@@ -3165,8 +3192,8 @@ if(typeof module !== "undefined" && module.exports){
   }
   $("heroCard").addEventListener("click", ()=> playDate(todayDate()));
   $("continueCard").addEventListener("click", ()=>{ if(!resumeProgress()) renderHome(); });
-  $("togNormal").addEventListener("click", ()=> setMode("normal"));
-  $("togHard").addEventListener("click", ()=> setMode("hard"));
+  $("togEasy").addEventListener("click", ()=> setMode("easy"));
+  $("togNorm").addEventListener("click", ()=> setMode("normal"));
   setMode(mode);   // reflect the saved difficulty on the toggle at startup
 
   // ---------- quote archive (month by month) ----------
