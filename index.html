@@ -567,6 +567,7 @@
     .wkrow{ gap:8px; }
     .wcell{ width:52px; height:52px; font-size:1.5rem; }
     main{ max-width:720px; }
+    .archive-body{ max-width:760px; }
   }
   @media (max-width:430px){
     .gamename{font-size:1.35rem}
@@ -750,20 +751,40 @@
   .arch-back{ background:#fff; border:1.5px solid var(--paper-edge); border-radius:999px; width:36px; height:36px; font-size:1rem; cursor:pointer; color:var(--navy); -webkit-tap-highlight-color:transparent; }
   .arch-title{ font-family:var(--serif); font-weight:600; font-size:1.3rem; color:var(--navy); }
   .archive-body{ max-width:560px; margin:0 auto; padding:16px 18px 48px; }
-  .arch-month{ font-family:var(--serif); font-weight:600; font-size:1.05rem; color:var(--navy); margin:18px 0 10px; }
-  .arch-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(100px,1fr)); gap:10px; }
-  .arch-day{
-    position:relative; background:#fff; border:1.5px solid var(--paper-edge); border-radius:12px; padding:10px 8px 9px;
-    text-align:center; cursor:pointer; -webkit-tap-highlight-color:transparent; touch-action:manipulation; transition:transform .12s ease, border-color .15s ease;
+  .arch-month{ font-family:var(--serif); font-weight:600; font-size:1.3rem; color:var(--navy); margin:26px 0 8px; text-align:center; }
+  .cal-month{ margin-bottom:8px; }
+  .cal-dow{ display:grid; grid-template-columns:repeat(7,1fr); gap:6px; margin:0 0 8px; }
+  .cal-dow span{ text-align:center; font-family:var(--ui); font-size:.68rem; letter-spacing:.14em; color:var(--ink-soft); font-weight:700; border-bottom:1px solid rgba(10,20,90,.16); padding-bottom:6px; }
+  .cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:6px; row-gap:12px; }
+  .cal-slot{ display:flex; flex-direction:column; align-items:center; gap:3px; min-width:0; }
+  .cal-cell{
+    position:relative; width:100%; aspect-ratio:1; max-width:64px; border-radius:12px;
+    background:#fff; border:1.5px solid var(--paper-edge);
+    display:flex; align-items:center; justify-content:center;
+    font-family:var(--serif); font-weight:600; font-size:1.05rem; color:var(--navy);
+    cursor:pointer; -webkit-tap-highlight-color:transparent; touch-action:manipulation;
+    transition:transform .12s ease, border-color .15s ease;
   }
-  .arch-day:active{ transform:scale(.96); }
-  .arch-day:hover{ border-color:var(--pbs-blue); }
-  .ad-w{ display:block; font-family:var(--ui); font-size:.58rem; letter-spacing:.14em; color:var(--ink-soft); font-weight:700; }
-  .ad-n{ display:block; font-family:var(--serif); font-weight:600; font-size:1.45rem; color:var(--navy); line-height:1.25; }
-  .ad-a{ display:block; font-family:var(--ui); font-size:.6rem; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .ad-lock{
-    position:absolute; top:6px; right:6px; width:18px; height:18px; border-radius:50%;
-    background:var(--yellow); color:var(--navy); font-size:.62rem; display:flex; align-items:center; justify-content:center;
+  .cal-cell:active{ transform:scale(.94); }
+  .cal-cell:hover{ border-color:var(--pbs-blue); }
+  .cal-cell.today{ border-color:var(--pbs-blue); box-shadow:0 0 0 2px rgba(38,56,196,.25); }
+  .cal-cell.done{ background:var(--yellow); border-color:var(--yellow); }
+  .cal-cell.done .cc-day{ position:absolute; bottom:3px; right:6px; font-size:.62rem; }
+  .cal-cell.locked{ background:#F4F5FB; }
+  .cal-cell.ghost{ background:transparent; border-color:transparent; color:rgba(10,20,90,.22); cursor:default; }
+  .cc-mark{ font-size:1.15rem; line-height:1; }
+  .cal-cell.locked .cc-mark{ position:absolute; top:4px; right:5px; font-size:.66rem; color:#8A6D00; }
+  .cal-name{
+    font-family:var(--ui); font-size:.55rem; line-height:1.25; color:var(--ink-soft); text-align:center;
+    max-width:100%; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; min-height:2.5em;
+  }
+  .cal-cell.ghost + .cal-name{ visibility:hidden; }
+  @media (min-width: 700px){
+    .cal-cell{ max-width:84px; border-radius:14px; font-size:1.3rem; }
+    .cal-name{ font-size:.72rem; }
+    .cal-dow span{ font-size:.8rem; }
+    .arch-month{ font-size:1.55rem; }
+    .cal-grid{ gap:10px; row-gap:16px; }
   }
 
   /* ---------- Passport gate ---------- */
@@ -1685,7 +1706,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.5u";
+  const VERSION = "0.5v";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "easy" | "normal" — Normal (formerly Hard) is the default
   try{
@@ -3282,30 +3303,53 @@ if(typeof module !== "undefined" && module.exports){
   function renderArchive(){
     const body = $("archBody"); body.innerHTML = "";
     const t = todayDate();
-    let monthKey = "";
-    let grid = null;
-    for(let d = new Date(t); d0(d) >= ARCHIVE_START; d = addDays(d, -1)){
-      const mk = d.getFullYear()+"-"+d.getMonth();
-      if(mk !== monthKey){
-        monthKey = mk;
-        const h = document.createElement("div"); h.className = "arch-month";
-        h.textContent = MONTHS[d.getMonth()] + " " + d.getFullYear();
-        body.appendChild(h);
-        grid = document.createElement("div"); grid.className = "arch-grid";
-        body.appendChild(grid);
+    // one section per month, newest first, all on a single scroll
+    let cur = new Date(t.getFullYear(), t.getMonth(), 1);
+    const firstMonth = new Date(ARCHIVE_START.getFullYear(), ARCHIVE_START.getMonth(), 1);
+    while(cur >= firstMonth){
+      body.appendChild(buildMonthCal(cur, t));
+      cur = new Date(cur.getFullYear(), cur.getMonth() - 1, 1);
+    }
+  }
+  function buildMonthCal(monthStart, today){
+    const sec = document.createElement("section");
+    sec.className = "cal-month";
+    const h = document.createElement("div"); h.className = "arch-month";
+    h.textContent = MONTHS[monthStart.getMonth()] + " " + monthStart.getFullYear();
+    sec.appendChild(h);
+    const dow = document.createElement("div"); dow.className = "cal-dow";
+    ["S","M","T","W","T","F","S"].forEach(d=>{ const s=document.createElement("span"); s.textContent=d; dow.appendChild(s); });
+    sec.appendChild(dow);
+    const grid = document.createElement("div"); grid.className = "cal-grid";
+    sec.appendChild(grid);
+    const daysInMonth = new Date(monthStart.getFullYear(), monthStart.getMonth()+1, 0).getDate();
+    for(let b = 0; b < monthStart.getDay(); b++){ const sp=document.createElement("span"); sp.className="cal-blank"; grid.appendChild(sp); }
+    for(let day = 1; day <= daysInMonth; day++){
+      const d = new Date(monthStart.getFullYear(), monthStart.getMonth(), day);
+      const cellWrap = document.createElement("div"); cellWrap.className = "cal-slot";
+      if(d0(d) < ARCHIVE_START || d0(d) > d0(today)){
+        // outside the library: keep the grid shape with a ghost day
+        cellWrap.innerHTML = '<span class="cal-cell ghost"><span class="cc-day">'+day+'</span></span>';
+        grid.appendChild(cellWrap);
+        continue;
       }
       const locked = isLockedDate(d) && !passportOk();
-      const card = document.createElement("button");
-      card.type = "button"; card.className = "arch-day";
-      card.innerHTML = '<span class="ad-w">'+DAYS[d.getDay()].slice(0,3).toUpperCase()+'</span>'
-        + '<span class="ad-n">'+d.getDate()+'</span>'
-        + '<span class="ad-a">'+escapeHtml(QUOTES[quoteIdxForDate(d)].author)+'</span>'
-        + (locked ? '<span class="ad-lock" aria-label="PBS Passport">&#10022;</span>' : '')
-        + (isDoneDate(d) ? '<span class="ad-check" aria-label="Solved">&#10003;</span>' : '');
+      const done = isDoneDate(d);
+      const isToday = d0(d).getTime() === d0(today).getTime();
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "cal-cell" + (done ? " done" : "") + (locked ? " locked" : "") + (isToday ? " today" : "");
+      btn.innerHTML = '<span class="cc-day">' + day + '</span>'
+        + (done ? '<span class="cc-mark">&#10003;</span>' : locked ? '<span class="cc-mark cc-pass">&#10022;</span>' : "");
       const dd = new Date(d);
-      card.addEventListener("click", ()=>{ (isLockedDate(dd) && !passportOk()) ? openPassport(dd) : playDate(dd); });
-      grid.appendChild(card);
+      btn.addEventListener("click", ()=>{ (isLockedDate(dd) && !passportOk()) ? openPassport(dd) : playDate(dd); });
+      cellWrap.appendChild(btn);
+      const nm = document.createElement("span"); nm.className = "cal-name";
+      nm.textContent = QUOTES[quoteIdxForDate(d)].author;
+      cellWrap.appendChild(nm);
+      grid.appendChild(cellWrap);
     }
+    return sec;
   }
 
   // ---------- Passport gate for the extended library ----------
