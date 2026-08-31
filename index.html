@@ -337,7 +337,7 @@
   .tok.glow{ animation:lockGlow .95s ease-out, lockPop .5s ease-out; }
 
   /* cascade light-up across the finished line */
-  .tok.lit{ color:var(--navy); text-shadow:0 0 14px rgba(255,207,0,.6); transition:text-shadow .35s ease, color .35s ease; }
+  .tok.lit{ color:var(--navy); text-shadow:0 0 14px rgba(255,207,0,.6); transition:text-shadow .6s ease, color .6s ease; }
 
   /* #3 — light sweep ("sunrise across the page"), runs once on solve */
   .sweep{
@@ -558,6 +558,16 @@
   .placed.drop-hover{ outline:2px solid var(--pbs-blue); outline-offset:2px; }
   #bank.drop-hover{ outline:2px dashed var(--light); outline-offset:6px; border-radius:8px; }
 
+  /* tablets (iPad and friends): scale the whole app up, keyboard most of all */
+  @media (min-width: 700px){
+    .wrap{ max-width:720px; }
+    .home-inner, .pack-body{ max-width:640px; }
+    .wkey{ min-width:44px; height:64px; font-size:1.2rem; border-radius:8px; padding:0 10px; }
+    .wkey.wide{ min-width:88px; }
+    .wkrow{ gap:8px; }
+    .wcell{ width:52px; height:52px; font-size:1.5rem; }
+    main{ max-width:720px; }
+  }
   @media (max-width:430px){
     .gamename{font-size:1.35rem}
     #board{ --fs:1.18rem; --chip-fs:1.16rem; --solved-fs:1.3rem; }
@@ -843,6 +853,13 @@
 
   /* wrong mystery-word guess shakes "no" before filing below */
   .wrow.shakeno{ animation:rowShake .45s ease; }
+  .tok.headshake{ animation:tokShake .5s ease; }
+  @keyframes tokShake{
+    12%{ transform:translateX(-14px) rotate(-4deg); } 30%{ transform:translateX(12px) rotate(4deg); }
+    48%{ transform:translateX(-8px) rotate(-2deg); } 66%{ transform:translateX(6px) rotate(1deg); }
+    82%{ transform:translateX(-2px); } 100%{ transform:translateX(0); }
+  }
+  @media (prefers-reduced-motion:reduce){ .tok.headshake{ animation:none; } }
   @keyframes rowShake{
     0%,100%{ transform:translateX(0); }
     15%{ transform:translateX(-10px); } 30%{ transform:translateX(9px); }
@@ -1568,6 +1585,8 @@ function buildPuzzle(seed, forceIdx){
   // pre-placed anchors: index 0 is always given; last word and the secret word
   // are never given. Longer quotes get more footholds.
   const anchors = new Set([0]);
+  // standalone punctuation (em dashes etc.) is placed automatically, never dealt to the bank
+  words.forEach((w, i)=>{ if(!/[A-Za-z0-9]/.test(w)) anchors.add(i); });
   const interiorTarget = Math.floor(words.length / 8);  // 0 short · 1 medium · 2–3 long
   let guard = 0;
   while(anchors.size - 1 < interiorTarget && words.length > 2 && guard++ < 80){
@@ -1666,7 +1685,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.5r";
+  const VERSION = "0.5u";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "easy" | "normal" — Normal (formerly Hard) is the default
   try{
@@ -1821,10 +1840,13 @@ if(typeof module !== "undefined" && module.exports){
     updateTurnUI();
     render();
     // re-enter the saved phase
-    if(sv.phase === "scramble" && state.hard && state.hard.word && !state.hard.word.solved){
+    const _w = state.hard && state.hard.word;
+    const scrDone = _w && (_w.solved || scrambledStr(_w) === _w.target);
+    if(scrDone){ _w.solved = true; }
+    if(sv.phase === "scramble" && _w && !scrDone){
       state.stepIdx = state.steps.indexOf("word");
-      enterScramble(state.hard.word);
-    } else if(sv.phase === "wordle"){
+      enterScramble(_w);
+    } else if(sv.phase === "wordle" || (sv.phase === "scramble" && scrDone)){
       state.stepIdx = state.steps.indexOf("wordle");
       enterWordle();
       // restore prior guesses over the fresh wordle state
@@ -2060,6 +2082,8 @@ if(typeof module !== "undefined" && module.exports){
   function scrWordActive(){ return state.hard && state.hard.word && !state.hard.word.solved ? state.hard.word : null; }
   function renderAttribution(){
     const s = state, byEl = $("attrBy");
+    if(s.pack === "science"){ byEl.textContent = ""; byEl.style.display = "none"; return; }
+    byEl.style.display = "";
     if(!s.hard || (!s.hard.first && !s.hard.last)){ byEl.textContent = "— " + s.quote.author; return; }
     let html = "&mdash; ";
     s.hard.authorTokens.forEach((t, idx)=>{
@@ -2076,6 +2100,7 @@ if(typeof module !== "undefined" && module.exports){
   }
 
   /* -------- render the line + bank -------- */
+  let skipJuice = false;   // reveal render skips the FLIP/spring pass (it caused a visible hitch)
   function render(){
     const s = state;
     if(typeof undoBtn !== "undefined" && undoBtn){ undoBtn.disabled = (s.phase !== "assemble") || undoableSlot() < 0; }
@@ -2083,7 +2108,7 @@ if(typeof module !== "undefined" && module.exports){
     const scrCls = (slotOrItemWi)=> scrW && slotOrItemWi === scrW.wi
       ? " scrambled-word" + ((s.phase==="scramble" && s.curScramble===scrW) ? " solving-hl" : "") : "";
     const scrText = (wi, fallback)=> (scrW && wi === scrW.wi) ? scramDisplay(scrW, s.words[scrW.wi]) : fallback;
-    const _first = juiceRects();          // FLIP: where everything was before this render
+    const _first = skipJuice ? null : juiceRects();   // FLIP: where everything was before this render
     lineEl.innerHTML = "";
     const activeIdx = firstEmptySlot();
     s.slots.forEach((slot,i)=>{
@@ -2547,7 +2572,7 @@ if(typeof module !== "undefined" && module.exports){
     }
   }
   function bankToSlot(key, slotIdx){
-    const s = state.slots[slotIdx]; if(!s || s.fixed || s.locked) return;
+    const s = state.slots[slotIdx]; if(!s || s.fixed || s.locked || s._bouncing) return;
     const bi = state.bank.findIndex(x=>x.key===key); if(bi<0) return;
     if(s.word !== null){ state.bank.push({key:s._fromKey || rkey(), word:s.word, wi:s._wi}); }
     s.word = state.bank[bi].word; s._fromKey = state.bank[bi].key; s._wi = state.bank[bi].wi;
@@ -2557,8 +2582,25 @@ if(typeof module !== "undefined" && module.exports){
     state._movedKey = s._fromKey;
     commit(slotIdx);
     haptic(state.slots[slotIdx].locked ? 32 : 18);   // stronger on drop; strongest when correct
-    if(state.slots[slotIdx].locked) playWordChord();
-    if(!state.slots[slotIdx].locked && !spendError()) return;   // wrong spot costs a mistake
+    if(state.slots[slotIdx].locked){ playWordChord(); return; }
+    // wrong spot: spend a mistake, shake "no", hold a beat, then fly home to the bank
+    const gameOn = spendError();
+    if(!gameOn) return;
+    s._bouncing = true;
+    const rejKey = s._fromKey, rejIdx = slotIdx;
+    requestAnimationFrame(()=>{
+      const el = lineEl.querySelector('.tok[data-fid="' + rejKey + '"]');
+      if(el) el.classList.add("headshake");
+    });
+    setTimeout(()=>{
+      const slot = state.slots[rejIdx];
+      if(!slot || !slot._bouncing){ return; }
+      slot._bouncing = false;
+      if(state.phase !== "assemble" || slot.word === null) return;
+      state.bank.push({ key: slot._fromKey, word: slot.word, wi: slot._wi });  // END of the bank
+      slot.word = null; slot._fromKey = null; slot._wi = null; slot._placedAt = 0;
+      afterChange();   // FLIP springs carry it from the slot back to the bank
+    }, 980);   // ~0.5s shake + ~0.5s beat
   }
   function slotMove(fromIdx, toIdx){
     if(fromIdx === toIdx) return;
@@ -2582,9 +2624,10 @@ if(typeof module !== "undefined" && module.exports){
   // Undo: return the most recently used (still-loose) word to the bank.
   // Locked-correct words can't be pulled back. Does NOT refund a move.
   function undoableSlot(){
+    // bouncing words are already on their way back
     let best=-1, bestSeq=-1;
     state.slots.forEach((s,i)=>{
-      if(s.word!==null && !s.locked && !s.fixed && (s._placedAt||0) > bestSeq){ bestSeq=s._placedAt||0; best=i; }
+      if(s.word!==null && !s.locked && !s.fixed && !s._bouncing && (s._placedAt||0) > bestSeq){ bestSeq=s._placedAt||0; best=i; }
     });
     return best;
   }
@@ -2805,7 +2848,7 @@ if(typeof module !== "undefined" && module.exports){
     state.phase = "wordle";
     state.guesses = []; state.current = ""; state.keyStatus = {}; state.secretGuesses = 0;
     state._evaluating = false; state._shakeRow = false; state._justTyped = -1;
-    promptEl.innerHTML = 'Now uncover the <b>mystery word</b> — it checks itself on the last letter';
+    promptEl.innerHTML = 'Now uncover the <b>mystery word</b>';
     undoBtn.classList.remove("show");         // no words to place in Phase B
     [bankLabelEl, bankEl, controlsEl].forEach(el=> el.classList.add("is-faded"));
     setTimeout(()=> [bankLabelEl, bankEl, controlsEl].forEach(el=> el.classList.add("is-hidden")), 450);
@@ -2858,7 +2901,7 @@ if(typeof module !== "undefined" && module.exports){
     state._animNew = true;          // animate the new guess landing on top
     renderWordle();
     if(won) playSecretChord();
-    if(won) setTimeout(()=>{ state.secretSolved = true; render(); nextStep(); }, 700);
+    if(won) setTimeout(()=>{ state.secretSolved = true; render(); nextStep(); }, 420);
   }
 
   function renderWordle(){ renderWordleGrid(); buildKeys(); }
@@ -2893,15 +2936,15 @@ if(typeof module !== "undefined" && module.exports){
     state._animNew = false;
   }
   function buildKeys(){
-    const rows = [["Q","W","E","R","T","Y","U","I","O","P"],["A","S","D","F","G","H","J","K","L"],["ENTER","Z","X","C","V","B","N","M","DEL"]];
+    const rows = [["Q","W","E","R","T","Y","U","I","O","P"],["A","S","D","F","G","H","J","K","L"],["Z","X","C","V","B","N","M","DEL"]];
     wkeysEl.innerHTML = "";
     rows.forEach(r=>{
       const rd = document.createElement("div"); rd.className = "wkrow";
       r.forEach(k=>{
         const btn = document.createElement("button"); btn.className = "wkey";
-        if(k==="ENTER" || k==="DEL"){ btn.classList.add("wide"); btn.textContent = (k==="ENTER"?"Enter":"Del"); }
+        if(k==="DEL"){ btn.classList.add("wide"); btn.textContent = "Del"; }
         else { btn.textContent = k; const st = state.keyStatus[k]; if(st) btn.classList.add(st); }
-        btn.addEventListener("click", ()=>{ if(k==="ENTER") submitGuess(); else if(k==="DEL") delLetter(); else typeLetter(k); });
+        btn.addEventListener("click", ()=>{ if(k==="DEL") delLetter(); else typeLetter(k); });
         rd.appendChild(btn);
       });
       wkeysEl.appendChild(rd);
@@ -2919,8 +2962,10 @@ if(typeof module !== "undefined" && module.exports){
     wordleEl.classList.remove("show"); wordleEl.classList.add("is-hidden");
     scrambleEl.classList.remove("show");
     undoBtn.classList.remove("show");
-    render();                 // reveal the secret word in the line
-    solveSequence();
+    skipJuice = true;         // one clean static render — no spring pass to stutter the sweep
+    render();
+    skipJuice = false;
+    requestAnimationFrame(()=> requestAnimationFrame(solveSequence));   // start the sweep on a fresh frame
   }
 
   function computeScore(){
@@ -2947,9 +2992,10 @@ if(typeof module !== "undefined" && module.exports){
     playRevealChord();   // extended maj13 rolls low-to-high alongside the gold sweep
     const toks = [...lineEl.querySelectorAll(".tok")];
     const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const step = reduce ? 0 : 80;
+    // pace the gold sweep to fill the reveal chord (~2s) whatever the quote length
+    const step = reduce ? 0 : Math.max(70, Math.min(230, Math.round(1900 / Math.max(1, toks.length))));
     toks.forEach((el,i)=> setTimeout(()=> el.classList.add("lit"), i*step));
-    const bloomAt = reduce ? 0 : toks.length*step + 220;
+    const bloomAt = reduce ? 0 : toks.length*step + 380;
     setTimeout(()=>{
       chromeEls.forEach(el=> el.classList.add("is-faded"));
       boardEl.classList.add("solved");
