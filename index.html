@@ -441,7 +441,7 @@
   @keyframes wdrop{
     0%{ opacity:0; max-height:0; transform:translateY(-8px); }
     55%{ opacity:1; }
-    100%{ opacity:1; max-height:48px; transform:none; }
+    100%{ opacity:1; max-height:80px; transform:none; }
   }
   @media (prefers-reduced-motion:reduce){ .wrow.dropin{ animation:none; } }
   .wcell{
@@ -565,7 +565,6 @@
     .wkey{ min-width:44px; height:64px; font-size:1.2rem; border-radius:8px; padding:0 10px; }
     .wkey.wide{ min-width:88px; }
     .wkrow{ gap:8px; }
-    .wcell{ width:52px; height:52px; font-size:1.5rem; }
     main{ max-width:720px; }
     .archive-body{ max-width:760px; }
   }
@@ -1677,9 +1676,15 @@ const PBS_LINKS = {
   "Benjamin Franklin":   { label:"Watch on PBS",   text:"American history on PBS American Experience",      url:PBS.AMEXP },
   "Ken Burns":           { label:"Watch on PBS",   text:"Ken Burns films on PBS American Experience",       url:PBS.AMEXP }
 };
+// per-puzzle links (keyed by quote id) outrank the author-level defaults —
+// used when a specific episode pairs with a specific quote
+const PBS_LINKS_BY_ID = {
+  "q012": { label:"Watch on PBS", text:"The French Chef with Julia Child: French Onion Soup",
+            url:"https://www.pbs.org/video/the-french-chef-french-onion-soup-dv2ts5/" },
+};
 function pbsLinkFor(quote){
   if(!quote) return null;
-  return PBS_LINKS[quote.author] || null;
+  return PBS_LINKS_BY_ID[quote.id] || PBS_LINKS[quote.author] || null;
 }
 
 /* expose for node testing */
@@ -1706,7 +1711,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.5v";
+  const VERSION = "0.5x";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "easy" | "normal" — Normal (formerly Hard) is the default
   try{
@@ -2928,9 +2933,13 @@ if(typeof module !== "undefined" && module.exports){
   function renderWordle(){ renderWordleGrid(); buildKeys(); }
   function renderWordleGrid(){
     const L = state.secretLen;
-    // shrink cells for longer words so they never exceed the puzzle area
-    const wc = L>=8 ? 32 : L===7 ? 36 : 40;
-    const fs = L>=8 ? 1.02 : L===7 ? 1.18 : 1.35;
+    // size cells from the actual panel width: bigger on tablets/web, shrinking
+    // only as far as long words require — never larger than the row can hold
+    const wide = window.matchMedia && window.matchMedia("(min-width: 700px)").matches;
+    const cap = wide ? 54 : (L>=8 ? 32 : L===7 ? 36 : 40);
+    const avail = Math.max(240, (wordleEl.clientWidth || 320) - 12);
+    const wc = Math.max(26, Math.min(cap, Math.floor((avail - (L-1)*6) / L)));
+    const fs = +(wc / 40 * 1.35).toFixed(2);
     wgridEl.style.setProperty("--wc", wc+"px");
     wgridEl.style.setProperty("--wcfs", fs+"rem");
     wgridEl.innerHTML = "";
@@ -3370,7 +3379,10 @@ if(typeof module !== "undefined" && module.exports){
   const homeBtnEl = $("homeBtn");
   if(homeBtnEl) homeBtnEl.addEventListener("click", showHome);
   $("menuBtn").addEventListener("click", showHome);
-  window.addEventListener("resize", ()=>{ if(state && state.phase === "scramble") renderScramble(); });
+  window.addEventListener("resize", ()=>{
+    if(state && state.phase === "scramble") renderScramble();
+    if(state && state.phase === "wordle") renderWordle();
+  });
   $("retryBtn").addEventListener("click", ()=>{ if(lastInit) initGame(lastInit.seed, lastInit.opts); });
   $("goHomeBtn").addEventListener("click", showHome);
 
