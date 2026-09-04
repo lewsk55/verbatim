@@ -1718,7 +1718,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.6a";
+  const VERSION = "0.6b";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "easy" | "normal" — Normal (formerly Hard) is the default
   try{
@@ -2489,30 +2489,48 @@ if(typeof module !== "undefined" && module.exports){
     M.played.push(n);
     playPianoNote(n, 0.07, 0, 2.8);
   }
-  // final reveal: four hand-vetted JAZZ voicings of the tonic — 6/9, maj9,
-  // add9, and a maj13 shell — that all obey the resolution rules the sour
-  // versions broke: bass is the root, the major third is always present,
-  // color tones (6th, maj7, 9th, 13th) live in the INNER voices where they
-  // glow instead of clash, the top two notes form a strong interval, and the
-  // ROOT is always the last note played. Seeded per puzzle for variety.
-  const REVEAL_VOICINGS = [
-    [-12, 0,  9, 14, 16, 19, 24, 36],   // 6/9: sixth + ninth tucked low-mid, octave-root crown
-    [-12, 0, 11, 16, 19, 26, 31, 36],   // maj9: maj7 deep in the stack, quartal 9-5-root top
-    [-12, 0,  7, 14, 16, 19, 36],       // add9: shimmer 9th beside the third, leap to the root
-    [-12, 0, 11, 16, 21, 31, 36],       // maj13 shell: 13th mid-voice, fourth-fall onto the root
-  ];
-  function playRevealChord(){
-    const M = state && state.music; if(!M) return;
+  /* final reveal: the quote IS the arpeggio. One ascending tonic chord tone
+     per word, rolled with rubato timing — each word ignites exactly when its
+     note sounds. Starts on a low root, climbs through the chord (6/9, add9,
+     or maj7 color — the maj7 becomes a melodic leading tone), and the LAST
+     word always lands on the root, so quote and chord resolve together.
+     Returns the ignition schedule (ms per word) for the gold sweep. */
+  const REVEAL_SETS = [ [0,4,7,9], [0,2,4,7], [0,4,7,11] ];   // 6/9 · add9 · maj7 color
+  function playRevealRoll(wordCount){
+    const M = state && state.music; if(!M || wordCount < 1) return null;
     const r = M.key.root;
-    const notes = REVEAL_VOICINGS[Math.floor(M.rng() * REVEAL_VOICINGS.length)].map(iv => r + iv);
-    const sustain = 3.2;
-    let t = 0;
+    const set = REVEAL_SETS[Math.floor(M.rng() * REVEAL_SETS.length)];
+    // available ascending chord-tone positions from an octave below the root
+    const positions = [];
+    for(let oct = 0; positions.length < 40; oct++){
+      for(const off of set){
+        const n = r - 12 + oct * 12 + off;
+        if(n > r + 45) { oct = 99; break; }
+        positions.push(n);
+      }
+      if(oct >= 99) break;
+    }
+    // one note per word when possible; very long quotes share notes in pairs
+    const m = Math.min(wordCount, positions.length);
+    const notes = [];
+    for(let i = 0; i < m - 1; i++) notes.push(positions[Math.round(i * (positions.length - 1) / Math.max(1, m - 1) * 0.85)]);
+    const prev = notes.length ? notes[notes.length - 1] : r - 12;
+    let top = r; while(top <= prev) top += 12;               // final note: the root, always
+    notes.push(top);
+    // rubato schedule totalling ~1.9s, with a small breath before the landing root
+    const base = 1900 / Math.max(3, m);
+    const times = []; let t = 0;
+    for(let i = 0; i < m; i++){
+      if(i > 0) t += base * (i === m - 1 ? 1.6 : (0.6 + M.rng() * 0.8));
+      times.push(Math.round(t));
+    }
+    // schedule the piano
     notes.forEach((n, i)=>{
-      const last = i === notes.length - 1;
-      if(i > 0) t += (last ? 0.10 : 0.04) + M.rng() * 0.16;   // rubato, plus a breath before the landing root
-      const vol = i === 0 ? 0.058 : (last ? 0.055 : 0.042 + M.rng() * 0.014);
-      playPianoNote(n, vol, t, last ? sustain + 0.8 : sustain + M.rng() * 0.4);
+      const last = i === m - 1;
+      const vol = i === 0 ? 0.06 : (last ? 0.058 : 0.042 + M.rng() * 0.014);
+      playPianoNote(n, vol, times[i] / 1000, last ? 4.0 : 2.8 + M.rng() * 0.5);
     });
+    return times;
   }
 
   function haptic(p){
@@ -2996,9 +3014,8 @@ if(typeof module !== "undefined" && module.exports){
     state.solved = true; state.phase = "done"; state.secretSolved = true;
     state.elapsedMs = Date.now() - state.startTime;   // spans every attempt via the carry
     if(attemptCarry.seed === state.seed) attemptCarry = { seed:null, ms:0, tries:0 };
-    // 1. chord on the audio clock
-    playRevealChord();
-    // 2. gold sweep in the SAME tick, on the line as it already stands —
+    // gold sweep + piano roll begin in the SAME tick, on the line as it
+    // already stands (the roll schedules each note; each word lights with its note) —
     //    the board was fully rendered at the mask-lift, so nothing needs
     //    rebuilding and nothing is allowed to block the unfurl
     wordleEl.classList.remove("show"); wordleEl.classList.add("is-hidden");
@@ -3033,11 +3050,14 @@ if(typeof module !== "undefined" && module.exports){
   function solveSequence(){
     const toks = [...lineEl.querySelectorAll(".tok")];
     const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    // pace the gold sweep to fill the reveal chord (~2s) whatever the quote length
-    const step = reduce ? 0 : Math.max(70, Math.min(190, Math.round(1800 / Math.max(1, toks.length))));
+    // each word ignites on its own piano note — the roll returns the schedule
+    const times = playRevealRoll(toks.length) || toks.map((_,i)=> i * 140);
     const light = el=>{ el.classList.add("lit"); if(!reduce) el.classList.add("ignite"); };
-    toks.forEach((el,i)=>{ if(i===0) light(el); else setTimeout(()=> light(el), i*step); });
-    const bloomAt = reduce ? 0 : toks.length*step + 380;
+    toks.forEach((el,i)=>{
+      const t = reduce ? 0 : times[Math.floor(i * times.length / toks.length)];
+      if(t <= 0) light(el); else setTimeout(()=> light(el), t);
+    });
+    const bloomAt = reduce ? 0 : times[times.length - 1] + 520;
     setTimeout(()=>{
       chromeEls.forEach(el=> el.classList.add("is-faded"));
       boardEl.classList.add("solved");
