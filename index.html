@@ -1711,7 +1711,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.5x";
+  const VERSION = "0.5y";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "easy" | "normal" — Normal (formerly Hard) is the default
   try{
@@ -2276,7 +2276,7 @@ if(typeof module !== "undefined" && module.exports){
     return _ac;
   }
   ["pointerdown","keydown","touchstart"].forEach(ev =>
-    document.addEventListener(ev, ()=>{ const ac = getAC(); if(ac) initWebAudioFont(); }, { passive:true }));
+    document.addEventListener(ev, ()=>{ const ac = getAC(); if(ac){ initWebAudioFont(); createPianoReverb(); } }, { passive:true }));
 
   function midiToHz(m){ return 440 * Math.pow(2, (m - 69) / 12); }
 
@@ -2926,8 +2926,11 @@ if(typeof module !== "undefined" && module.exports){
     state.current = "";
     state._animNew = true;          // animate the new guess landing on top
     renderWordle();
-    if(won) playSecretChord();
-    if(won) setTimeout(()=>{ state.secretSolved = true; render(); nextStep(); }, 420);
+    if(won){
+      try{ const ac = getAC(); if(ac && ac.resume) ac.resume(); }catch(e){}
+      playSecretChord();
+      setTimeout(()=>{ state.secretSolved = true; skipJuice = true; render(); skipJuice = false; nextStep(); }, 180);
+    }
   }
 
   function renderWordle(){ renderWordleGrid(); buildKeys(); }
@@ -2986,6 +2989,8 @@ if(typeof module !== "undefined" && module.exports){
     state.solved = true; state.phase = "done"; state.secretSolved = true;
     state.elapsedMs = Date.now() - state.startTime;   // spans every attempt via the carry
     if(attemptCarry.seed === state.seed) attemptCarry = { seed:null, ms:0, tries:0 };
+    playRevealChord();        // schedule the chord on the audio clock BEFORE any DOM work,
+                              // so layout cost can never delay the sound
     updateTurnUI();
     clearProgress();
     markDone();
@@ -2995,7 +3000,7 @@ if(typeof module !== "undefined" && module.exports){
     skipJuice = true;         // one clean static render — no spring pass to stutter the sweep
     render();
     skipJuice = false;
-    requestAnimationFrame(()=> requestAnimationFrame(solveSequence));   // start the sweep on a fresh frame
+    requestAnimationFrame(solveSequence);   // gold sweep begins on the very next frame
   }
 
   function computeScore(){
@@ -3019,7 +3024,6 @@ if(typeof module !== "undefined" && module.exports){
   }
 
   function solveSequence(){
-    playRevealChord();   // extended maj13 rolls low-to-high alongside the gold sweep
     const toks = [...lineEl.querySelectorAll(".tok")];
     const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     // pace the gold sweep to fill the reveal chord (~2s) whatever the quote length
