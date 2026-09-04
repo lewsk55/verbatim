@@ -1711,7 +1711,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.5y";
+  const VERSION = "0.5z";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "easy" | "normal" — Normal (formerly Hard) is the default
   try{
@@ -2989,18 +2989,18 @@ if(typeof module !== "undefined" && module.exports){
     state.solved = true; state.phase = "done"; state.secretSolved = true;
     state.elapsedMs = Date.now() - state.startTime;   // spans every attempt via the carry
     if(attemptCarry.seed === state.seed) attemptCarry = { seed:null, ms:0, tries:0 };
-    playRevealChord();        // schedule the chord on the audio clock BEFORE any DOM work,
-                              // so layout cost can never delay the sound
-    updateTurnUI();
-    clearProgress();
-    markDone();
+    // 1. chord on the audio clock
+    playRevealChord();
+    // 2. gold sweep in the SAME tick, on the line as it already stands —
+    //    the board was fully rendered at the mask-lift, so nothing needs
+    //    rebuilding and nothing is allowed to block the unfurl
     wordleEl.classList.remove("show"); wordleEl.classList.add("is-hidden");
     scrambleEl.classList.remove("show");
     undoBtn.classList.remove("show");
-    skipJuice = true;         // one clean static render — no spring pass to stutter the sweep
-    render();
-    skipJuice = false;
-    requestAnimationFrame(solveSequence);   // gold sweep begins on the very next frame
+    solveSequence();
+    // 3. bookkeeping (synchronous localStorage writes, UI chrome) deferred
+    //    off the critical path — Safari can take these after the gold begins
+    setTimeout(()=>{ updateTurnUI(); clearProgress(); markDone(); }, 80);
   }
 
   function computeScore(){
@@ -3028,7 +3028,7 @@ if(typeof module !== "undefined" && module.exports){
     const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     // pace the gold sweep to fill the reveal chord (~2s) whatever the quote length
     const step = reduce ? 0 : Math.max(70, Math.min(230, Math.round(1900 / Math.max(1, toks.length))));
-    toks.forEach((el,i)=> setTimeout(()=> el.classList.add("lit"), i*step));
+    toks.forEach((el,i)=>{ if(i===0) el.classList.add("lit"); else setTimeout(()=> el.classList.add("lit"), i*step); });
     const bloomAt = reduce ? 0 : toks.length*step + 380;
     setTimeout(()=>{
       chromeEls.forEach(el=> el.classList.add("is-faded"));
