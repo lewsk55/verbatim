@@ -337,7 +337,14 @@
   .tok.glow{ animation:lockGlow .95s ease-out, lockPop .5s ease-out; }
 
   /* cascade light-up across the finished line */
-  .tok.lit{ color:var(--navy); text-shadow:0 0 14px rgba(255,207,0,.6); transition:text-shadow .6s ease, color .6s ease; }
+  .tok.lit{ color:var(--navy); text-shadow:0 0 14px rgba(255,207,0,.6); transition:text-shadow .45s ease, color .18s ease; }
+  .tok.ignite{ animation:ignite .5s cubic-bezier(.3,1.5,.4,1); }
+  @keyframes ignite{
+    0%{ transform:scale(1); }
+    30%{ transform:scale(1.16); text-shadow:0 0 20px rgba(255,207,0,.95), 0 0 6px rgba(255,207,0,.8); }
+    100%{ transform:scale(1); }
+  }
+  @media (prefers-reduced-motion:reduce){ .tok.ignite{ animation:none; } }
 
   /* #3 — light sweep ("sunrise across the page"), runs once on solve */
   .sweep{
@@ -1711,7 +1718,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.5z";
+  const VERSION = "0.6a";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "easy" | "normal" — Normal (formerly Hard) is the default
   try{
@@ -3027,8 +3034,9 @@ if(typeof module !== "undefined" && module.exports){
     const toks = [...lineEl.querySelectorAll(".tok")];
     const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     // pace the gold sweep to fill the reveal chord (~2s) whatever the quote length
-    const step = reduce ? 0 : Math.max(70, Math.min(230, Math.round(1900 / Math.max(1, toks.length))));
-    toks.forEach((el,i)=>{ if(i===0) el.classList.add("lit"); else setTimeout(()=> el.classList.add("lit"), i*step); });
+    const step = reduce ? 0 : Math.max(70, Math.min(190, Math.round(1800 / Math.max(1, toks.length))));
+    const light = el=>{ el.classList.add("lit"); if(!reduce) el.classList.add("ignite"); };
+    toks.forEach((el,i)=>{ if(i===0) light(el); else setTimeout(()=> light(el), i*step); });
     const bloomAt = reduce ? 0 : toks.length*step + 380;
     setTimeout(()=>{
       chromeEls.forEach(el=> el.classList.add("is-faded"));
