@@ -1718,7 +1718,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.6b";
+  const VERSION = "0.6c";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "easy" | "normal" — Normal (formerly Hard) is the default
   try{
@@ -2517,8 +2517,9 @@ if(typeof module !== "undefined" && module.exports){
     const prev = notes.length ? notes[notes.length - 1] : r - 12;
     let top = r; while(top <= prev) top += 12;               // final note: the root, always
     notes.push(top);
-    // rubato schedule totalling ~1.9s, with a small breath before the landing root
-    const base = 1900 / Math.max(3, m);
+    // rubato schedule: ~1.9s on medium and long quotes, but short quotes roll
+    // quicker — the per-note gap is capped so a 6-9 word reveal stays lively
+    const base = Math.min(150, 1900 / Math.max(3, m));
     const times = []; let t = 0;
     for(let i = 0; i < m; i++){
       if(i > 0) t += base * (i === m - 1 ? 1.6 : (0.6 + M.rng() * 0.8));
