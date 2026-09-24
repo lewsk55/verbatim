@@ -273,10 +273,9 @@ async function loadQuotes(){
       if(!r.ok) continue;
       const t = await r.text();
       const i = t.indexOf("const QUOTES = [");
-      if(i < 0) continue;
-      const j = t.indexOf("\n];", i);
-      if(j < 0) continue;
-      const arr = new Function("return " + t.slice(i + "const QUOTES = ".length, j + 3))();
+      const j = t.indexOf("/* -------- Seeded PRNG", i);   // marker after the pack-content pushes
+      if(i < 0 || j < 0) continue;
+      const arr = new Function(t.slice(i, j) + "\nreturn QUOTES;")();   // main bank + all pack facts/quotes
       QUOTE_MAP = {};
       arr.forEach(q => { if(q && q.id) QUOTE_MAP[q.id] = q; });
       dirty = true; renderAll();   // repaint the puzzles table now that text is known
@@ -620,11 +619,11 @@ function boot(){
 }
 (function initGate(){
   let ok = false;
-  try{ ok = localStorage.getItem("verbatim_unlocked") === "1"; }catch(e){}
+  try{ ok = localStorage.getItem("vbdash_unlocked") === "1"; }catch(e){}
   if(ok){ boot(); return; }
   const tryPw = ()=>{
     if(($("gatePw").value||"").trim().toLowerCase() === PASSWORD){
-      try{ localStorage.setItem("verbatim_unlocked","1"); }catch(e){}
+      try{ localStorage.setItem("vbdash_unlocked","1"); }catch(e){}
       boot();
     } else { $("gateErr").textContent = "That's not the password."; $("gatePw").select(); }
   };
