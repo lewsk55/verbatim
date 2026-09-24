@@ -1702,6 +1702,243 @@ if(typeof module !== "undefined" && module.exports){
 
 <script>
 /* ============================================================
+   pbs-telemetry.js — PBS Games shared telemetry module (v1)
+   Implements the PBS Games Analytics Approach v1 envelope,
+   log_version 1. Zero dependencies, ~250 lines.
+
+   Doctrine: track() is a synchronous in-memory array push and
+   nothing else. All network happens on a standing timer or on
+   pagehide, never on the caller's tick. Nothing here may ever
+   block or precede the solve/reveal path.
+
+   Identity: anonymous random UUID in localStorage. No PII,
+   no fingerprinting, no cookies, no account join. Ever.
+
+   Transport: Supabase REST (batched, fire-and-forget).
+   The transport is one function (send); a PostHog adapter
+   later is a second implementation of it.
+
+   NOTE: keep CFG.gameVersion in sync with the game's VERSION.
+   ============================================================ */
+(function (global) {
+  "use strict";
+  if (typeof document === "undefined") return; // node extraction guard
+
+  var CFG = {
+    url: "https://jpasgxttyiaorhksybez.supabase.co",
+    key: "sb_publishable_XEBCZFTnhakXn5G14MO9cg_tiwLrTpB", // publishable; RLS = insert+read only
+    gameId: "verbatim",
+    gameVersion: "0.7a",
+    logVersion: 1,
+    flushMs: 4000,          // standing flush cadence
+    maxBatch: 40,           // events per POST (keepalive-safe size)
+    maxQueue: 400,          // in-memory cap
+    maxStored: 300,         // offline (localStorage) cap
+    heartbeatMs: 5 * 60 * 1000,
+    maxErrors: 10,          // error events per session
+    queueKey: "pbsg_tq_v1",
+    playerKey: "pbsg_player_id",
+    configUrl: "telemetry-config.json" // optional remote sampling knob beside the game
+  };
+
+  // ---------- utils ----------
+  function uuid() {
+    try { if (global.crypto && crypto.randomUUID) return crypto.randomUUID(); } catch (e) {}
+    var b = new Uint8Array(16);
+    try { crypto.getRandomValues(b); } catch (e) { for (var i = 0; i < 16; i++) b[i] = (Math.random() * 256) | 0; }
+    b[6] = (b[6] & 15) | 64; b[8] = (b[8] & 63) | 128;
+    var h = ""; for (var j = 0; j < 16; j++) h += (b[j] + 256).toString(16).slice(1);
+    return h.slice(0, 8) + "-" + h.slice(8, 12) + "-" + h.slice(12, 16) + "-" + h.slice(16, 20) + "-" + h.slice(20);
+  }
+  function sGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function sSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function sDel(k) { try { localStorage.removeItem(k); } catch (e) {} }
+  function hash100(s) { // FNV-1a → 0..99, deterministic per player
+    var h = 2166136261;
+    for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return ((h >>> 0) % 100);
+  }
+
+  // ---------- environment snapshot (read once, at load, before the game clears the URL) ----------
+  var ENV = (location.protocol === "file:" || /[?&]env=dev\b/.test(location.search)) ? "dev" : "playtest";
+  var entrySource = (function () {
+    try {
+      var q = location.search || "";
+      if (/[?&](seed|date|pack|fact)=/.test(q)) return "share_link";
+      if (/[?&](utm_|src=)/.test(q)) return "promo";
+      if (document.referrer) {
+        var ro = new URL(document.referrer).origin;
+        if (ro !== location.origin) return "referral";
+      }
+      return "direct";
+    } catch (e) { return "direct"; }
+  })();
+  var displayMode = (function () {
+    try {
+      if (global.navigator && navigator.standalone) return "standalone";
+      if (global.matchMedia && matchMedia("(display-mode: standalone)").matches) return "standalone";
+    } catch (e) {}
+    return "browser";
+  })();
+  var deviceType = (function () {
+    try {
+      var coarse = global.matchMedia && matchMedia("(pointer: coarse)").matches;
+      var w = Math.min(screen.width || 9999, screen.height || 9999);
+      if (coarse) return w >= 600 ? "tablet" : "mobile";
+      return "desktop";
+    } catch (e) { return "desktop"; }
+  })();
+
+  // ---------- identity ----------
+  var isFirst = !sGet(CFG.playerKey);
+  var playerId = sGet(CFG.playerKey);
+  if (!playerId) { playerId = uuid(); sSet(CFG.playerKey, playerId); }
+  var sessionId = uuid();
+  var sessionT0 = Date.now();
+  var seq = 0;
+
+  // ---------- sampling knob (remote-config; defaults keep everything on) ----------
+  var rates = { tierA: 100, tierB: 100 };
+  try {
+    fetch(CFG.configUrl, { cache: "no-store" }).then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) { if (j && typeof j === "object") { if (j.tierA >= 0) rates.tierA = j.tierA; if (j.tierB >= 0) rates.tierB = j.tierB; } })
+      .catch(function () {});
+  } catch (e) {}
+  var bucket = hash100(playerId);
+  function rateFor(name) { return (name === "game_event" ? rates.tierB : rates.tierA) / 100; }
+  function gate(name) { return bucket < (name === "game_event" ? rates.tierB : rates.tierA); }
+
+  // ---------- queue + transport ----------
+  var queue = [];
+  var inflight = false;
+  var runId = null, runDone = false;
+  var sessionStarted = false;
+  var errCount = 0;
+
+  // restore anything a previous page life couldn't send
+  try {
+    var stored = JSON.parse(sGet(CFG.queueKey) || "null");
+    if (Array.isArray(stored) && stored.length) { queue = stored.slice(0, CFG.maxStored); }
+    sDel(CFG.queueKey);
+  } catch (e) { sDel(CFG.queueKey); }
+
+  function track(name, payload) {
+    try {
+      if (!gate(name)) return;
+      queue.push({
+        event_name: name,
+        event_ts: new Date().toISOString(),
+        tz_offset: -new Date().getTimezoneOffset(),
+        seq: ++seq,
+        session_id: sessionId,
+        player_id: playerId,
+        game_id: CFG.gameId,
+        game_version: CFG.gameVersion,
+        log_version: CFG.logVersion,
+        display_mode: displayMode,
+        device_type: deviceType,
+        sample_rate: rateFor(name),
+        env: ENV,
+        run_id: runId || null,
+        payload: payload || {}
+      });
+      if (queue.length > CFG.maxQueue) queue.splice(0, queue.length - CFG.maxQueue);
+    } catch (e) {}
+  }
+
+  function send(batch, keepalive) {
+    return fetch(CFG.url + "/rest/v1/events", {
+      method: "POST",
+      keepalive: !!keepalive,
+      headers: {
+        "apikey": CFG.key,
+        "Authorization": "Bearer " + CFG.key,
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal"
+      },
+      body: JSON.stringify(batch)
+    });
+  }
+
+  function flush(keepalive) {
+    if (!queue.length || inflight) return;
+    var batch = queue.splice(0, CFG.maxBatch);
+    inflight = true;
+    try {
+      send(batch, keepalive).then(function (r) {
+        inflight = false;
+        if (!r.ok && r.status >= 500) { queue = batch.concat(queue); } // 4xx = bad rows, drop; 5xx = retry
+      }).catch(function () {
+        inflight = false;
+        queue = batch.concat(queue); // network trouble: keep for later / offline store
+      });
+    } catch (e) { inflight = false; queue = batch.concat(queue); }
+  }
+
+  function persistQueue() {
+    try {
+      if (queue.length) sSet(CFG.queueKey, JSON.stringify(queue.slice(-CFG.maxStored)));
+      else sDel(CFG.queueKey);
+    } catch (e) {}
+  }
+
+  setInterval(function () { flush(false); }, CFG.flushMs);
+  setInterval(function () {
+    if (sessionStarted && document.visibilityState === "visible") track("heartbeat");
+  }, CFG.heartbeatMs);
+
+  // exit handling: never unload handlers — visibilitychange + pagehide, per the analytics spec
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "hidden") { flush(true); persistQueue(); }
+  });
+  global.addEventListener("pagehide", function () {
+    try {
+      if (runId && !runDone) track("game_quit", { quit_type: "inferred", trigger: "pagehide" });
+      if (sessionStarted) track("session_end", { duration_sec: Math.round((Date.now() - sessionT0) / 1000), reason: "closed" });
+      flush(true);
+      persistQueue();
+    } catch (e) {}
+  });
+
+  // error events, capped
+  global.addEventListener("error", function (e) {
+    if (errCount >= CFG.maxErrors) return; errCount++;
+    track("error", { severity: "error", message: String(e && e.message || "").slice(0, 200) });
+  });
+  global.addEventListener("unhandledrejection", function (e) {
+    if (errCount >= CFG.maxErrors) return; errCount++;
+    var m = ""; try { m = String((e && e.reason && (e.reason.message || e.reason)) || ""); } catch (x) {}
+    track("error", { severity: "rejection", message: m.slice(0, 200) });
+  });
+
+  // ---------- public API ----------
+  global.PBSTelemetry = {
+    uuid: uuid,
+    track: track,
+    game: function (eventId, data) { // Tier B escape hatch: namespaced per-game detail
+      var p = { event_id: eventId };
+      if (data) for (var k in data) if (Object.prototype.hasOwnProperty.call(data, k)) p[k] = data[k];
+      track("game_event", p);
+    },
+    sessionStart: function () { // idempotent
+      if (sessionStarted) return;
+      sessionStarted = true;
+      sessionT0 = Date.now();
+      track("session_start", { entry_source: entrySource, is_first_session: isFirst });
+    },
+    setRun: function (id) { runId = id; runDone = false; },
+    markRunDone: function () { runDone = true; },        // one boolean; safe on the solve tick
+    closeRun: function () { runId = null; runDone = false; },
+    runOpen: function () { return !!runId && !runDone; },
+    flushNow: function () { flush(false); },             // tests/debug only
+    _env: ENV, _device: deviceType, _display: displayMode
+  };
+})(window);
+
+</script>
+
+<script>
+/* ============================================================
    UI wiring  (skipped under node via the guard above)
    ============================================================ */
 (function(){
@@ -1718,7 +1955,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.6c";
+  const VERSION = "0.7a";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "easy" | "normal" — Normal (formerly Hard) is the default
   try{
@@ -1805,6 +2042,7 @@ if(typeof module !== "undefined" && module.exports){
         moves: state.moves, errorsLeft: state.errorsLeft, placeSeq: state.placeSeq,
         elapsed: Date.now() - state.startTime,
         attemptNum: state.attemptNum || 1,
+        runId: state.runId || null,
         phase: state.phase, stepIdx: state.stepIdx,
         slots: state.slots.map(s=> s.fixed ? null : {w:s.word, k:s._fromKey, wi:s._wi, l:!!s.locked, p:s._placedAt||0}),
         bank: state.bank.map(b=> b.key),
@@ -1833,7 +2071,8 @@ if(typeof module !== "undefined" && module.exports){
     setMode(sv.mode === "easy" ? "easy" : "normal");
     hideOverlays();
     gameStarted = true;
-    initGame(sv.seed, opts);
+    _resuming = true;
+    try{ initGame(sv.seed, opts); } finally { _resuming = false; }
     // rebuild progress on top of the fresh init
     sv.slots.forEach((ss,i)=>{
       if(!ss) return;
@@ -1850,6 +2089,17 @@ if(typeof module !== "undefined" && module.exports){
     state.startTime = Date.now() - (sv.elapsed || 0);
     state.attemptNum = sv.attemptNum || 1;
     attemptCarry = { seed:null, ms:0, tries:0 };
+    // telemetry: a resumed run keeps its original run id (or starts one for old saves)
+    try{ if(window.PBSTelemetry){
+      if(sv.runId){
+        state.runId = sv.runId; PBSTelemetry.setRun(sv.runId);
+        PBSTelemetry.game("verbatim:resume", { attempt_num: state.attemptNum });
+      } else {
+        state.runId = PBSTelemetry.uuid(); PBSTelemetry.setRun(state.runId);
+        PBSTelemetry.track("game_start", Object.assign(tmRunInfo(), { resumed: true }));
+        PBSTelemetry.track("level_start", { attempt_num: state.attemptNum || 1 });
+      }
+    } }catch(e){}
     state.secretGuesses = sv.secretGuesses || 0;
     state.secretSolved = !!sv.secretSolved;
     if(sv.scramble && state.hard && state.hard.word){
@@ -1926,6 +2176,11 @@ if(typeof module !== "undefined" && module.exports){
   /* -------- (re)start a game -------- */
   let lastInit = null;
   function initGame(seed, opts){
+    // telemetry: starting a different puzzle while a run is open abandons that run
+    try{ if(window.PBSTelemetry && PBSTelemetry.runOpen() && state && !state.solved && attemptCarry.seed !== seed && !_resuming){
+      PBSTelemetry.track("game_quit", { quit_type:"inferred", trigger:"superseded", attempt_num: state.attemptNum || 1, moves: state.moves });
+      PBSTelemetry.closeRun();
+    } }catch(e){}
     lastInit = { seed:seed, opts:opts };
     const pz = buildPuzzle(seed, opts && opts.quoteIdx != null ? opts.quoteIdx : undefined);
     const anchors = pz.anchors;
@@ -2045,12 +2300,39 @@ if(typeof module !== "undefined" && module.exports){
     } else {
       state.attemptNum = 1;
     }
+    // telemetry: run identity (queue pushes only; resume wires its own run id afterward)
+    try{ if(window.PBSTelemetry && !_resuming){
+      if(state.attemptNum > 1 && attemptCarry.runId){
+        state.runId = attemptCarry.runId;
+        PBSTelemetry.setRun(state.runId);
+      } else {
+        state.runId = PBSTelemetry.uuid();
+        PBSTelemetry.setRun(state.runId);
+        PBSTelemetry.track("game_start", tmRunInfo());
+      }
+      PBSTelemetry.track("level_start", { attempt_num: state.attemptNum || 1 });
+    } }catch(e){}
     updateTurnUI();
     chromeEls.forEach(el=> el.classList.remove("is-faded","is-hidden"));
     wgridEl.innerHTML = ""; wkeysEl.innerHTML = "";
 
     saveProgress();
     render();
+  }
+  // telemetry: shared run descriptor (puzzle identity incl. bonus packs, mode, budget)
+  function tmRunInfo(){
+    const pt  = state.pack ? "pack" : (state.date ? "daily" : "seed");
+    const ref = state.pack ? ("p:" + state.pack + ":" + state.packIdx)
+              : state.date ? ("d:" + dateKey(state.date))
+              : ("s:" + state.seed);
+    return { mode: state.mode, puzzle_type: pt,
+             pack_id: state.pack || null,
+             puzzle_idx: state.packIdx != null ? state.packIdx : null,
+             puzzle_ord: state.packOrd || null,
+             puzzle_ref: ref,
+             daily_id: state.date ? dateKey(state.date) : null,
+             quote_id: state.quote.id, seed: state.seed,
+             words: state.words.length, budget: state.errorBudget };
   }
   function updateTurnUI(){
     const wrap = $("turnsWrap");
@@ -2071,11 +2353,16 @@ if(typeof module !== "undefined" && module.exports){
     return true;
   }
   // failed attempts accumulate here so the final solve time covers EVERY try
-  let attemptCarry = { seed:null, ms:0, tries:0 };
+  let attemptCarry = { seed:null, ms:0, tries:0, runId:null };
+  let _resuming = false;   // telemetry: resumeProgress re-enters initGame without minting a new run
   function gameOver(){
+    const prevPhase = state.phase;
     state.phase = "over";
     const spent = Date.now() - state.startTime;   // startTime already includes prior carry
-    attemptCarry = { seed: state.seed, ms: spent, tries: (state.attemptNum || 1) };
+    attemptCarry = { seed: state.seed, ms: spent, tries: (state.attemptNum || 1), runId: state.runId || null };
+    try{ if(window.PBSTelemetry) PBSTelemetry.track("level_fail", {
+      attempt_num: state.attemptNum || 1, duration_ms: spent, moves: state.moves,
+      budget: state.errorBudget, phase: prevPhase }); }catch(e){}
     clearProgress();
     setTimeout(updateTurnUI, 0);
     // no reveal — the quote stays unsolved so a retry means something
@@ -2634,6 +2921,8 @@ if(typeof module !== "undefined" && module.exports){
     state._movedKey = s._fromKey;
     commit(slotIdx);
     haptic(state.slots[slotIdx].locked ? 32 : 18);   // stronger on drop; strongest when correct
+    try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:placement", {
+      correct: !!state.slots[slotIdx].locked, move: state.moves, errors_left: state.errorsLeft }); }catch(e){}
     if(state.slots[slotIdx].locked){ playWordChord(); return; }
     // wrong spot: spend a mistake, shake "no", hold a beat, then fly home to the bank
     const gameOn = spendError();
@@ -2663,6 +2952,8 @@ if(typeof module !== "undefined" && module.exports){
     state._movedKey = state.slots[toIdx]._fromKey;
     commit(toIdx); commit(fromIdx);
     haptic((state.slots[toIdx].locked || state.slots[fromIdx].locked) ? 32 : 18);
+    try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:swap", {
+      correct: !!(state.slots[toIdx].locked || state.slots[fromIdx].locked), move: state.moves }); }catch(e){}
     if(state.slots[toIdx].locked || state.slots[fromIdx].locked) playWordChord();
     if(!(state.slots[toIdx].locked || state.slots[fromIdx].locked) && !spendError()) return;
   }
@@ -2856,6 +3147,8 @@ if(typeof module !== "undefined" && module.exports){
     haptic(solvedNow ? 32 : 18);
     const fixedAny = after.some((c,i)=> c && !before[i]);
     if(fixedAny) playLetterPing();
+    try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:scramble_swap", {
+      fixed: !!fixedAny, solved: !!solvedNow }); }catch(e){}
     if(!fixedAny && !spendError()) return;   // a swap that fixes nothing costs a mistake
     saveProgress();
     renderScramble();
@@ -2947,6 +3240,8 @@ if(typeof module !== "undefined" && module.exports){
     const rank = {correct:3, present:2, absent:1};
     for(let i=0;i<guess.length;i++){ const c=guess[i], cur=state.keyStatus[c]; if(!cur || rank[marks[i]]>rank[cur]) state.keyStatus[c]=marks[i]; }
     const won = guess === state.secretWord;
+    try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:guess", {
+      n: state.secretGuesses, won: won, len: state.secretLen }); }catch(e){}
     if(!won && !spendError()) return;   // a wrong mystery guess costs a mistake
     setTimeout(saveProgress, 0);
     state.current = "";
@@ -3014,6 +3309,7 @@ if(typeof module !== "undefined" && module.exports){
   function finishSolve(){
     state.solved = true; state.phase = "done"; state.secretSolved = true;
     state.elapsedMs = Date.now() - state.startTime;   // spans every attempt via the carry
+    try{ if(window.PBSTelemetry) PBSTelemetry.markRunDone(); }catch(e){}   // one boolean; nothing else on this tick
     if(attemptCarry.seed === state.seed) attemptCarry = { seed:null, ms:0, tries:0 };
     // gold sweep + piano roll begin in the SAME tick, on the line as it
     // already stands (the roll schedules each note; each word lights with its note) —
@@ -3025,7 +3321,17 @@ if(typeof module !== "undefined" && module.exports){
     solveSequence();
     // 3. bookkeeping (synchronous localStorage writes, UI chrome) deferred
     //    off the critical path — Safari can take these after the gold begins
-    setTimeout(()=>{ updateTurnUI(); clearProgress(); markDone(); }, 80);
+    setTimeout(()=>{ updateTurnUI(); clearProgress(); markDone();
+      // telemetry: completion events ride the same deferred bookkeeping window (per the reveal doctrine)
+      try{ if(window.PBSTelemetry){
+        const sc = computeScore();
+        PBSTelemetry.track("level_complete", { attempt_num: state.attemptNum || 1, duration_ms: state.elapsedMs, score: sc.score });
+        PBSTelemetry.track("game_complete", Object.assign(tmRunInfo(), {
+          duration_ms: state.elapsedMs, attempts: state.attemptNum || 1, moves: state.moves,
+          score: sc.score, mistakes_left: state.errorsLeft, secret_guesses: state.secretGuesses }));
+        PBSTelemetry.closeRun();
+      } }catch(e){}
+    }, 80);
   }
 
   function computeScore(){
@@ -3101,6 +3407,12 @@ if(typeof module !== "undefined" && module.exports){
           '<span class="ar" aria-hidden="true">\u2192</span>' +
         '</a>';
     } else { box.innerHTML = ""; }
+    try{
+      const _a = box.querySelector("a");
+      if(_a && window.PBSTelemetry) _a.addEventListener("click", ()=>{
+        try{ PBSTelemetry.game("verbatim:pbs_link_tap", { quote_id: state.quote.id, url: link.url }); }catch(e){}
+      });
+    }catch(e){}
     afterglowEl.classList.add("show");
     // Center the revealed quote (the hero), not the stats panel below it —
     // otherwise the view scrolls down and pushes the quote out of frame on mobile.
@@ -3127,8 +3439,17 @@ if(typeof module !== "undefined" && module.exports){
   }
   async function doShare(){
     const txt = shareText();
-    if(navigator.share){ try{ await navigator.share({title:"Verbatim", text:txt}); return; }catch(e){} }
-    try{ await navigator.clipboard.writeText(txt); toast("Copied to clipboard"); }
+    if(navigator.share){
+      try{
+        await navigator.share({title:"Verbatim", text:txt});
+        try{ if(window.PBSTelemetry) PBSTelemetry.track("share", { surface:"result", method:"native", quote_id: state.quote.id }); }catch(e){}
+        return;
+      }catch(e){}
+    }
+    try{
+      await navigator.clipboard.writeText(txt); toast("Copied to clipboard");
+      try{ if(window.PBSTelemetry) PBSTelemetry.track("share", { surface:"result", method:"copy", quote_id: state.quote.id }); }catch(e){}
+    }
     catch(e){ toast("Copy failed — select and copy manually"); }
   }
   let toastTimer;
@@ -3153,7 +3474,6 @@ if(typeof module !== "undefined" && module.exports){
   $("undoBtn").addEventListener("click", undoLast);
 
   // Heart / love control — wobble + juicy burst when you tap to love the quote.
-  // (Analytics tracking intentionally left out for now.)
   function spawnHeartBurst(){
     const wrap = heartBtn.parentElement, ico = heartBtn.querySelector(".heart-ico");
     const wr = wrap.getBoundingClientRect(), ir = ico.getBoundingClientRect();
@@ -3180,7 +3500,7 @@ if(typeof module !== "undefined" && module.exports){
     heartBtn.setAttribute("aria-pressed", loved ? "true" : "false");
     heartBtn.classList.remove("wobble"); void heartBtn.offsetWidth; heartBtn.classList.add("wobble");
     if(loved){ spawnHeartBurst(); haptic(22); }
-    // TODO(analytics): record love for state.quote.id — left out for now
+    try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:heart", { on: loved, quote_id: state.quote.id }); }catch(e){}
   });
 
   $("newBtn").addEventListener("click", ()=> initGame(Math.floor(Math.random()*100000)));
@@ -3217,6 +3537,7 @@ if(typeof module !== "undefined" && module.exports){
     window.scrollTo(0,0);
   }
   function showHome(){
+    try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:nav", { to: "home" }); }catch(e){}
     $("archive").classList.remove("show"); $("passport").classList.remove("show"); $("packView").classList.remove("show");
     renderHome();
     $("home").classList.add("show");
@@ -3272,6 +3593,7 @@ if(typeof module !== "undefined" && module.exports){
   /* -------- pack submenu -------- */
   function showPack(id){
     const pk = packById(id); if(!pk) return;
+    try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:nav", { to: "pack", pack_id: id }); }catch(e){}
     $("packTitle").textContent = pk.title;
     $("packPresenter").innerHTML = presenterHTML(pk, true);
     $("packPresenter").style.display = $("packPresenter").innerHTML ? "" : "none";
@@ -3301,8 +3623,10 @@ if(typeof module !== "undefined" && module.exports){
   }
   $("heroCard").addEventListener("click", ()=> playDate(todayDate()));
   $("continueCard").addEventListener("click", ()=>{ if(!resumeProgress()) renderHome(); });
-  $("togEasy").addEventListener("click", ()=> setMode("easy"));
-  $("togNorm").addEventListener("click", ()=> setMode("normal"));
+  $("togEasy").addEventListener("click", ()=>{ setMode("easy");
+    try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:settings", { mode: "easy" }); }catch(e){} });
+  $("togNorm").addEventListener("click", ()=>{ setMode("normal");
+    try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:settings", { mode: "normal" }); }catch(e){} });
   setMode(mode);   // reflect the saved difficulty on the toggle at startup
 
   // ---------- quote archive (month by month) ----------
@@ -3317,8 +3641,10 @@ if(typeof module !== "undefined" && module.exports){
   $("muteToggle").addEventListener("click", ()=>{
     try{ localStorage.setItem(MUTE_KEY, isMuted() ? "0" : "1"); }catch(e){}
     renderMuteToggle();
+    try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:settings", { muted: isMuted() }); }catch(e){}
   });
   function openSettings(){
+    try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:nav", { to: "settings" }); }catch(e){}
     $("wipeConfirm").hidden = true; $("wipeBtn").hidden = false; $("wipeDone").hidden = true;
     renderMuteToggle();
     $("settings").classList.add("show");
@@ -3338,9 +3664,13 @@ if(typeof module !== "undefined" && module.exports){
     }catch(e){}
     $("wipeConfirm").hidden = true; $("wipeDone").hidden = false;
     haptic(24);
+    try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:settings", { wipe: true }); }catch(e){}
   });
 
-  function showArchive(){ renderArchive(); $("archive").classList.add("show"); }
+  function showArchive(){
+    try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:nav", { to: "archive" }); }catch(e){}
+    renderArchive(); $("archive").classList.add("show");
+  }
   $("archBack").addEventListener("click", ()=> $("archive").classList.remove("show"));
   function renderArchive(){
     const body = $("archBody"); body.innerHTML = "";
@@ -3396,13 +3726,17 @@ if(typeof module !== "undefined" && module.exports){
 
   // ---------- Passport gate for the extended library ----------
   let pendingDate = null;
-  function openPassport(d){ pendingDate = d; $("passport").classList.add("show"); }
+  function openPassport(d){ pendingDate = d; $("passport").classList.add("show");
+    try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:passport", { step: "shown" }); }catch(e){} }
   $("passBack").addEventListener("click", ()=> $("passport").classList.remove("show"));
-  $("passStart").addEventListener("click", ()=>{ window.open(DONATE_URL, "_blank"); });
+  $("passStart").addEventListener("click", ()=>{
+    try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:passport", { step: "donate_click" }); }catch(e){}
+    window.open(DONATE_URL, "_blank"); });
   $("passWhat").addEventListener("click", ()=>{ window.open("https://www.pbs.org/passport/", "_blank"); });
   $("passSignin").addEventListener("click", ()=>{
     // demo mode: sign-in opens this puzzle but membership never persists,
     // so the Passport pitch appears again on the next archive pick
+    try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:passport", { step: "signin" }); }catch(e){}
     $("passport").classList.remove("show");
     if(pendingDate){ const d = pendingDate; pendingDate = null; playDate(d); }
   });
@@ -3416,11 +3750,23 @@ if(typeof module !== "undefined" && module.exports){
     if(state && state.phase === "scramble") renderScramble();
     if(state && state.phase === "wordle") renderWordle();
   });
-  $("retryBtn").addEventListener("click", ()=>{ if(lastInit) initGame(lastInit.seed, lastInit.opts); });
-  $("goHomeBtn").addEventListener("click", showHome);
+  $("retryBtn").addEventListener("click", ()=>{
+    if(!lastInit) return;
+    try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:retry", { attempts_done: attemptCarry.tries || 1 }); }catch(e){}
+    initGame(lastInit.seed, lastInit.opts);
+  });
+  $("goHomeBtn").addEventListener("click", ()=>{
+    try{ if(window.PBSTelemetry && PBSTelemetry.runOpen()){
+      PBSTelemetry.track("game_quit", { quit_type:"explicit", trigger:"after_fail",
+        attempt_num: (state && state.attemptNum) || 1, moves: (state && state.moves) || 0 });
+      PBSTelemetry.closeRun();
+    } }catch(e){}
+    showHome();
+  });
 
   function startGame(){
     if(gameStarted) return;
+    try{ if(window.PBSTelemetry) PBSTelemetry.sessionStart(); }catch(e){}
     // the app always opens to the main menu; clear any stale puzzle params
     // (old bookmarks captured mid-game URLs like ?seed=22816)
     try{ if(location.search) history.replaceState(null, "", location.pathname); }catch(e){}
