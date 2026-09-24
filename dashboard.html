@@ -585,11 +585,11 @@ function boot(){
 }
 (function initGate(){
   let ok = false;
-  try{ ok = localStorage.getItem("verbatim_unlocked") === "1"; }catch(e){}
+  try{ ok = localStorage.getItem("vbdash_unlocked") === "1"; }catch(e){}
   if(ok){ boot(); return; }
   const tryPw = ()=>{
     if(($("gatePw").value||"").trim().toLowerCase() === PASSWORD){
-      try{ localStorage.setItem("verbatim_unlocked","1"); }catch(e){}
+      try{ localStorage.setItem("vbdash_unlocked","1"); }catch(e){}
       boot();
     } else { $("gateErr").textContent = "That's not the password."; $("gatePw").select(); }
   };
