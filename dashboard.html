@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex" />
+<title>Verbatim Playtest Analytics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet" />
+<style>
+  /* ============================================================
+     Verbatim Playtest Analytics — PBS Games
+     Reads the Verbatim-playtest Supabase project live.
+     Brand: PBS Aug 2025 tokens; literary serif = Fraunces.
+     Chart series palette validated (CVD + contrast, light & dark).
+     ============================================================ */
+  :root{
+    --pbs-blue:#2638C4;
+    --bg:#FBF8F1;              /* PBS paper */
+    --card:#FFFFFF;
+    --edge:#E6E1D3;
+    --ink:#0A145A;             /* PBS navy */
+    --ink-soft:#5A6080;
+    --ink-faint:#9AA0B8;
+    --accent:#2638C4;
+    --accent-ink:#FFFFFF;
+    --pulse:#12A999;
+    --s1:#3056CD; --s2:#12A999; --s3:#AD8604; --s4:#B94834;   /* validated series */
+    --feed-bg:#F3EFE4;
+    --ui:Arial,"Helvetica Neue",Helvetica,sans-serif;
+    --serif:"Fraunces",Georgia,"Times New Roman",serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0D1330; --card:#151C42; --edge:#28305C;
+      --ink:#EAEDF9; --ink-soft:#A9B0CE; --ink-faint:#6B7398;
+      --accent:#8B9BF2; --accent-ink:#0D1330; --pulse:#3FC2BA;
+      --feed-bg:#101736;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0D1330; --card:#151C42; --edge:#28305C;
+    --ink:#EAEDF9; --ink-soft:#A9B0CE; --ink-faint:#6B7398;
+    --accent:#8B9BF2; --accent-ink:#0D1330; --pulse:#3FC2BA;
+    --feed-bg:#101736;
+    color-scheme: dark;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:var(--ui); background:var(--bg); color:var(--ink);
+    -webkit-font-smoothing:antialiased; min-height:100vh;
+    padding:0 clamp(16px,3vw,36px) 48px;
+  }
+  header.top{
+    display:flex; align-items:baseline; gap:14px; flex-wrap:wrap;
+    padding:26px 0 8px; border-bottom:3px solid var(--pbs-blue); margin-bottom:20px;
+  }
+  :root[data-theme="dark"] header.top, html:not([data-theme]) header.top{ border-bottom-color:var(--accent); }
+  h1{ font-family:var(--serif); font-weight:600; font-size:clamp(26px,4vw,34px); margin:0; letter-spacing:.2px; text-wrap:balance; }
+  .kicker{ font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-soft); }
+  .live{ display:flex; align-items:center; gap:7px; margin-left:auto; font-size:12px; color:var(--ink-soft); white-space:nowrap; }
+  .dot{ width:9px; height:9px; border-radius:50%; background:var(--ink-faint); }
+  .dot.on{ background:var(--pulse); animation:pulse 2.2s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:.35} }
+  @media (prefers-reduced-motion: reduce){ .dot.on{ animation:none } }
+
+  .bar{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:18px; font-size:12px; color:var(--ink-soft); }
+  .envtog{ display:inline-flex; border:1px solid var(--edge); border-radius:999px; overflow:hidden; }
+  .envtog button{ border:0; background:transparent; color:var(--ink-soft); font:inherit; font-size:12px; padding:5px 12px; cursor:pointer; }
+  .envtog button.on{ background:var(--accent); color:var(--accent-ink); }
+  .envtog button:focus-visible{ outline:2px solid var(--accent); outline-offset:-2px; }
+
+  .tiles{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:20px; }
+  .tile{ background:var(--card); border:1px solid var(--edge); border-radius:10px; padding:14px 16px 12px; }
+  .tile .v{ font-family:var(--serif); font-size:30px; font-weight:600; font-variant-numeric:tabular-nums; line-height:1.1; }
+  .tile .l{ font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-soft); margin-top:4px; }
+  .tile .s{ font-size:11px; color:var(--ink-faint); margin-top:2px; font-variant-numeric:tabular-nums; }
+
+  .grid{ display:grid; grid-template-columns:minmax(0,1.7fr) minmax(0,1fr); gap:16px; align-items:start; }
+  @media (max-width:880px){ .grid{ grid-template-columns:minmax(0,1fr); } }
+  .col{ display:flex; flex-direction:column; gap:16px; min-width:0; }
+
+  section.panel{ background:var(--card); border:1px solid var(--edge); border-radius:10px; padding:16px 18px 14px; min-width:0; }
+  section.panel h2{ font-family:var(--serif); font-size:17px; font-weight:600; margin:0 0 2px; }
+  .sub{ font-size:11.5px; color:var(--ink-soft); margin:0 0 12px; }
+  .note{ font-size:11px; color:var(--ink-faint); margin-top:8px; }
+  .empty{ font-size:13px; color:var(--ink-soft); padding:18px 0 10px; }
+
+  /* live feed */
+  #feed{ display:flex; flex-direction:column; gap:6px; max-height:520px; overflow-y:auto; }
+  .ev{ display:flex; gap:8px; align-items:baseline; background:var(--feed-bg); border-radius:7px; padding:7px 10px; font-size:12.5px; }
+  .ev .nm{ font-weight:bold; white-space:nowrap; }
+  .ev .dt{ color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0; }
+  .ev .tm{ color:var(--ink-faint); font-size:11px; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .ev.fresh{ outline:1px solid var(--accent); }
+  .ev .tag{ font-size:10px; letter-spacing:.06em; padding:1px 6px; border-radius:999px; border:1px solid var(--edge); color:var(--ink-soft); white-space:nowrap; }
+
+  /* hand-drawn SVG charts */
+  .chart{ width:100%; }
+  .chart text{ font-family:var(--ui); fill:var(--ink-soft); font-size:10.5px; }
+  .chart .val{ fill:var(--ink); font-weight:bold; font-variant-numeric:tabular-nums; }
+  .chart line.grid{ stroke:var(--edge); stroke-width:1; }
+  .legend{ display:flex; gap:14px; flex-wrap:wrap; font-size:11.5px; color:var(--ink-soft); margin:2px 0 8px; }
+  .legend .sw{ display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:5px; vertical-align:-1px; }
+
+  /* horizontal bar rows */
+  .hrow{ display:grid; grid-template-columns:112px minmax(0,1fr) 86px; gap:10px; align-items:center; font-size:12.5px; margin:7px 0; }
+  .hrow .hl{ color:var(--ink-soft); text-align:right; }
+  .hrow .track{ background:var(--feed-bg); border-radius:4px; height:16px; position:relative; overflow:hidden; }
+  .hrow .fill{ position:absolute; inset:0 auto 0 0; border-radius:4px; min-width:2px; }
+  .hrow .hv{ font-variant-numeric:tabular-nums; color:var(--ink); white-space:nowrap; }
+
+  table{ border-collapse:collapse; width:100%; font-size:12.5px; }
+  th{ text-align:left; font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft); font-weight:normal; padding:4px 10px 6px 0; border-bottom:1px solid var(--edge); white-space:nowrap; }
+  td{ padding:6px 10px 6px 0; border-bottom:1px solid var(--edge); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  tr:last-child td{ border-bottom:0; }
+  .tablewrap{ overflow-x:auto; }
+  .num{ text-align:right; }
+  th.num{ text-align:right; padding-right:0; }
+  td.num{ padding-right:0; }
+
+  .badge{ display:inline-block; font-size:10px; letter-spacing:.06em; text-transform:uppercase; background:var(--feed-bg); border:1px solid var(--edge); color:var(--ink-soft); border-radius:999px; padding:2px 8px; vertical-align:2px; margin-left:6px; }
+
+  /* tooltip */
+  #tip{ position:fixed; pointer-events:none; background:var(--ink); color:var(--bg); font-size:11.5px; padding:5px 9px; border-radius:6px; z-index:50; font-variant-numeric:tabular-nums; max-width:240px; }
+  #tip[hidden]{ display:none; }
+
+  footer{ margin-top:26px; font-size:11px; color:var(--ink-faint); line-height:1.6; }
+
+  /* gate */
+  #gate{ position:fixed; inset:0; background:var(--bg); display:flex; align-items:center; justify-content:center; z-index:100; padding:16px; }
+  #gate.hidden{ display:none; }
+  .gate-card{ background:var(--card); border:1px solid var(--edge); border-radius:12px; padding:28px; max-width:360px; width:100%; }
+  .gate-card h1{ font-size:24px; margin-bottom:4px; }
+  .gate-card p{ font-size:13px; color:var(--ink-soft); margin:4px 0 14px; }
+  .gate-card input{ width:100%; font:inherit; font-size:15px; padding:9px 11px; border:1px solid var(--edge); border-radius:8px; background:var(--bg); color:var(--ink); }
+  .gate-card button{ margin-top:10px; width:100%; font:inherit; font-size:14px; font-weight:bold; padding:10px; border:0; border-radius:8px; background:var(--pbs-blue); color:#fff; cursor:pointer; }
+  .gate-card .err{ color:#B94834; font-size:12px; min-height:16px; margin-top:8px; }
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <div class="gate-card">
+    <div class="kicker">PBS Games</div>
+    <h1 style="font-family:var(--serif)">Verbatim Analytics</h1>
+    <p>Playtest dashboard. Enter the playtest password.</p>
+    <input id="gatePw" type="password" autocomplete="off" aria-label="Password" />
+    <button id="gateBtn" type="button">Open dashboard</button>
+    <div class="err" id="gateErr"></div>
+  </div>
+</div>
+
+<header class="top">
+  <div>
+    <div class="kicker">PBS Games playtest analytics</div>
+    <h1>Verbatim</h1>
+  </div>
+  <div class="live">
+    <span class="dot" id="liveDot"></span>
+    <span id="liveTxt">connecting</span>
+  </div>
+</header>
+
+<div class="bar">
+  <span class="envtog" role="group" aria-label="Data environment">
+    <button id="envPlay" class="on" type="button">Playtest data</button>
+    <button id="envDev" type="button">Dev/test data</button>
+  </span>
+  <span id="meta"></span>
+</div>
+
+<div class="tiles" id="tiles"></div>
+
+<div class="grid">
+  <div class="col">
+    <section class="panel">
+      <h2>Daily activity</h2>
+      <p class="sub">Plays (bars) and unique players (line), last 14 days, player-local days</p>
+      <div class="legend"><span><span class="sw" style="background:var(--s1)"></span>Plays</span><span><span class="sw" style="background:var(--s2)"></span>Players</span></div>
+      <div id="daily" class="chart"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Run outcomes<span class="badge" id="funnelWin">last 7 days</span></h2>
+      <p class="sub">Every run ends solved, quit, or stays open (no terminal yet); failed attempts can retry</p>
+      <div id="funnel"></div>
+      <p class="note" id="funnelNote"></p>
+    </section>
+
+    <section class="panel">
+      <h2>Solving<span class="badge">last 7 days</span></h2>
+      <p class="sub">Attempts to solve, and solve rate by difficulty mode</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px">
+        <div><div class="kicker" style="margin-bottom:6px">Attempts per solve</div><div id="attempts"></div></div>
+        <div><div class="kicker" style="margin-bottom:6px">Solve rate by mode</div><div id="modes"></div></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Puzzles</h2>
+      <p class="sub">Per daily and bonus-pack puzzle, all playtest data, most-played first</p>
+      <div class="tablewrap"><table id="puzzles"></table></div>
+    </section>
+
+    <section class="panel">
+      <h2>Retention<span class="badge">directional until several weeks of data</span></h2>
+      <p class="sub">D1 = returned the next local day; D7 = returned within 7 days. Counted per anonymous browser, so multi-device play undercounts.</p>
+      <div class="tablewrap"><table id="retention"></table></div>
+    </section>
+  </div>
+
+  <div class="col">
+    <section class="panel">
+      <h2>Live events</h2>
+      <p class="sub" id="feedSub">Raw stream from the game, newest first</p>
+      <div id="feed"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Devices<span class="badge">last 7 days</span></h2>
+      <p class="sub">Unique players by device</p>
+      <div id="devices"></div>
+      <div class="note" id="displayNote"></div>
+    </section>
+  </div>
+</div>
+
+<footer>
+  Anonymous gameplay telemetry only: random player IDs, no accounts, no PII, by design.
+  Event spec: PBS Games Analytics Approach v1, log_version 1.
+  Store: Supabase project <span style="font-variant-numeric:tabular-nums">Verbatim-playtest</span> (Postgres; raw <code>events</code> table is the system of record; SQL views drive BI reads).
+  <span id="fetchMeta"></span>
+</footer>
+
+<div id="tip" hidden></div>
+
+<script>
+"use strict";
+/* ---------------- config ---------------- */
+const SB  = "https://jpasgxttyiaorhksybez.supabase.co";
+const KEY = "sb_publishable_XEBCZFTnhakXn5G14MO9cg_tiwLrTpB";  // publishable; RLS allows insert+read only
+const GAME = "verbatim";
+const PASSWORD = "fredrogers";
+const SERIES = { s1:"#3056CD", s2:"#12A999", s3:"#AD8604", s4:"#B94834" };
+
+/* ---------------- state ---------------- */
+let ENV = "playtest";
+try{ ENV = localStorage.getItem("vbdash_env") === "dev" ? "dev" : "playtest"; }catch(e){}
+let rows = [];            // all fetched events, ascending id
+let lastId = 0;
+let lastEventAt = null;
+let dirty = true;
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\"/g,"&quot;");
+const fmtPct = (a,b) => b ? Math.round(100*a/b) + "%" : "0%";
+const fmtTime = ms => { if(ms==null||isNaN(ms)) return "–"; const s=Math.round(ms/1000); return Math.floor(s/60)+":"+String(s%60).padStart(2,"0"); };
+const localDay = (ts, off) => new Date(new Date(ts).getTime() + (off||0)*60000).toISOString().slice(0,10);
+const ago = ts => { const s=Math.max(0,Math.round((Date.now()-new Date(ts))/1000));
+  if(s<60) return s+"s ago"; if(s<3600) return Math.floor(s/60)+"m ago"; if(s<86400) return Math.floor(s/3600)+"h ago"; return Math.floor(s/86400)+"d ago"; };
+
+/* ---------------- data ---------------- */
+async function sbFetch(path){
+  const r = await fetch(SB + "/rest/v1/" + path, { headers:{ apikey:KEY, Authorization:"Bearer "+KEY } });
+  if(!r.ok) throw new Error("supabase " + r.status);
+  return r.json();
+}
+const COLS = "id,event_name,event_ts,tz_offset,session_id,player_id,device_type,display_mode,run_id,payload";
+async function loadAll(){
+  rows = []; lastId = 0;
+  for(let page=0; page<25; page++){
+    const batch = await sbFetch(`events?env=eq.${ENV}&game_id=eq.${GAME}&select=${COLS}&order=id.asc&id=gt.${lastId}&limit=1000`);
+    rows = rows.concat(batch);
+    if(batch.length) lastId = batch[batch.length-1].id;
+    if(batch.length < 1000) break;
+  }
+  if(rows.length) lastEventAt = rows[rows.length-1].event_ts;
+  dirty = true;
+}
+async function poll(){
+  try{
+    const batch = await sbFetch(`events?env=eq.${ENV}&game_id=eq.${GAME}&select=${COLS}&order=id.asc&id=gt.${lastId}&limit=1000`);
+    if(batch.length){
+      rows = rows.concat(batch);
+      lastId = batch[batch.length-1].id;
+      lastEventAt = batch[batch.length-1].event_ts;
+      dirty = true;
+      renderFeed(batch.map(b=>b.id));
+      renderAll();
+    }
+    setLive(true);
+  }catch(e){ setLive(false); }
+}
+function setLive(ok){
+  $("liveDot").className = "dot" + (ok ? " on" : "");
+  $("liveTxt").textContent = !ok ? "connection lost, retrying"
+    : lastEventAt ? ("live · last event " + ago(lastEventAt)) : "live · waiting for first event";
+}
+
+/* ---------------- aggregates (client-side; SQL views carry the same logic for BI) ---------------- */
+function evName(e){ return e.event_name === "game_event" ? (e.payload && e.payload.event_id || "game_event") : e.event_name; }
+function summarize(){
+  const today = localDay(new Date().toISOString(), -new Date().getTimezoneOffset());
+  const days14 = [...Array(14)].map((_,i)=>{ const d=new Date(); d.setDate(d.getDate()-13+i); return d.toISOString().slice(0,10); });
+  const cut7 = new Date(Date.now() - 7*86400000).toISOString();
+
+  const byDay = {}; days14.forEach(d => byDay[d] = { plays:0, players:new Set() });
+  const playerDays = {};           // player -> Set(local days)
+  const firstDay = {};             // player -> first local day
+  const runs = {};                 // run_id -> {start, terminal}
+  let f7 = { starts:0, solves:0, fails:0, retries:0, quits:0, shares:0, taps:0, hearts:0 };
+  const attempts = {1:0,2:0,3:0};  // 3 = 3+
+  const modeAgg = {};              // mode -> {starts, solves}
+  const dev7 = {};                 // device -> Set(player)
+  let standalone7 = new Set(), sessions7 = new Set();
+  const solveTimes7 = [];
+  let sharesToday = 0, playsToday = 0, playersToday = new Set();
+
+  for(const e of rows){
+    const d = localDay(e.event_ts, e.tz_offset);
+    const in7 = e.event_ts >= cut7;
+    if(byDay[d]){
+      if(e.event_name === "game_start") byDay[d].plays++;
+      byDay[d].players.add(e.player_id);
+    }
+    (playerDays[e.player_id] = playerDays[e.player_id] || new Set()).add(d);
+    if(!(e.player_id in firstDay) || d < firstDay[e.player_id]) firstDay[e.player_id] = d;
+    if(in7){
+      sessions7.add(e.session_id);
+      (dev7[e.device_type || "unknown"] = dev7[e.device_type || "unknown"] || new Set()).add(e.player_id);
+      if(e.display_mode === "standalone") standalone7.add(e.player_id);
+    }
+    if(d === today){ playersToday.add(e.player_id); if(e.event_name==="game_start") playsToday++; if(e.event_name==="share") sharesToday++; }
+
+    const n = evName(e);
+    if(e.event_name === "game_start" && e.run_id){
+      runs[e.run_id] = { start:e, terminal:null };
+      const m = e.payload && e.payload.mode || "unknown";
+      (modeAgg[m] = modeAgg[m] || {starts:0, solves:0}).starts++;
+      if(in7) f7.starts++;
+    }
+    if((e.event_name === "game_complete" || e.event_name === "game_over" || e.event_name === "game_quit") && e.run_id && runs[e.run_id]){
+      runs[e.run_id].terminal = e;
+    }
+    if(in7){
+      if(e.event_name === "game_complete"){ f7.solves++;
+        const at = e.payload && e.payload.attempts || 1; attempts[Math.min(3, at)]++;
+        if(e.payload && e.payload.duration_ms != null) solveTimes7.push(e.payload.duration_ms);
+      }
+      if(e.event_name === "level_fail") f7.fails++;
+      if(e.event_name === "game_quit") f7.quits++;
+      if(e.event_name === "share") f7.shares++;
+      if(n === "verbatim:retry") f7.retries++;
+      if(n === "verbatim:pbs_link_tap") f7.taps++;
+      if(n === "verbatim:heart") f7.hearts++;
+    }
+    if(e.event_name === "game_complete"){
+      const m = e.payload && e.payload.mode || "unknown";
+      (modeAgg[m] = modeAgg[m] || {starts:0, solves:0}).solves++;
+    }
+  }
+
+  // puzzles table from runs
+  const puz = {};
+  Object.values(runs).forEach(r => {
+    const p = r.start.payload || {};
+    const key = (p.puzzle_ref || "?") + "|" + (p.mode || "?");
+    const row = (puz[key] = puz[key] || { ref:p.puzzle_ref||"?", type:p.puzzle_type||"?", pack:p.pack_id||"", mode:p.mode||"?", runs:0, solves:0, quits:0, att:[], times:[] });
+    row.runs++;
+    if(r.terminal && r.terminal.event_name === "game_complete"){
+      row.solves++;
+      const tp = r.terminal.payload || {};
+      if(tp.attempts) row.att.push(tp.attempts);
+      if(tp.duration_ms != null) row.times.push(tp.duration_ms);
+    }
+    if(r.terminal && r.terminal.event_name === "game_quit") row.quits++;
+  });
+
+  // retention cohorts
+  const cohorts = {};
+  Object.entries(firstDay).forEach(([p, d0]) => {
+    const c = (cohorts[d0] = cohorts[d0] || { size:0, d1:0, d7:0 });
+    c.size++;
+    const days = playerDays[p];
+    const next = new Date(new Date(d0).getTime() + 86400000).toISOString().slice(0,10);
+    if(days.has(next)) c.d1++;
+    for(let i=1;i<=7;i++){
+      const dd = new Date(new Date(d0).getTime() + i*86400000).toISOString().slice(0,10);
+      if(days.has(dd)){ c.d7++; break; }
+    }
+  });
+
+  const median = a => { if(!a.length) return null; const s=[...a].sort((x,y)=>x-y); return s[Math.floor(s.length/2)]; };
+  return { today, days14, byDay, f7, attempts, modeAgg, dev7, standalone7, sessions7,
+           solveTimes7, sharesToday, playsToday, playersToday, puz, cohorts, median };
+}
+
+/* ---------------- tooltip ---------------- */
+const tip = $("tip");
+function tipOn(el, text){
+  el.addEventListener("mouseenter", e => { tip.textContent = text; tip.hidden = false; });
+  el.addEventListener("mousemove", e => { tip.style.left = Math.min(innerWidth-250, e.clientX+12)+"px"; tip.style.top = (e.clientY+14)+"px"; });
+  el.addEventListener("mouseleave", () => { tip.hidden = true; });
+}
+
+/* ---------------- renderers ---------------- */
+function renderTiles(S){
+  const solveRate = fmtPct(S.f7.solves, S.f7.starts);
+  const med = S.median(S.solveTimes7);
+  $("tiles").innerHTML = [
+    { v:S.playersToday.size, l:"Players today", s:"unique browsers" },
+    { v:S.playsToday, l:"Plays today", s:"runs started" },
+    { v:solveRate, l:"Solve rate", s:S.f7.solves + " of " + S.f7.starts + " runs · 7d" },
+    { v:fmtTime(med), l:"Median solve", s:"across attempts · 7d" },
+    { v:S.f7.shares, l:"Shares", s:S.f7.taps + " PBS link taps · 7d" }
+  ].map(t=>`<div class="tile"><div class="v">${esc(t.v)}</div><div class="l">${esc(t.l)}</div><div class="s">${esc(t.s)}</div></div>`).join("");
+}
+
+function renderDaily(S){
+  const el = $("daily");
+  const days = S.days14;
+  const plays = days.map(d => S.byDay[d].plays);
+  const players = days.map(d => S.byDay[d].players.size);
+  const max = Math.max(4, ...plays, ...players);
+  if(plays.every(v=>!v) && players.every(v=>!v)){ el.innerHTML = '<div class="empty">No plays recorded yet in this window.</div>'; return; }
+  const W = 640, H = 180, padL = 26, padB = 20, padT = 12;
+  const iw = (W - padL - 8) / days.length;
+  const y = v => padT + (H - padT - padB) * (1 - v / max);
+  let svg = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Daily plays and players">`;
+  [0, .5, 1].forEach(f => {
+    const v = Math.round(max * f);
+    svg += `<line class="grid" x1="${padL}" x2="${W-4}" y1="${y(v)}" y2="${y(v)}"/><text x="${padL-5}" y="${y(v)+3.5}" text-anchor="end">${v}</text>`;
+  });
+  days.forEach((d, i) => {
+    const x = padL + i * iw;
+    const bh = (H - padT - padB) * plays[i] / max;
+    svg += `<rect class="pt" data-i="${i}" x="${x + iw*0.18}" y="${y(plays[i])}" width="${iw*0.56}" height="${Math.max(bh, plays[i] ? 2 : 0)}" rx="3" fill="${SERIES.s1}"/>`;
+    if(i % 2 === 0) svg += `<text x="${x + iw/2}" y="${H-6}" text-anchor="middle">${d.slice(5).replace("-", "/")}</text>`;
+  });
+  svg += `<polyline fill="none" stroke="${SERIES.s2}" stroke-width="2" points="${days.map((d,i)=>(padL+i*iw+iw/2)+","+y(players[i])).join(" ")}"/>`;
+  days.forEach((d,i)=>{ svg += `<circle class="pt" data-i="${i}" cx="${padL+i*iw+iw/2}" cy="${y(players[i])}" r="3.4" fill="${SERIES.s2}" stroke="var(--card)" stroke-width="2"/>`; });
+  const li = days.length - 1;
+  svg += `<text class="val" x="${padL+li*iw+iw/2}" y="${Math.max(10, y(players[li])-8)}" text-anchor="middle">${players[li]}</text>`;
+  svg += "</svg>";
+  el.innerHTML = svg;
+  el.querySelectorAll(".pt").forEach(n => {
+    const i = +n.dataset.i;
+    tipOn(n, `${days[i]} · ${plays[i]} plays · ${players[i]} players`);
+  });
+}
+
+function hbar(label, value, maxV, color, valueText){
+  const w = maxV ? Math.max(1, Math.round(100 * value / maxV)) : 0;
+  return `<div class="hrow"><div class="hl">${esc(label)}</div><div class="track"><div class="fill" style="width:${w}%;background:${color}"></div></div><div class="hv">${esc(valueText)}</div></div>`;
+}
+
+function renderFunnel(S){
+  const f = S.f7, el = $("funnel");
+  if(!f.starts){ el.innerHTML = '<div class="empty">No runs in the last 7 days.</div>'; $("funnelNote").textContent = ""; return; }
+  const open = Math.max(0, f.starts - f.solves - f.quits);
+  el.innerHTML =
+    hbar("Runs started", f.starts, f.starts, SERIES.s1, String(f.starts)) +
+    hbar("Solved", f.solves, f.starts, SERIES.s2, `${f.solves} · ${fmtPct(f.solves, f.starts)}`) +
+    hbar("Quit", f.quits, f.starts, SERIES.s4, `${f.quits} · ${fmtPct(f.quits, f.starts)}`) +
+    hbar("Open / no terminal", open, f.starts, "var(--ink-faint)", String(open)) +
+    hbar("Failed attempts", f.fails, Math.max(f.starts, f.fails), SERIES.s3, `${f.fails} · ${f.retries} retried`);
+  $("funnelNote").textContent = `Also in this window: ${f.shares} shares, ${f.hearts} hearts, ${f.taps} PBS link taps.`;
+}
+
+function renderSolving(S){
+  const a = S.attempts, tot = a[1] + a[2] + a[3];
+  $("attempts").innerHTML = !tot ? '<div class="empty">No solves yet.</div>' :
+    hbar("1st try", a[1], tot, SERIES.s2, `${a[1]} · ${fmtPct(a[1], tot)}`) +
+    hbar("2nd try", a[2], tot, SERIES.s3, `${a[2]} · ${fmtPct(a[2], tot)}`) +
+    hbar("3+ tries", a[3], tot, SERIES.s4, `${a[3]} · ${fmtPct(a[3], tot)}`);
+  const modes = Object.entries(S.modeAgg).sort();
+  $("modes").innerHTML = !modes.length ? '<div class="empty">No runs yet.</div>' :
+    modes.map(([m, v], i) => hbar(m, v.starts ? v.solves / v.starts : 0, 1, i ? SERIES.s3 : SERIES.s1, `${fmtPct(v.solves, v.starts)} of ${v.starts}`)).join("");
+}
+
+function renderDevices(S){
+  const el = $("devices");
+  const entries = ["mobile","tablet","desktop"].map(d => [d, (S.dev7[d]||new Set()).size]).filter(x=>x[1] || true);
+  const max = Math.max(1, ...entries.map(e=>e[1]));
+  const colors = { mobile:SERIES.s1, tablet:SERIES.s3, desktop:SERIES.s2 };
+  const total = entries.reduce((s,e)=>s+e[1],0);
+  el.innerHTML = !total ? '<div class="empty">No players in the last 7 days.</div>'
+    : entries.map(([d,v]) => hbar(d, v, max, colors[d], `${v} · ${fmtPct(v,total)}`)).join("");
+  $("displayNote").textContent = total ? `${S.standalone7.size} played from a home-screen install · ${S.sessions7.size} sessions in 7d` : "";
+}
+
+function renderPuzzles(S){
+  const list = Object.values(S.puz).sort((a,b)=>b.runs-a.runs).slice(0,15);
+  const med = S.median;
+  $("puzzles").innerHTML = !list.length ? '<tr><td class="empty">No runs yet.</td></tr>' :
+    "<thead><tr><th>Puzzle</th><th>Type</th><th>Mode</th><th class='num'>Runs</th><th class='num'>Solved</th><th class='num'>Rate</th><th class='num'>Avg tries</th><th class='num'>Median time</th></tr></thead><tbody>" +
+    list.map(p => {
+      const avgA = p.att.length ? (p.att.reduce((s,x)=>s+x,0)/p.att.length).toFixed(1) : "–";
+      return `<tr><td>${esc(p.ref)}</td><td>${esc(p.pack || p.type)}</td><td>${esc(p.mode)}</td><td class="num">${p.runs}</td><td class="num">${p.solves}</td><td class="num">${fmtPct(p.solves,p.runs)}</td><td class="num">${avgA}</td><td class="num">${fmtTime(med(p.times))}</td></tr>`;
+    }).join("") + "</tbody>";
+}
+
+function renderRetention(S){
+  const days = Object.keys(S.cohorts).sort().slice(-10);
+  $("retention").innerHTML = !days.length ? '<tr><td class="empty">No players yet.</td></tr>' :
+    "<thead><tr><th>First played</th><th class='num'>Players</th><th class='num'>D1</th><th class='num'>D7</th></tr></thead><tbody>" +
+    days.map(d => {
+      const c = S.cohorts[d];
+      const young = (Date.now() - new Date(d)) < 86400000 * 1.5;
+      return `<tr><td>${esc(d)}</td><td class="num">${c.size}</td><td class="num">${young ? "–" : fmtPct(c.d1, c.size)}</td><td class="num">${fmtPct(c.d7, c.size)}</td></tr>`;
+    }).join("") + "</tbody>";
+}
+
+/* live feed */
+const FRIENDLY = {
+  session_start:"Session started", session_end:"Session ended", heartbeat:"Heartbeat",
+  game_start:"Run started", level_start:"Attempt started", level_complete:"Attempt solved",
+  level_fail:"Out of mistakes", game_complete:"Puzzle solved", game_quit:"Run abandoned",
+  share:"Shared result", error:"Error",
+  "verbatim:placement":"Word placed", "verbatim:swap":"Words swapped", "verbatim:scramble_swap":"Letters swapped",
+  "verbatim:guess":"Mystery guess", "verbatim:retry":"Retry", "verbatim:heart":"Loved the quote",
+  "verbatim:pbs_link_tap":"Tapped PBS link", "verbatim:nav":"Navigated", "verbatim:settings":"Settings changed",
+  "verbatim:passport":"Passport pitch", "verbatim:resume":"Resumed run"
+};
+function evDetail(e){
+  const p = e.payload || {}, n = evName(e);
+  if(e.event_name === "game_start") return `${p.mode||""} · ${p.puzzle_ref||""}`;
+  if(e.event_name === "game_complete") return `${fmtTime(p.duration_ms)} · ${p.attempts||1} attempt${(p.attempts||1)>1?"s":""} · ${p.score||""} pts`;
+  if(e.event_name === "level_fail") return `attempt ${p.attempt_num||1}`;
+  if(e.event_name === "game_quit") return p.quit_type || "";
+  if(n === "verbatim:placement") return p.correct ? "correct" : "wrong spot";
+  if(n === "verbatim:guess") return p.won ? "correct" : "guess " + (p.n||"");
+  if(n === "verbatim:nav") return "to " + (p.to||"") + (p.pack_id ? ":" + p.pack_id : "");
+  if(n === "verbatim:settings") return p.mode ? "mode: "+p.mode : (p.muted!=null ? (p.muted?"muted":"unmuted") : (p.wipe?"wiped progress":""));
+  if(n === "verbatim:passport") return p.step || "";
+  if(e.event_name === "session_start") return (p.entry_source||"") + (p.is_first_session ? " · new player" : "");
+  return "";
+}
+function renderFeed(freshIds){
+  const feed = $("feed");
+  const recent = rows.slice(-30).reverse();
+  $("feedSub").textContent = rows.length ? `Raw stream, newest first · ${rows.length.toLocaleString()} events total` : "Raw stream from the game, newest first";
+  feed.innerHTML = !recent.length ? '<div class="empty">Waiting for the first event. Play a puzzle and it appears here within a few seconds.</div>' :
+    recent.map(e => {
+      const fresh = freshIds && freshIds.includes(e.id);
+      return `<div class="ev${fresh?" fresh":""}"><span class="nm">${esc(FRIENDLY[evName(e)] || evName(e))}</span><span class="dt">${esc(evDetail(e))}</span><span class="tag">${esc(e.device_type||"")}</span><span class="tm">${esc(ago(e.event_ts))}</span></div>`;
+    }).join("");
+}
+
+function renderAll(){
+  if(!dirty) return;
+  dirty = false;
+  const S = summarize();
+  renderTiles(S); renderDaily(S); renderFunnel(S); renderSolving(S);
+  renderDevices(S); renderPuzzles(S); renderRetention(S);
+  $("meta").textContent = ENV === "dev" ? "Showing dev/test rows (excluded from all playtest reporting)." : "";
+  $("fetchMeta").textContent = ` ${rows.length.toLocaleString()} events loaded · updated ${new Date().toLocaleTimeString()}.`;
+}
+
+/* ---------------- env toggle ---------------- */
+function setEnv(env){
+  ENV = env;
+  try{ localStorage.setItem("vbdash_env", env); }catch(e){}
+  $("envPlay").classList.toggle("on", env === "playtest");
+  $("envDev").classList.toggle("on", env === "dev");
+  $("liveTxt").textContent = "loading";
+  loadAll().then(()=>{ renderFeed(); renderAll(); setLive(true); }).catch(()=>setLive(false));
+}
+$("envPlay").addEventListener("click", ()=>setEnv("playtest"));
+$("envDev").addEventListener("click", ()=>setEnv("dev"));
+
+/* ---------------- gate + boot ---------------- */
+function boot(){
+  $("gate").classList.add("hidden");
+  $("envPlay").classList.toggle("on", ENV === "playtest");
+  $("envDev").classList.toggle("on", ENV === "dev");
+  loadAll().then(()=>{ renderFeed(); renderAll(); setLive(true); }).catch(()=>setLive(false));
+  setInterval(poll, 3000);
+  setInterval(()=>{ if(lastEventAt) setLive(true); }, 10000);       // refresh "ago" text
+  setInterval(()=>{ dirty = true; renderAll(); }, 60000);           // roll windows forward
+}
+(function initGate(){
+  let ok = false;
+  try{ ok = localStorage.getItem("verbatim_unlocked") === "1"; }catch(e){}
+  if(ok){ boot(); return; }
+  const tryPw = ()=>{
+    if(($("gatePw").value||"").trim().toLowerCase() === PASSWORD){
+      try{ localStorage.setItem("verbatim_unlocked","1"); }catch(e){}
+      boot();
+    } else { $("gateErr").textContent = "That's not the password."; $("gatePw").select(); }
+  };
+  $("gateBtn").addEventListener("click", tryPw);
+  $("gatePw").addEventListener("keydown", e=>{ if(e.key==="Enter") tryPw(); });
+  setTimeout(()=>{ try{ $("gatePw").focus(); }catch(e){} }, 60);
+})();
+</script>
+</body>
+</html>
