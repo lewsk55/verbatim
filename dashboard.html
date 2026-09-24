@@ -125,7 +125,7 @@
   .badge{ display:inline-block; font-size:10px; letter-spacing:.06em; text-transform:uppercase; background:var(--feed-bg); border:1px solid var(--edge); color:var(--ink-soft); border-radius:999px; padding:2px 8px; vertical-align:2px; margin-left:6px; }
 
   /* tooltip */
-  #tip{ position:fixed; pointer-events:none; background:var(--ink); color:var(--bg); font-size:11.5px; padding:5px 9px; border-radius:6px; z-index:50; font-variant-numeric:tabular-nums; max-width:240px; }
+  #tip{ position:fixed; pointer-events:none; background:var(--ink); color:var(--bg); font-size:11.5px; line-height:1.5; padding:6px 10px; border-radius:6px; z-index:50; font-variant-numeric:tabular-nums; max-width:340px; }
   #tip[hidden]{ display:none; }
 
   footer{ margin-top:26px; font-size:11px; color:var(--ink-faint); line-height:1.6; }
@@ -263,6 +263,28 @@ const localDay = (ts, off) => new Date(new Date(ts).getTime() + (off||0)*60000).
 const ago = ts => { const s=Math.max(0,Math.round((Date.now()-new Date(ts))/1000));
   if(s<60) return s+"s ago"; if(s<3600) return Math.floor(s/60)+"m ago"; if(s<86400) return Math.floor(s/3600)+"h ago"; return Math.floor(s/86400)+"d ago"; };
 
+/* ---------------- quote lookup: pulled from the game build itself (same origin), so
+   tooltips always match the live content without duplicating 379 quotes here ------- */
+let QUOTE_MAP = null;
+async function loadQuotes(){
+  for(const src of ["index.html", "verbatim_v0_7a.html"]){
+    try{
+      const r = await fetch(src);
+      if(!r.ok) continue;
+      const t = await r.text();
+      const i = t.indexOf("const QUOTES = [");
+      if(i < 0) continue;
+      const j = t.indexOf("\n];", i);
+      if(j < 0) continue;
+      const arr = new Function("return " + t.slice(i + "const QUOTES = ".length, j + 3))();
+      QUOTE_MAP = {};
+      arr.forEach(q => { if(q && q.id) QUOTE_MAP[q.id] = q; });
+      dirty = true; renderAll();   // repaint the puzzles table now that text is known
+      return;
+    }catch(e){}
+  }
+}
+
 /* ---------------- data ---------------- */
 async function sbFetch(path){
   const r = await fetch(SB + "/rest/v1/" + path, { headers:{ apikey:KEY, Authorization:"Bearer "+KEY } });
@@ -369,8 +391,9 @@ function summarize(){
   Object.values(runs).forEach(r => {
     const p = r.start.payload || {};
     const key = (p.puzzle_ref || "?") + "|" + (p.mode || "?");
-    const row = (puz[key] = puz[key] || { ref:p.puzzle_ref||"?", type:p.puzzle_type||"?", pack:p.pack_id||"", mode:p.mode||"?", runs:0, solves:0, quits:0, att:[], times:[] });
+    const row = (puz[key] = puz[key] || { ref:p.puzzle_ref||"?", type:p.puzzle_type||"?", pack:p.pack_id||"", mode:p.mode||"?", qid:p.quote_id||null, runs:0, solves:0, quits:0, att:[], times:[] });
     row.runs++;
+    if(!row.qid && p.quote_id) row.qid = p.quote_id;
     if(r.terminal && r.terminal.event_name === "game_complete"){
       row.solves++;
       const tp = r.terminal.payload || {};
@@ -496,12 +519,23 @@ function renderDevices(S){
 function renderPuzzles(S){
   const list = Object.values(S.puz).sort((a,b)=>b.runs-a.runs).slice(0,15);
   const med = S.median;
-  $("puzzles").innerHTML = !list.length ? '<tr><td class="empty">No runs yet.</td></tr>' :
+  const tbl = $("puzzles");
+  tbl.innerHTML = !list.length ? '<tr><td class="empty">No runs yet.</td></tr>' :
     "<thead><tr><th>Puzzle</th><th>Type</th><th>Mode</th><th class='num'>Runs</th><th class='num'>Solved</th><th class='num'>Rate</th><th class='num'>Avg tries</th><th class='num'>Median time</th></tr></thead><tbody>" +
-    list.map(p => {
+    list.map((p, i) => {
       const avgA = p.att.length ? (p.att.reduce((s,x)=>s+x,0)/p.att.length).toFixed(1) : "–";
-      return `<tr><td>${esc(p.ref)}</td><td>${esc(p.pack || p.type)}</td><td>${esc(p.mode)}</td><td class="num">${p.runs}</td><td class="num">${p.solves}</td><td class="num">${fmtPct(p.solves,p.runs)}</td><td class="num">${avgA}</td><td class="num">${fmtTime(med(p.times))}</td></tr>`;
+      return `<tr data-i="${i}"><td>${esc(p.ref)}</td><td>${esc(p.pack || p.type)}</td><td>${esc(p.mode)}</td><td class="num">${p.runs}</td><td class="num">${p.solves}</td><td class="num">${fmtPct(p.solves,p.runs)}</td><td class="num">${avgA}</td><td class="num">${fmtTime(med(p.times))}</td></tr>`;
     }).join("") + "</tbody>";
+  // hover any row to see the actual quote or fact behind the numbers
+  tbl.querySelectorAll("tbody tr[data-i]").forEach(tr => {
+    const p = list[+tr.dataset.i];
+    const q = QUOTE_MAP && p.qid ? QUOTE_MAP[p.qid] : null;
+    const txt = q
+      ? (q.label ? q.label + " · " : "") + "“" + q.text + "”" + (q.author ? " — " + q.author : "")
+      : (p.qid ? "quote id " + p.qid + " (text loads from the game build)" : "no quote id recorded");
+    tr.setAttribute("title", txt);
+    tipOn(tr, txt);
+  });
 }
 
 function renderRetention(S){
@@ -576,6 +610,7 @@ $("envDev").addEventListener("click", ()=>setEnv("dev"));
 /* ---------------- gate + boot ---------------- */
 function boot(){
   $("gate").classList.add("hidden");
+  loadQuotes();
   $("envPlay").classList.toggle("on", ENV === "playtest");
   $("envDev").classList.toggle("on", ENV === "dev");
   loadAll().then(()=>{ renderFeed(); renderAll(); setLive(true); }).catch(()=>setLive(false));
@@ -585,11 +620,11 @@ function boot(){
 }
 (function initGate(){
   let ok = false;
-  try{ ok = localStorage.getItem("vbdash_unlocked") === "1"; }catch(e){}
+  try{ ok = localStorage.getItem("verbatim_unlocked") === "1"; }catch(e){}
   if(ok){ boot(); return; }
   const tryPw = ()=>{
     if(($("gatePw").value||"").trim().toLowerCase() === PASSWORD){
-      try{ localStorage.setItem("vbdash_unlocked","1"); }catch(e){}
+      try{ localStorage.setItem("verbatim_unlocked","1"); }catch(e){}
       boot();
     } else { $("gateErr").textContent = "That's not the password."; $("gatePw").select(); }
   };
