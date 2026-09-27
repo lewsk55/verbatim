@@ -461,6 +461,7 @@
   .wcell.filled{ border-color:var(--light); }
   .wcell.pop{ animation:lockPop .25s ease; }
   .wcell.correct{ background:var(--pbs-blue); border-color:var(--pbs-blue); color:#fff; }
+  .wrow.active .wcell.given{ background:var(--pbs-blue); border:2px solid var(--pbs-blue); border-style:solid; color:#fff; opacity:.85; }
   .wcell.present{ background:#fff; border:3px solid var(--pbs-blue); color:var(--navy); }  /* right letter, wrong spot → thick blue stroke */
   .wcell.absent{ background:#C7CBDD; border-color:#C7CBDD; color:#fff; }
 
@@ -838,7 +839,7 @@
   .turns-line{ text-align:center; font-size:.84rem; color:var(--ink-soft); font-weight:700; margin-top:14px; }
   .turns-line.warn b{ color:#B58900; }   /* between one and two thirds left */
   .turns-line.low b{ color:var(--coral); }   /* a third or less left */
-  /* v0.8 daily sets */
+  /* v0.6a daily sets */
   .set-dots{ display:flex; gap:4px; justify-content:center; margin-top:3px; }
   .set-dots[hidden]{ display:none; }
   .set-dots .sd{ width:7px; height:7px; border-radius:50%; border:1.5px solid rgba(255,255,255,.75); background:transparent; }
@@ -1121,7 +1122,7 @@
   <div class="body">
     <p>Each day brings three linked puzzles, from a quick warm-up to a longer finale. Solve all three to reveal what ties them together.</p>
     <p>You're shown who said each line (or what a fact is about). A word or two is already in place. Tap words from the bank to drop them into the blanks, in the order you think the line goes.</p>
-    <p>Puzzles two and three hide a <b>mystery word</b> to uncover at the end; the finale adds a clue. Solve an early puzzle without a slip to earn a hint for later.</p>
+    <p>Puzzles two and three hide a <b>mystery word</b> to uncover at the end; the finale adds a clue. Longer mystery words start with a letter or more filled in. Solve an early puzzle without a slip to earn a hint for later.</p>
     <p>Tap <b>Set the line</b> to check. Words in the right spot lock in; the rest come back to the bank. There's no limit on tries — but the fewer moves it takes, the higher you'll place.</p>
     <p>Solve it, and the line sets into print to share.</p>
   </div>
@@ -1546,11 +1547,11 @@ QUOTES.push(
 );
 
 /* -------- Seeded PRNG (mulberry32) + string hash -------- */
-/* ---- Daily sets: three linked puzzles a day, Sept 27 – Oct 31, 2026 (v0.8) ----
+/* ---- Daily sets: three linked puzzles a day, Sept 27 – Oct 31, 2026 (v0.6a) ----
    Tier 1: short warm-up, pure assembly (no mystery word). Its `b` word is the blank on the share card.
    Tier 2: mystery word returns (`m`).  Tier 3: longest, fewest anchors, mystery word + definition clue (`c`).
    Every quote was checked against a primary text (Project Gutenberg / MIT Shakespeare) or the sourced
-   section of its Wikiquote page; facts were checked against Wikipedia. See the v0.8 research log. */
+   section of its Wikiquote page; facts were checked against Wikipedia. See the v0.6a research log. */
 const DAILY_SETS = [
  { d:"2026-09-27", shape:"one", theme:"Rachel Carson, in her own words",
    note:"Silent Spring was published on September 27, 1962. Carson's book on pesticides helped launch the modern environmental movement.",
@@ -1904,7 +1905,7 @@ function buildPuzzle(seed, forceIdx){
     secretIndex = top[Math.floor(rng()*top.length)].i;
   }
 
-  // v0.8 daily sets: the constructor picks the mystery word; tier 1 has none
+  // v0.6a daily sets: the constructor picks the mystery word; tier 1 has none
   if(q.tier){
     secretIndex = -1;
     if(q.tier > 1 && q.mystery){
@@ -2034,7 +2035,7 @@ if(typeof module !== "undefined" && module.exports){
     url: "https://jpasgxttyiaorhksybez.supabase.co",
     key: "sb_publishable_XEBCZFTnhakXn5G14MO9cg_tiwLrTpB", // publishable; RLS = insert+read only
     gameId: "verbatim",
-    gameVersion: "0.8",
+    gameVersion: "0.6a",
     logVersion: 1,
     flushMs: 4000,          // standing flush cadence
     maxBatch: 40,           // events per POST (keepalive-safe size)
@@ -2261,7 +2262,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.8";
+  const VERSION = "0.6a";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "easy" | "normal" — Normal (formerly Hard) is the default
   try{
@@ -2337,7 +2338,7 @@ if(typeof module !== "undefined" && module.exports){
       localStorage.setItem("verbatim_done", JSON.stringify(m)); }catch(e){}
   }
   function isDoneDate(d){ return !!doneMap()["d:" + dateKey(d)]; }
-  /* -------- v0.8 daily sets: three linked puzzles a day -------- */
+  /* -------- v0.6a daily sets: three linked puzzles a day -------- */
   function setFor(d){ return d ? (SET_BY_DATE[dateKey(d)] || null) : null; }
   function isDoneTier(d, t){ return !!doneMap()["d:" + dateKey(d) + ":t" + t]; }
   function tiersDone(d){ let n=0; for(let t=1;t<=3;t++) if(isDoneTier(d,t)) n++; return n; }
@@ -2576,6 +2577,7 @@ if(typeof module !== "undefined" && module.exports){
       pack: (opts && opts.pack) || null, packIdx: (opts && opts.packIdx != null) ? opts.packIdx : null,
       packOrd: (opts && opts.packOrd) || null
     };
+    state.given = givenPositions(seed, secretLen);
     // one major key + one bright progression per puzzle, chosen from the seed
     // (GGW picks these per hole; here the seed makes every chord in a puzzle agree)
     {
@@ -2744,7 +2746,31 @@ if(typeof module !== "undefined" && module.exports){
 
   function firstEmptySlot(){ return state.slots.findIndex(s=>!s.fixed && !s.locked && s.word===null); }
   function isSecretKey(k){ return state.secretIndex>=0 && k===state.secretKey && !state.secretSolved && state.phase!=="done"; }
-  function maskStr(){ return "_".repeat(state.secretLen) + (state.secretPunct || ""); }
+  function maskStr(){
+    let m = "";
+    for(let i=0;i<state.secretLen;i++) m += (state.given && state.given.has(i)) ? state.secretWord[i] : "_";
+    return m + (state.secretPunct || "");
+  }
+  // mystery words of 6+ letters start with some letters filled in: one for 6, two for 7, three for 8 ...
+  function givenPositions(seed, L){
+    const n = Math.max(0, L - 5), set = new Set();
+    if(!n) return set;
+    const rng = mulberry32(xfnv1a("given:" + seed));
+    const idx = []; for(let i=0;i<L;i++) idx.push(i);
+    seededShuffle(idx, rng).slice(0, n).forEach(i=> set.add(i));
+    return set;
+  }
+  function openLen(){ return state.secretLen - (state.given ? state.given.size : 0); }
+  function openPos(k){   // full-word position of the k-th letter the player types
+    let seen = -1;
+    for(let i=0;i<state.secretLen;i++){ if(state.given && state.given.has(i)) continue; if(++seen === k) return i; }
+    return -1;
+  }
+  function composeGuess(){   // typed letters flowed around the given ones
+    let out = "", k = 0;
+    for(let i=0;i<state.secretLen;i++) out += (state.given && state.given.has(i)) ? state.secretWord[i] : (state.current[k++] || "");
+    return out.toUpperCase();
+  }
 
   /* -------- scrambled-word display helpers (hard mode) -------- */
   function applyCaseLike(scr, orig){
@@ -3555,6 +3581,7 @@ if(typeof module !== "undefined" && module.exports){
   function enterWordle(){
     state.phase = "wordle";
     state.guesses = []; state.current = ""; state.keyStatus = {}; state.secretGuesses = 0;
+    if(state.given) state.given.forEach(i=>{ state.keyStatus[state.secretWord[i]] = "correct"; });
     state._evaluating = false; state._shakeRow = false; state._justTyped = -1;
     promptEl.innerHTML = 'Now uncover the <b>mystery word</b>'
       + (state.quote.clue ? '<span class="clue-line">Clue: ' + escapeHtml(state.quote.clue) + '</span>' : '');
@@ -3577,18 +3604,18 @@ if(typeof module !== "undefined" && module.exports){
   }
   function typeLetter(ch){
     if(state.phase!=="wordle" || state._evaluating) return;
-    if(state.current.length<state.secretLen){
+    if(state.current.length<openLen()){
       state.current += ch.toUpperCase();
-      state._justTyped = state.current.length-1;   // squash-stretch on the letter you just typed
+      state._justTyped = openPos(state.current.length-1);   // squash-stretch on the letter you just typed
       renderWordleGrid();
       // auto-check the word the moment the last letter lands — no Enter needed
-      if(state.current.length===state.secretLen) setTimeout(autoSubmit, 170);
+      if(state.current.length===openLen()) setTimeout(autoSubmit, 170);
     }
   }
   function delLetter(){ if(state.phase!=="wordle" || state._evaluating) return; state.current=state.current.slice(0,-1); renderWordleGrid(); }
   function autoSubmit(){
-    if(state.phase!=="wordle" || state._evaluating || state.current.length!==state.secretLen) return;
-    if(state.current.toUpperCase() === state.secretWord){ submitGuess(); return; }   // straight into the win animation
+    if(state.phase!=="wordle" || state._evaluating || state.current.length!==openLen()) return;
+    if(composeGuess() === state.secretWord){ submitGuess(); return; }   // straight into the win animation
     // wrong: shake the row "no", then file it with the previous attempts
     state._evaluating = true; state._shakeRow = true;
     renderWordleGrid();
@@ -3596,8 +3623,8 @@ if(typeof module !== "undefined" && module.exports){
     setTimeout(()=>{ state._evaluating = false; state._shakeRow = false; submitGuess(); }, 480);
   }
   function submitGuess(){
-    if(state.phase!=="wordle" || state._evaluating || state.current.length!==state.secretLen) return;
-    const guess = state.current.toUpperCase();
+    if(state.phase!=="wordle" || state._evaluating || state.current.length!==openLen()) return;
+    const guess = composeGuess();
     const marks = scoreGuess(guess, state.secretWord);
     state.guesses.push({word:guess, marks});
     state.secretGuesses = state.guesses.length;
@@ -3634,10 +3661,17 @@ if(typeof module !== "undefined" && module.exports){
     // the next blank attempt stays pinned at the TOP
     if(state.phase==="wordle"){
       const row = document.createElement("div"); row.className = "wrow active" + (state._shakeRow ? " shakeno" : "");
+      let k = 0;
       for(let i=0;i<L;i++){
         const c=document.createElement("div");
-        c.className="wcell"+(state.current[i]?" filled":"")+(i===state._justTyped?" pop":"");
-        c.textContent=state.current[i]||"";
+        if(state.given && state.given.has(i)){
+          c.className="wcell given"; c.textContent=state.secretWord[i];
+          c.setAttribute("aria-label", "Given letter " + state.secretWord[i]);
+        } else {
+          const ch = state.current[k++] || "";
+          c.className="wcell"+(ch?" filled":"")+(i===state._justTyped?" pop":"");
+          c.textContent=ch;
+        }
         row.appendChild(c);
       }
       wgridEl.appendChild(row);
