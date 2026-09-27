@@ -838,6 +838,28 @@
   .turns-line{ text-align:center; font-size:.84rem; color:var(--ink-soft); font-weight:700; margin-top:14px; }
   .turns-line.warn b{ color:#B58900; }   /* between one and two thirds left */
   .turns-line.low b{ color:var(--coral); }   /* a third or less left */
+  /* v0.8 daily sets */
+  .set-dots{ display:flex; gap:4px; justify-content:center; margin-top:3px; }
+  .set-dots[hidden]{ display:none; }
+  .set-dots .sd{ width:7px; height:7px; border-radius:50%; border:1.5px solid rgba(255,255,255,.75); background:transparent; }
+  .set-dots .sd.cur{ background:var(--yellow); border-color:var(--yellow); }
+  .set-dots .sd.done{ background:#fff; border-color:#fff; }
+  .clue-line{ display:block; margin-top:8px; font-family:var(--serif); font-style:italic; font-weight:400; font-size:1rem; letter-spacing:normal; text-transform:none; color:var(--navy); }
+  .hint-btn{ margin-left:10px; padding:6px 12px; font-size:.8rem; }
+  .hint-btn[hidden]{ display:none; }
+  .earn-line{ font-size:.82rem; font-weight:700; color:var(--pbs-blue); margin:10px 0 0; }
+  .earn-line[hidden]{ display:none; }
+  .set-reveal{ text-align:left; background:var(--paper); border:1px solid var(--paper-edge); border-radius:10px; padding:16px 18px; margin:0 0 16px; }
+  .set-reveal[hidden]{ display:none; }
+  .sr-kicker{ margin:0; font-size:.72rem; font-weight:700; letter-spacing:.08em; color:var(--ink-soft); }
+  .sr-theme{ margin:2px 0 12px; font-family:var(--serif); font-weight:600; font-size:1.35rem; line-height:1.2; color:var(--navy); }
+  .sr-lines{ margin:0; padding-left:1.2em; display:grid; gap:10px; }
+  .sr-lines li{ font-family:var(--serif); color:var(--ink); line-height:1.45; }
+  .sr-q{ display:block; font-size:.98rem; }
+  .sr-by{ display:block; font-family:var(--ui); font-size:.76rem; color:var(--ink-soft); margin-top:2px; }
+  .sr-note{ margin:12px 0 0; font-size:.84rem; line-height:1.5; color:var(--ink-soft); }
+  .sr-total{ margin:8px 0 0; font-size:.8rem; font-weight:700; color:var(--navy); }
+  .dc-prog{ position:absolute; top:6px; right:8px; font-size:.68rem; font-weight:700; color:var(--pbs-blue); }
   .gameover{ display:none; text-align:center; padding:18px 0 6px; }
   .gameover.show{ display:block; }
   .go-title{ font-family:var(--serif); font-weight:600; font-size:1.5rem; color:var(--navy); }
@@ -922,7 +944,7 @@
       <span class="cc-arrow">&rarr;</span>
     </button>
     <button class="hero-card" id="heroCard" type="button">
-      <span class="hero-label">Today&rsquo;s Quote</span>
+      <span class="hero-label" id="heroLabel">Today&rsquo;s Quote</span>
       <span class="hero-date" id="heroDate"></span>
       <span class="hero-author" id="heroAuthor"></span>
       <span class="hero-play">Play &rarr;</span>
@@ -1015,6 +1037,7 @@
   <button class="puzzle-no" id="puzzleNo" title="Copy a link to this puzzle">
     <span class="lab">Puzzle</span>
     <span class="num" id="puzzleNum">№ —</span>
+    <span class="set-dots" id="setDots" hidden></span>
   </button>
 </header>
 
@@ -1037,6 +1060,7 @@
 
     <div class="controls" id="controls">
       <span class="moves">Moves: <b id="moveCount">0</b></span>
+      <button class="btn btn-ghost hint-btn" id="hintBtn" type="button" hidden>Use a hint</button>
     </div>
 
     <!-- Phase B: Wordle-style reveal of the secret word -->
@@ -1062,6 +1086,7 @@
     </div>
 
     <div class="afterglow" id="afterglow">
+      <div class="set-reveal" id="setReveal" hidden></div>
       <div class="time-line" id="timeLine"></div>
       <div class="score-line" id="scoreLine"></div>
       <div class="mystery-line" id="mysteryLine"></div>
@@ -1072,10 +1097,12 @@
         </button>
       </div>
       <div class="controls">
+        <button class="btn btn-primary" id="nextBtn" type="button" hidden>Next puzzle</button>
         <button class="btn btn-primary" id="shareBtn">Share this quote</button>
         <button class="btn btn-ghost" id="newBtn">Try another</button>
         <button class="btn btn-ghost" id="homeBtn">Home</button>
       </div>
+      <p class="earn-line" id="earnLine" hidden></p>
       <p class="tomorrow" id="tomorrowLine">A new quotation arrives each morning.</p>
       <div class="pbs-links" id="pbsBox"></div>
     </div>
@@ -1092,7 +1119,9 @@
 <details class="how">
   <summary>How to play</summary>
   <div class="body">
-    <p>You're shown who said today's quotation. A word or two is already in place. Tap words from the bank to drop them into the blanks, in the order you think the quote was spoken.</p>
+    <p>Each day brings three linked puzzles, from a quick warm-up to a longer finale. Solve all three to reveal what ties them together.</p>
+    <p>You're shown who said each line (or what a fact is about). A word or two is already in place. Tap words from the bank to drop them into the blanks, in the order you think the line goes.</p>
+    <p>Puzzles two and three hide a <b>mystery word</b> to uncover at the end; the finale adds a clue. Solve an early puzzle without a slip to earn a hint for later.</p>
     <p>Tap <b>Set the line</b> to check. Words in the right spot lock in; the rest come back to the bank. There's no limit on tries — but the fewer moves it takes, the higher you'll place.</p>
     <p>Solve it, and the line sets into print to share.</p>
   </div>
@@ -1517,6 +1546,272 @@ QUOTES.push(
 );
 
 /* -------- Seeded PRNG (mulberry32) + string hash -------- */
+/* ---- Daily sets: three linked puzzles a day, Sept 27 – Oct 31, 2026 (v0.8) ----
+   Tier 1: short warm-up, pure assembly (no mystery word). Its `b` word is the blank on the share card.
+   Tier 2: mystery word returns (`m`).  Tier 3: longest, fewest anchors, mystery word + definition clue (`c`).
+   Every quote was checked against a primary text (Project Gutenberg / MIT Shakespeare) or the sourced
+   section of its Wikiquote page; facts were checked against Wikipedia. See the v0.8 research log. */
+const DAILY_SETS = [
+ { d:"2026-09-27", shape:"one", theme:"Rachel Carson, in her own words",
+   note:"Silent Spring was published on September 27, 1962. Carson's book on pesticides helped launch the modern environmental movement.",
+   items:[
+    {k:"quote", a:"Rachel Carson", s:"The Sea Around Us (1951)", t:"Day by day and season by season, the ocean dominates the world's climate.", b:"ocean"},
+    {k:"quote", a:"Rachel Carson", s:"The Sense of Wonder (1965)", t:"Those who contemplate the beauty of the earth find reserves of strength that will endure as long as life lasts.", m:"strength"},
+    {k:"quote", a:"Rachel Carson", s:"Silent Spring (1962)", t:"Over increasingly large areas of the United States, spring now comes unheralded by the return of the birds, and the early mornings are strangely silent where once they were filled with the beauty of bird song.", m:"silent", c:"Making no sound at all"}
+ ]},
+ { d:"2026-09-28", shape:"facts", theme:"Louis Pasteur and the war on germs",
+   note:"Louis Pasteur died on September 28, 1895. His work on microbes changed food safety and medicine.",
+   items:[
+    {k:"fact", a:"Science", s:"Louis Pasteur (1822–1895)", t:"Pasteurization is named for the French scientist Louis Pasteur.", b:"named"},
+    {k:"fact", a:"Science", s:"Louis Pasteur (1822–1895)", t:"Pasteur showed that gently heating wine could kill the microbes that made it spoil.", m:"microbes"},
+    {k:"fact", a:"Science", s:"Louis Pasteur (1822–1895)", t:"In 1885 Pasteur gave his rabies vaccine to a boy mauled by a rabid dog, and the boy survived.", m:"vaccine", c:"A shot that trains the body to fight a disease"}
+ ]},
+ { d:"2026-09-29", shape:"facts", theme:"CERN, the lab that gave us the Web",
+   note:"The convention founding CERN was ratified on September 29, 1954, by twelve Western European countries.",
+   items:[
+    {k:"fact", a:"Science", s:"CERN", t:"The CERN physics laboratory near Geneva was founded in 1954.", b:"Geneva"},
+    {k:"fact", a:"Science", s:"CERN", t:"Tim Berners-Lee invented the World Wide Web while working at CERN in 1989.", m:"invented"},
+    {k:"fact", a:"Science", s:"CERN", t:"In 2012, scientists at CERN announced the discovery of the Higgs boson using the Large Hadron Collider, the world's largest particle accelerator.", m:"particle", c:"A tiny piece of matter"}
+ ]},
+ { d:"2026-09-30", shape:"one", theme:"Elie Wiesel on silence",
+   note:"Elie Wiesel was born on September 30, 1928. A Holocaust survivor and author of Night, he received the Nobel Peace Prize in 1986.",
+   items:[
+    {k:"quote", a:"Elie Wiesel", s:"U.S. News & World Report (1986)", t:"The opposite of love is not hate, it's indifference.", b:"indifference"},
+    {k:"quote", a:"Elie Wiesel", s:"Nobel Peace Prize acceptance speech (1986)", t:"I swore never to be silent whenever and wherever human beings endure suffering and humiliation.", m:"silent"},
+    {k:"quote", a:"Elie Wiesel", s:"Nobel Peace Prize acceptance speech (1986)", t:"We must always take sides. Neutrality helps the oppressor, never the victim. Silence encourages the tormentor, never the tormented.", m:"Silence", c:"The absence of any sound or speech"}
+ ]},
+ { d:"2026-10-01", shape:"voices", theme:"Three voices on wild places",
+   note:"Yosemite National Park was created on October 1, 1890, after John Muir and Robert Underwood Johnson lobbied Congress.",
+   items:[
+    {k:"quote", a:"John Muir", s:"Letter to his sister Sarah (1873)", t:"The mountains are calling and I must go.", b:"mountains"},
+    {k:"quote", a:"Aldo Leopold", s:"A Sand County Almanac (1949)", t:"There are some who can live without wild things, and some who cannot.", m:"without"},
+    {k:"quote", a:"Wallace Stegner", s:"Wilderness Letter (1960)", t:"We simply need that wild country available to us, even if we never do more than drive to its edge and look in.", m:"country", c:"Open land away from towns and cities"}
+ ]},
+ { d:"2026-10-02", shape:"one", theme:"Gandhi on nonviolence",
+   note:"Mohandas Gandhi was born on October 2, 1869. The United Nations marks the date as the International Day of Non-Violence.",
+   items:[
+    {k:"quote", a:"Mahatma Gandhi", s:"Harijan (1939)", t:"Truth never damages a cause that is just.", b:"Truth"},
+    {k:"quote", a:"Mahatma Gandhi", s:"The World Tomorrow (1926)", t:"Nonviolence is the first article of my faith. It is also the last article of my creed.", m:"faith"},
+    {k:"quote", a:"Mahatma Gandhi", s:"Harijan, July 5, 1947", t:"Non-violence is the greatest force at the disposal of mankind. It is mightier than the mightiest weapon of destruction devised by the ingenuity of man.", m:"weapon", c:"An instrument used to fight or harm"}
+ ]},
+ { d:"2026-10-03", shape:"facts", theme:"Germany, whole again",
+   note:"October 3 is German Unity Day, marking reunification in 1990.",
+   items:[
+    {k:"fact", a:"History", s:"German reunification", t:"Germany was reunified on October 3, 1990.", b:"reunified"},
+    {k:"fact", a:"History", s:"German reunification", t:"East and West Germany had been separate countries since 1949, divided during the Cold War.", m:"divided"},
+    {k:"fact", a:"History", s:"German reunification", t:"The Berlin Wall had fallen eleven months earlier, on November 9, 1989, when the border crossings were suddenly opened.", m:"border", c:"The line where one country ends and another begins"}
+ ]},
+ { d:"2026-10-04", shape:"facts", theme:"Sputnik starts the Space Race",
+   note:"Sputnik 1 launched on October 4, 1957. It broadcast its radio signal for three weeks before its batteries ran out.",
+   items:[
+    {k:"fact", a:"Science", s:"Sputnik 1", t:"The Soviet Union launched Sputnik 1 on October 4, 1957.", b:"Sputnik"},
+    {k:"fact", a:"Science", s:"Sputnik 1", t:"Sputnik was the first artificial satellite, a polished metal sphere that sent out simple radio beeps.", m:"sphere"},
+    {k:"fact", a:"Science", s:"Sputnik 1", t:"Its launch alarmed Americans and helped spur the creation of NASA, which began operating on October 1, 1958.", m:"alarmed", c:"Filled with sudden fear or worry"}
+ ]},
+ { d:"2026-10-05", shape:"voices", theme:"Three voices on the people who teach us",
+   note:"October 5 is World Teachers' Day, established by UNESCO in 1994.",
+   items:[
+    {k:"quote", a:"Christa McAuliffe", s:"Quoted in American Heroes of Exploration and Flight (1996)", t:"No teacher has ever been better prepared to teach a lesson.", b:"teacher"},
+    {k:"quote", a:"Fred Rogers", s:"Recalling his mother's advice", t:"Always look for the helpers. There's always someone who is trying to help.", m:"helpers"},
+    {k:"quote", a:"Helen Keller", s:"The Story of My Life (1903)", t:"The most important day I remember in all my life is the one on which my teacher, Anne Mansfield Sullivan, came to me.", m:"teacher", c:"A person who helps others learn"}
+ ]},
+ { d:"2026-10-06", shape:"facts", theme:"The movies learn to talk",
+   note:"The Jazz Singer premiered at Warner Bros.' flagship theater in New York on October 6, 1927.",
+   items:[
+    {k:"fact", a:"Film History", s:"The Jazz Singer (1927)", t:"The Jazz Singer premiered in New York on October 6, 1927.", b:"Jazz"},
+    {k:"fact", a:"Film History", s:"The Jazz Singer (1927)", t:"It was the first feature-length film with synchronized singing and speech, starring Al Jolson.", m:"singing"},
+    {k:"fact", a:"Film History", s:"The Jazz Singer (1927)", t:"Most of its dialogue still appeared on title cards, but its few spoken scenes signaled the end of the silent era.", m:"spoken", c:"Said aloud rather than written"}
+ ]},
+ { d:"2026-10-07", shape:"one", theme:"Desmond Tutu on our shared humanity",
+   note:"Archbishop Desmond Tutu was born on October 7, 1931. He received the Nobel Peace Prize in 1984 for his opposition to apartheid.",
+   items:[
+    {k:"quote", a:"Desmond Tutu", s:"Enthronement address, Cape Town (1986)", t:"A person is a person because he recognizes others as persons.", b:"others"},
+    {k:"quote", a:"Desmond Tutu", s:"Quoted in Unexpected News (1984)", t:"If you are neutral in situations of injustice, you have chosen the side of the oppressor.", m:"neutral"},
+    {k:"quote", a:"Desmond Tutu", s:"The Words of Desmond Tutu (1984)", t:"Children are a wonderful gift. They have an extraordinary capacity to see into the heart of things and to expose sham and humbug for what they are.", m:"humbug", c:"Nonsense meant to fool people"}
+ ]},
+ { d:"2026-10-08", shape:"facts", theme:"The Great Chicago Fire",
+   note:"The Great Chicago Fire began on the evening of October 8, 1871, and burned until October 10.",
+   items:[
+    {k:"fact", a:"History", s:"Great Chicago Fire", t:"The Great Chicago Fire began on October 8, 1871.", b:"Fire"},
+    {k:"fact", a:"History", s:"Great Chicago Fire", t:"It burned for about two days and destroyed more than three square miles of the city.", m:"burned"},
+    {k:"fact", a:"History", s:"Great Chicago Fire", t:"Legend blamed Mrs. O'Leary's cow for kicking over a lantern, but in 1893 the reporter who spread the story admitted he made it up.", m:"lantern", c:"A portable light in a protective case"}
+ ]},
+ { d:"2026-10-09", shape:"facts", theme:"Hangul, an alphabet for everyone",
+   note:"October 9 is Hangul Day in South Korea, marking the 1446 publication of the text that introduced the alphabet.",
+   items:[
+    {k:"fact", a:"Language", s:"Hangul Day", t:"South Korea celebrates Hangul Day on October 9.", b:"Hangul"},
+    {k:"fact", a:"Language", s:"Hangul", t:"Hangul, the Korean alphabet, was published in 1446 under King Sejong.", m:"alphabet"},
+    {k:"fact", a:"Language", s:"Hangul", t:"King Sejong created it because Chinese characters were so difficult to learn that most Koreans could not read or write.", m:"Chinese", c:"From Korea's largest neighbor to the west"}
+ ]},
+ { d:"2026-10-10", shape:"voices", theme:"On hope",
+   note:"October 10 is World Mental Health Day. Václav Havel wrote about hope while a dissident in communist Czechoslovakia; he later became its president.",
+   items:[
+    {k:"quote", a:"Emily Dickinson", s:"Poems, Second Series (1891)", t:"\u201CHope\u201D is the thing with feathers", b:"feathers"},
+    {k:"quote", a:"V\u00E1clav Havel", s:"Disturbing the Peace (1986)", t:"Hope is definitely not the same thing as optimism.", m:"thing"},
+    {k:"quote", a:"V\u00E1clav Havel", s:"Disturbing the Peace (1986)", t:"It is not the conviction that something will turn out well, but the certainty that something makes sense, regardless of how it turns out.", m:"sense", c:"Meaning or reason"}
+ ]},
+ { d:"2026-10-11", shape:"one", theme:"Eleanor Roosevelt on courage",
+   note:"Eleanor Roosevelt was born on October 11, 1884. She later chaired the committee that drafted the Universal Declaration of Human Rights.",
+   items:[
+    {k:"quote", a:"Eleanor Roosevelt", s:"You Learn by Living (1960)", t:"You must do the thing you think you cannot do.", b:"cannot"},
+    {k:"quote", a:"Eleanor Roosevelt", s:"You Learn by Living (1960)", t:"You gain strength, courage, and confidence by every experience in which you really stop to look fear in the face.", m:"courage"},
+    {k:"quote", a:"Eleanor Roosevelt", s:"Voice of America broadcast (1951)", t:"It isn't enough to talk about peace. One must believe in it. And it isn't enough to believe in it. One must work at it.", m:"peace", c:"Freedom from war and conflict"}
+ ]},
+ { d:"2026-10-12", shape:"facts", theme:"How Oktoberfest began",
+   note:"The first Oktoberfest was held on October 12, 1810, in Munich.",
+   items:[
+    {k:"fact", a:"History", s:"Oktoberfest", t:"The first Oktoberfest was held in Munich in 1810.", b:"Munich"},
+    {k:"fact", a:"History", s:"Oktoberfest", t:"It celebrated the wedding of Crown Prince Ludwig of Bavaria and Princess Therese on October 12.", m:"wedding"},
+    {k:"fact", a:"History", s:"Oktoberfest", t:"The first festival featured a horse race, and today most of Oktoberfest takes place in September.", m:"horse", c:"An animal with hooves, raced and ridden"}
+ ]},
+ { d:"2026-10-13", shape:"facts", theme:"Where the world's clock starts",
+   note:"Delegates at the International Meridian Conference voted on October 13, 1884, to make Greenwich the prime meridian.",
+   items:[
+    {k:"fact", a:"Geography", s:"Prime meridian", t:"Greenwich, England, marks zero degrees of longitude.", b:"zero"},
+    {k:"fact", a:"Geography", s:"International Meridian Conference", t:"In 1884, an international conference in Washington chose Greenwich as the world's prime meridian.", m:"prime"},
+    {k:"fact", a:"Geography", s:"Prime meridian", t:"Longitude is measured east and west from that line, and time zones are counted in hours from Greenwich.", m:"measured", c:"Found the size or distance of"}
+ ]},
+ { d:"2026-10-14", shape:"facts", theme:"Faster than sound",
+   note:"Chuck Yeager flew faster than sound over California's Mojave Desert on October 14, 1947, reaching about 700 miles per hour.",
+   items:[
+    {k:"fact", a:"Science", s:"Bell X-1", t:"Chuck Yeager broke the sound barrier on October 14, 1947.", b:"sound"},
+    {k:"fact", a:"Science", s:"Bell X-1", t:"He flew the Bell X-1, a rocket plane he nicknamed Glamorous Glennis for his wife.", m:"rocket"},
+    {k:"fact", a:"Science", s:"Bell X-1", t:"The X-1 was carried aloft in the bomb bay of a B-29 bomber and released high above the desert.", m:"released", c:"Let go of; set free"}
+ ]},
+ { d:"2026-10-15", shape:"voices", theme:"Two voices to close Hispanic Heritage Month",
+   note:"Hispanic Heritage Month runs from September 15 to October 15 in the United States.",
+   items:[
+    {k:"quote", a:"Roberto Clemente", s:"Speech (1971)", t:"Accomplishment is something you cannot buy.", b:"buy"},
+    {k:"quote", a:"C\u00E9sar Ch\u00E1vez", s:"Commonwealth Club speech (1984)", t:"You cannot uneducate the person who has learned to read. You cannot humiliate the person who feels pride.", m:"learned"},
+    {k:"quote", a:"Roberto Clemente", s:"Tris Speaker Award speech (1971)", t:"If you have an opportunity to accomplish something that will make things better for someone coming behind you, and you don't do that, you are wasting your time on this earth.", m:"wasting", c:"Using something up carelessly"}
+ ]},
+ { d:"2026-10-16", shape:"one", theme:"Oscar Wilde, wit on the stage",
+   note:"Oscar Wilde was born in Dublin on October 16, 1854. All three lines come from his plays.",
+   items:[
+    {k:"quote", a:"Oscar Wilde", s:"Lady Windermere's Fan (1892)", t:"I can resist everything except temptation.", b:"temptation"},
+    {k:"quote", a:"Oscar Wilde", s:"Lady Windermere's Fan (1892)", t:"We are all in the gutter, but some of us are looking at the stars.", m:"gutter"},
+    {k:"quote", a:"Oscar Wilde", s:"The Importance of Being Earnest (1895)", t:"The truth is rarely pure and never simple. Modern life would be very tedious if it were either, and modern literature a complete impossibility!", m:"tedious", c:"Tiresomely long or dull"}
+ ]},
+ { d:"2026-10-17", shape:"facts", theme:"Mae Jemison, doctor and astronaut",
+   note:"Mae Jemison was born on October 17, 1956, in Decatur, Alabama. She flew aboard Space Shuttle Endeavour in September 1992.",
+   items:[
+    {k:"fact", a:"Science", s:"Mae Jemison", t:"Mae Jemison was born on October 17, 1956.", b:"born"},
+    {k:"fact", a:"Science", s:"Mae Jemison", t:"In 1992 she became the first African American woman to travel into space.", m:"travel"},
+    {k:"fact", a:"Science", s:"Mae Jemison", t:"Before joining NASA, Jemison worked as a doctor, including two years with the Peace Corps in Sierra Leone and Liberia.", m:"doctor", c:"A physician who treats the sick"}
+ ]},
+ { d:"2026-10-18", shape:"facts", theme:"Alaska changes hands",
+   note:"October 18 is Alaska Day. The transfer ceremony was held in Sitka on October 18, 1867.",
+   items:[
+    {k:"fact", a:"History", s:"Alaska Purchase", t:"Alaska Day marks the transfer of Alaska from Russia in 1867.", b:"Russia"},
+    {k:"fact", a:"History", s:"Alaska Purchase", t:"The United States paid 7.2 million dollars for Alaska, about two cents an acre.", m:"dollars"},
+    {k:"fact", a:"History", s:"Alaska Purchase", t:"Some critics called the deal Seward's Folly, after Secretary of State William Seward, arguing the land was useless.", m:"Folly", c:"A foolish act or idea"}
+ ]},
+ { d:"2026-10-19", shape:"facts", theme:"Victory at Yorktown",
+   note:"The British surrender ceremony at Yorktown took place on October 19, 1781. Cornwallis did not attend.",
+   items:[
+    {k:"fact", a:"History", s:"Siege of Yorktown", t:"British forces surrendered at Yorktown on October 19, 1781.", b:"surrendered"},
+    {k:"fact", a:"History", s:"Siege of Yorktown", t:"American and French troops had trapped General Cornwallis's army on the Virginia coast.", m:"trapped"},
+    {k:"fact", a:"History", s:"Siege of Yorktown", t:"A French fleet in the Chesapeake Bay kept British ships from rescuing the army, and more than seven thousand soldiers were captured.", m:"fleet", c:"A group of warships"}
+ ]},
+ { d:"2026-10-20", shape:"facts", theme:"The Sydney Opera House",
+   note:"Queen Elizabeth II formally opened the Sydney Opera House on October 20, 1973, sixteen years after its design was chosen.",
+   items:[
+    {k:"fact", a:"Architecture", s:"Sydney Opera House", t:"The Sydney Opera House opened on October 20, 1973.", b:"Opera"},
+    {k:"fact", a:"Architecture", s:"Sydney Opera House", t:"Its design was chosen in a 1957 competition won by the Danish architect J\u00F8rn Utzon.", m:"Danish"},
+    {k:"fact", a:"Architecture", s:"Sydney Opera House", t:"Utzon resigned during construction in 1966 and never returned to see his finished building.", m:"resigned", c:"Formally quit a job"}
+ ]},
+ { d:"2026-10-21", shape:"one", theme:"Ursula K. Le Guin, from other worlds",
+   note:"Ursula K. Le Guin was born on October 21, 1929. These lines come from A Wizard of Earthsea and The Left Hand of Darkness.",
+   items:[
+    {k:"quote", a:"Ursula K. Le Guin", s:"A Wizard of Earthsea (1968)", t:"Have you never thought how danger must surround power as shadow does light?", b:"shadow"},
+    {k:"quote", a:"Ursula K. Le Guin", s:"The Left Hand of Darkness (1969)", t:"The only thing that makes life possible is permanent, intolerable uncertainty: not knowing what comes next.", m:"possible"},
+    {k:"quote", a:"Ursula K. Le Guin", s:"A Wizard of Earthsea (1968)", t:"You must not change one thing, one pebble, one grain of sand, until you know what good and evil will follow on that act.", m:"pebble", c:"A small, smooth stone"}
+ ]},
+ { d:"2026-10-22", shape:"facts", theme:"The first parachute",
+   note:"Andr\u00E9-Jacques Garnerin made the first frameless parachute descent at Parc Monceau in Paris on October 22, 1797.",
+   items:[
+    {k:"fact", a:"Science", s:"Andr\u00E9-Jacques Garnerin", t:"In 1797, Andr\u00E9-Jacques Garnerin parachuted from a balloon over Paris.", b:"balloon"},
+    {k:"fact", a:"Science", s:"Andr\u00E9-Jacques Garnerin", t:"His silk parachute was the first to fly without a rigid frame.", m:"rigid"},
+    {k:"fact", a:"Science", s:"Andr\u00E9-Jacques Garnerin", t:"The parachute swung violently on the way down and scraped along the ground when he landed, but Garnerin walked away uninjured.", m:"scraped", c:"Rubbed roughly against a surface"}
+ ]},
+ { d:"2026-10-23", shape:"facts", theme:"Happy Mole Day",
+   note:"Mole Day runs from 6:02 a.m. to 6:02 p.m. on October 23, a nod to Avogadro's number, about 6.02 \u00D7 10\u00B2\u00B3.",
+   items:[
+    {k:"fact", a:"Science", s:"Mole Day", t:"Chemists celebrate Mole Day on October 23.", b:"Mole"},
+    {k:"fact", a:"Science", s:"Mole (unit)", t:"A mole is a unit for counting atoms or molecules, like a dozen but vastly larger.", m:"counting"},
+    {k:"fact", a:"Science", s:"Mole Day", t:"One mole holds about 602 sextillion particles, which is why the holiday runs from 6:02 in the morning to 6:02 at night.", m:"holiday", c:"A special day of celebration"}
+ ]},
+ { d:"2026-10-24", shape:"voices", theme:"Three voices for United Nations Day",
+   note:"The UN Charter came into force on October 24, 1945. Ralph Bunche and Dag Hammarskj\u00F6ld both served the UN; Bunche won the 1950 Nobel Peace Prize.",
+   items:[
+    {k:"quote", a:"Ralph Bunche", s:"Nobel lecture (1950)", t:"Peace must be paced by human progress.", b:"progress"},
+    {k:"quote", a:"Charter of the United Nations", s:"Preamble (1945)", t:"We the peoples of the United Nations determined to save succeeding generations from the scourge of war", m:"scourge"},
+    {k:"quote", a:"Dag Hammarskj\u00F6ld", s:"Markings (1963)", t:"Never look down to test the ground before taking your next step; only he who keeps his eye fixed on the far horizon will find his right road.", m:"horizon", c:"Where the earth seems to meet the sky"}
+ ]},
+ { d:"2026-10-25", shape:"one", theme:"St. Crispin's Day, by Shakespeare",
+   note:"The Battle of Agincourt was fought on October 25, 1415, Saint Crispin's Day. Shakespeare dramatized it in Henry V.",
+   items:[
+    {k:"quote", a:"William Shakespeare", s:"Henry V, Act 3, Scene 1", t:"Once more unto the breach, dear friends, once more;", b:"breach"},
+    {k:"quote", a:"William Shakespeare", s:"Henry V, Act 4, Scene 3", t:"We few, we happy few, we band of brothers; For he to-day that sheds his blood with me Shall be my brother;", m:"brothers"},
+    {k:"quote", a:"William Shakespeare", s:"Henry V, Act 4, Scene 3", t:"This day is called the feast of Crispian: He that outlives this day, and comes safe home, Will stand a tip-toe when the day is named,", m:"outlives", c:"Lives longer than; survives"}
+ ]},
+ { d:"2026-10-26", shape:"facts", theme:"The Erie Canal opens",
+   note:"The Erie Canal was completed on October 26, 1825, and the opening was marked by a statewide Grand Celebration.",
+   items:[
+    {k:"fact", a:"History", s:"Erie Canal", t:"The Erie Canal opened on October 26, 1825.", b:"Canal"},
+    {k:"fact", a:"History", s:"Erie Canal", t:"It ran 363 miles across New York, from Albany on the Hudson to Buffalo on Lake Erie.", m:"Albany"},
+    {k:"fact", a:"History", s:"Erie Canal", t:"Critics had mocked the project as Clinton's Big Ditch, but its tolls repaid the state's construction debt within the first year.", m:"mocked", c:"Made fun of"}
+ ]},
+ { d:"2026-10-27", shape:"facts", theme:"New York goes underground",
+   note:"The first line of the Interborough Rapid Transit subway opened on October 27, 1904.",
+   items:[
+    {k:"fact", a:"History", s:"Interborough Rapid Transit", t:"New York City's first subway line opened on October 27, 1904.", b:"subway"},
+    {k:"fact", a:"History", s:"Interborough Rapid Transit", t:"The first line ran from City Hall in lower Manhattan to 145th Street at Broadway.", m:"lower"},
+    {k:"fact", a:"History", s:"Interborough Rapid Transit", t:"It opened after more than twenty years of public debate over how the city should build its first subway.", m:"debate", c:"A formal argument between sides"}
+ ]},
+ { d:"2026-10-28", shape:"mixed", theme:"Liberty, in metal and in verse",
+   note:"The Statue of Liberty was dedicated on October 28, 1886. Emma Lazarus's sonnet \u201CThe New Colossus\u201D was added on a plaque in 1903.",
+   items:[
+    {k:"fact", a:"History", s:"Statue of Liberty", t:"The Statue of Liberty was dedicated on October 28, 1886.", b:"Liberty"},
+    {k:"fact", a:"History", s:"Statue of Liberty", t:"It was designed by Fr\u00E9d\u00E9ric Auguste Bartholdi, with a metal framework built by Gustave Eiffel.", m:"designed"},
+    {k:"quote", a:"Emma Lazarus", s:"\u201CThe New Colossus\u201D (1883)", t:"Give me your tired, your poor, Your huddled masses yearning to breathe free, The wretched refuse of your teeming shore.", m:"huddled", c:"Crowded close together"}
+ ]},
+ { d:"2026-10-29", shape:"facts", theme:"The internet's first word",
+   note:"On October 29, 1969, UCLA student programmer Charley Kline sent the first message over ARPANET, the network that grew into the internet.",
+   items:[
+    {k:"fact", a:"Technology", s:"ARPANET", t:"ARPANET sent its first message on October 29, 1969.", b:"message"},
+    {k:"fact", a:"Technology", s:"ARPANET", t:"A student at UCLA tried to log in to a computer at the Stanford Research Institute.", m:"student"},
+    {k:"fact", a:"Technology", s:"ARPANET", t:"He meant to type LOGIN, but the system crashed after two letters, so the first message was simply LO.", m:"crashed", c:"Suddenly stopped working"}
+ ]},
+ { d:"2026-10-30", shape:"mixed", theme:"The War of the Worlds",
+   note:"The Mercury Theatre broadcast The War of the Worlds on October 30, 1938. Historians now say reports of a nationwide panic were greatly exaggerated by newspapers.",
+   items:[
+    {k:"fact", a:"History", s:"The War of the Worlds (1938 radio drama)", t:"Orson Welles broadcast The War of the Worlds on October 30, 1938.", b:"broadcast"},
+    {k:"fact", a:"History", s:"The War of the Worlds (1938 radio drama)", t:"The radio play, staged as news bulletins, was based on the 1898 novel by H. G. Wells.", m:"staged"},
+    {k:"quote", a:"H. G. Wells", s:"The War of the Worlds (1898)", t:"No one would have believed in the last years of the nineteenth century that this world was being watched keenly and closely by intelligences greater than man's", m:"watched", c:"Observed closely"}
+ ]},
+ { d:"2026-10-31", shape:"voices", theme:"Three classic frights for Halloween",
+   note:"Happy Halloween. Mary Shelley, Washington Irving, and Edgar Allan Poe all wrote before 1929, so their words are in the public domain.",
+   items:[
+    {k:"quote", a:"Mary Shelley", s:"Frankenstein (1818)", t:"Beware, for I am fearless and therefore powerful.", b:"fearless"},
+    {k:"quote", a:"Washington Irving", s:"The Legend of Sleepy Hollow (1820)", t:"The whole neighborhood abounds with local tales, haunted spots, and twilight superstitions;", m:"haunted"},
+    {k:"quote", a:"Edgar Allan Poe", s:"The Raven (1845)", t:"Deep into that darkness peering, long I stood there wondering, fearing, Doubting, dreaming dreams no mortals ever dared to dream before;", m:"mortals", c:"Beings who must someday die"}
+ ]}
+];
+
+// set items live after the main bank and the packs, so legacy dailies (e.g. Aug 4, Julia Child) never shift
+const SET_START = QUOTES.length;
+const SET_BY_DATE = {};
+DAILY_SETS.forEach(ds=>{
+  ds.idx = [];
+  ds.items.forEach((it,i)=>{
+    ds.idx.push(QUOTES.length);
+    QUOTES.push({ id:"s" + ds.d.slice(5).replace("-","") + "abc"[i], text:it.t, author:it.a, src:it.s,
+                  kind:it.k, tier:i+1, setDate:ds.d, mystery:it.m||null, clue:it.c||null, blank:it.b||null });
+  });
+  SET_BY_DATE[ds.d] = ds;
+});
+
 function xfnv1a(str){
   let h = 2166136261 >>> 0;
   for(let i=0;i<str.length;i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
@@ -1609,12 +1904,23 @@ function buildPuzzle(seed, forceIdx){
     secretIndex = top[Math.floor(rng()*top.length)].i;
   }
 
+  // v0.8 daily sets: the constructor picks the mystery word; tier 1 has none
+  if(q.tier){
+    secretIndex = -1;
+    if(q.tier > 1 && q.mystery){
+      const mi = words.findIndex((w,i)=> i!==0 && i!==lastIdx && norm(w)===q.mystery.toLowerCase());
+      if(mi >= 0) secretIndex = mi;
+    }
+  }
   // pre-placed anchors: index 0 is always given; last word and the secret word
   // are never given. Longer quotes get more footholds.
   const anchors = new Set([0]);
   // standalone punctuation (em dashes etc.) is placed automatically, never dealt to the bank
   words.forEach((w, i)=>{ if(!/[A-Za-z0-9]/.test(w)) anchors.add(i); });
-  const interiorTarget = Math.floor(words.length / 8);  // 0 short · 1 medium · 2–3 long
+  const interiorTarget = !q.tier ? Math.floor(words.length / 8)   // 0 short · 1 medium · 2–3 long
+    : q.tier === 1 ? Math.max(1, Math.floor(words.length / 4))      // warm-up: generous footholds
+    : q.tier === 2 ? 1                                              // one interior anchor
+    : (words.length >= 24 ? 1 : 0);                                 // finale: first word only (one more on very long lines)
   let guard = 0;
   while(anchors.size - 1 < interiorTarget && words.length > 2 && guard++ < 80){
     const cand = 1 + Math.floor(rng()*(words.length-2));  // interior positions only
@@ -1728,7 +2034,7 @@ if(typeof module !== "undefined" && module.exports){
     url: "https://jpasgxttyiaorhksybez.supabase.co",
     key: "sb_publishable_XEBCZFTnhakXn5G14MO9cg_tiwLrTpB", // publishable; RLS = insert+read only
     gameId: "verbatim",
-    gameVersion: "0.7a",
+    gameVersion: "0.8",
     logVersion: 1,
     flushMs: 4000,          // standing flush cadence
     maxBatch: 40,           // events per POST (keepalive-safe size)
@@ -1955,7 +2261,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.7a";
+  const VERSION = "0.8";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "easy" | "normal" — Normal (formerly Hard) is the default
   try{
@@ -2024,10 +2330,58 @@ if(typeof module !== "undefined" && module.exports){
   function markDone(){
     if(!state) return;
     const k = state.pack ? ("p:" + state.pack + ":" + state.packIdx)
+            : (state.date && state.tier) ? "d:" + dateKey(state.date) + ":t" + state.tier
             : state.date ? "d:" + dateKey(state.date) : "s:" + state.seed;
-    try{ const m = doneMap(); m[k] = 1; localStorage.setItem("verbatim_done", JSON.stringify(m)); }catch(e){}
+    try{ const m = doneMap(); m[k] = 1;
+      if(state.date && state.tier === 3) m["d:" + dateKey(state.date)] = 1;   // the day counts as solved after the finale
+      localStorage.setItem("verbatim_done", JSON.stringify(m)); }catch(e){}
   }
   function isDoneDate(d){ return !!doneMap()["d:" + dateKey(d)]; }
+  /* -------- v0.8 daily sets: three linked puzzles a day -------- */
+  function setFor(d){ return d ? (SET_BY_DATE[dateKey(d)] || null) : null; }
+  function isDoneTier(d, t){ return !!doneMap()["d:" + dateKey(d) + ":t" + t]; }
+  function tiersDone(d){ let n=0; for(let t=1;t<=3;t++) if(isDoneTier(d,t)) n++; return n; }
+  function nextTierFor(d){ for(let t=1;t<=3;t++) if(!isDoneTier(d,t)) return t; return 1; }
+  function setSeed(d, t){ return 900000 + daysBetween(ARCHIVE_START, d)*10 + t; }
+  function setRecKey(d){ return "verbatim_set_" + dateKey(d); }
+  function loadSetRec(d){ try{ return JSON.parse(localStorage.getItem(setRecKey(d)) || "{}"); }catch(e){ return {}; } }
+  function saveSetRec(d, r){ try{ localStorage.setItem(setRecKey(d), JSON.stringify(r)); }catch(e){} }
+  // hint tokens (test): a clean solve of puzzle 1 or 2 earns one token, spendable later the same day
+  function hintTokens(){ if(!state || !state.tier || !state.date) return 0; const r = loadSetRec(state.date); return Math.max(0, (r.earned||0) - (r.spent||0)); }
+  function updateHintUI(){
+    const b = $("hintBtn"); if(!b) return;
+    const n = hintTokens();
+    const show = !!(state && state.tier && state.tier > 1 && state.phase === "assemble" && n > 0);
+    b.hidden = !show;
+    if(show) b.textContent = "Use a hint (" + n + ")";
+  }
+  function useHint(){
+    if(!state || state.phase !== "assemble" || hintTokens() < 1) return;
+    const slotIdx = state.slots.findIndex(s=> !s.fixed && !s.locked && !s._bouncing);
+    if(slotIdx < 0) return;
+    const want = state.slots[slotIdx].correct;
+    if(state.slots[slotIdx].word !== null) returnWord(slotIdx);
+    const item = state.bank.find(b=> b.word === want);
+    if(!item) return;
+    const r = loadSetRec(state.date); r.spent = (r.spent||0) + 1; saveSetRec(state.date, r);
+    state.hintsUsed++;
+    try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:hint", { tier: state.tier, tokens_left: hintTokens() }); }catch(e){}
+    bankToSlot(item.key, slotIdx);
+    afterChange();
+    updateHintUI();
+  }
+  function renderSetDots(){
+    const el = $("setDots"); if(!el) return;
+    if(!state || !state.tier || !state.date){ el.hidden = true; el.innerHTML = ""; return; }
+    el.hidden = false;
+    let h = "";
+    for(let t=1;t<=3;t++){
+      const cls = isDoneTier(state.date, t) ? "done" : (t === state.tier ? "cur" : "");
+      h += '<span class="sd ' + cls + '" aria-hidden="true"></span>';
+    }
+    el.innerHTML = h;
+    el.setAttribute("aria-label", "Puzzle " + state.tier + " of 3");
+  }
   /* -------- resume: persist the in-progress puzzle -------- */
   const SAVE_KEY = "verbatim_progress";
   function saveProgress(){
@@ -2059,7 +2413,8 @@ if(typeof module !== "undefined" && module.exports){
   }
   function progressLabel(sv){
     if(sv.pack){ const pk = packById(sv.pack); return (pk?pk.title:"Pack") + " · " + (sv.packOrd || (sv.packIdx+1)) + " of " + (pk?pk.count:"?"); }
-    if(sv.date){ const d = parseDateKey(sv.date); return "Daily · " + (d ? fmtShort(d) : sv.date); }
+    if(sv.date){ const d = parseDateKey(sv.date); const q = QUOTES[sv.quoteIdx];
+      return "Daily · " + (d ? fmtShort(d) : sv.date) + (q && q.tier ? " · " + q.tier + " of 3" : ""); }
     return "Puzzle № " + sv.seed;
   }
   function resumeProgress(){
@@ -2214,7 +2569,8 @@ if(typeof module !== "undefined" && module.exports){
       moves:0, solved:false, startTime:Date.now(), elapsedMs:0, score:0, placeSeq:0,
       phase:"assemble", secretIndex, secretWord, secretLen, secretKey, secretPunct,
       guesses:[], current:"", keyStatus:{}, secretGuesses:0, secretSolved:false,
-      mode, hard: (mode==="normal") ? buildHard(seed, words, secretIndex, anchors, pz.quote.author) : null,
+      mode, hard: (mode==="normal" && pz.quote.tier !== 1) ? buildHard(seed, words, secretIndex, anchors, pz.quote.author) : null,
+      tier: pz.quote.tier || null, hintsUsed: 0,
       steps:[], stepIdx:-1, curScramble:null, scramSel:null,
       date: (opts && opts.date) ? d0(opts.date) : null,
       pack: (opts && opts.pack) || null, packIdx: (opts && opts.packIdx != null) ? opts.packIdx : null,
@@ -2261,6 +2617,7 @@ if(typeof module !== "undefined" && module.exports){
 
     const noLab = document.querySelector("#puzzleNo .lab");
     if(state.pack){ const pk = packById(state.pack); if(noLab) noLab.textContent = pk ? pk.title.toUpperCase() : "PACK"; $("puzzleNum").textContent = (state.packOrd || (state.packIdx+1)) + " of " + (pk?pk.count:"?"); }
+    else if(state.date && state.tier){ if(noLab) noLab.textContent = "DAILY"; $("puzzleNum").textContent = fmtShort(state.date); }
     else if(state.date){ if(noLab) noLab.textContent = "DAILY"; $("puzzleNum").textContent = fmtShort(state.date); }
     else { if(noLab) noLab.textContent = "PUZZLE"; $("puzzleNum").textContent = "№ " + seed; }
     // byline is rendered by renderAttribution() (scrambled in hard mode)
@@ -2273,13 +2630,14 @@ if(typeof module !== "undefined" && module.exports){
     $("attrSrc").textContent = srcLine;
     // "quote" vs "fact" wording, depending on what's being assembled
     const pkKind = state.pack ? ((packById(state.pack) || {}).kind || "facts") : null;
-    const isFacts = pkKind === "facts";
+    const isFacts = pz.quote.kind ? pz.quote.kind === "fact" : pkKind === "facts";
     promptEl.textContent = "Place the words to set the " + (isFacts ? "fact" : "quotation");
     $("shareBtn").textContent = isFacts ? "Share this fact" : "Share this quote";
     const hb = $("heartBtn");
     hb.setAttribute("aria-label", isFacts ? "Love this fact" : "Love this quote");
     hb.querySelector(".heart-label").textContent = isFacts ? "Love this fact" : "Love this quote";
-    $("tomorrowLine").textContent = !state.pack ? "A new quotation arrives each morning."
+    $("tomorrowLine").textContent = state.tier ? "A new set of three arrives each morning."
+      : !state.pack ? "A new quotation arrives each morning."
       : (isFacts ? "More facts await in this pack." : "More quotes await in this pack.");
 
     boardEl.classList.remove("solved");
@@ -2290,6 +2648,8 @@ if(typeof module !== "undefined" && module.exports){
     else if(n >= 11) boardEl.classList.add("len-l");
     afterglowEl.classList.remove("show");
     attributionEl.classList.remove("set");
+    renderSetDots();
+    updateHintUI();
     wordleEl.classList.remove("show","is-faded","is-hidden");
     scrambleEl.classList.remove("show","is-faded","is-hidden"); scrowEl.innerHTML = "";
     $("gameover").classList.remove("show");
@@ -2323,11 +2683,13 @@ if(typeof module !== "undefined" && module.exports){
   function tmRunInfo(){
     const pt  = state.pack ? "pack" : (state.date ? "daily" : "seed");
     const ref = state.pack ? ("p:" + state.pack + ":" + state.packIdx)
+              : (state.date && state.tier) ? ("d:" + dateKey(state.date) + ":t" + state.tier)
               : state.date ? ("d:" + dateKey(state.date))
               : ("s:" + state.seed);
     return { mode: state.mode, puzzle_type: pt,
              pack_id: state.pack || null,
-             puzzle_idx: state.packIdx != null ? state.packIdx : null,
+             puzzle_idx: state.packIdx != null ? state.packIdx : (state.tier ? state.tier - 1 : null),
+             set_tier: state.tier || null, set_shape: state.tier ? ((setFor(state.date)||{}).shape || null) : null,
              puzzle_ord: state.packOrd || null,
              puzzle_ref: ref,
              daily_id: state.date ? dateKey(state.date) : null,
@@ -2984,6 +3346,7 @@ if(typeof module !== "undefined" && module.exports){
   }
 
   function afterChange(){
+    try{ updateHintUI(); }catch(e){}
     saveProgress();
     render();
     if(state.phase === "assemble" && assembleComplete()){
@@ -3193,7 +3556,8 @@ if(typeof module !== "undefined" && module.exports){
     state.phase = "wordle";
     state.guesses = []; state.current = ""; state.keyStatus = {}; state.secretGuesses = 0;
     state._evaluating = false; state._shakeRow = false; state._justTyped = -1;
-    promptEl.innerHTML = 'Now uncover the <b>mystery word</b>';
+    promptEl.innerHTML = 'Now uncover the <b>mystery word</b>'
+      + (state.quote.clue ? '<span class="clue-line">Clue: ' + escapeHtml(state.quote.clue) + '</span>' : '');
     undoBtn.classList.remove("show");         // no words to place in Phase B
     [bankLabelEl, bankEl, controlsEl].forEach(el=> el.classList.add("is-faded"));
     setTimeout(()=> [bankLabelEl, bankEl, controlsEl].forEach(el=> el.classList.add("is-hidden")), 450);
@@ -3321,7 +3685,15 @@ if(typeof module !== "undefined" && module.exports){
     solveSequence();
     // 3. bookkeeping (synchronous localStorage writes, UI chrome) deferred
     //    off the critical path — Safari can take these after the gold begins
-    setTimeout(()=>{ updateTurnUI(); clearProgress(); markDone();
+    if(state.tier && state.date){
+      const r = loadSetRec(state.date);
+      const clean = (state.attemptNum || 1) === 1 && state.errorsLeft === state.errorBudget && !state.hintsUsed;
+      r["t" + state.tier] = { ms: state.elapsedMs, attempts: state.attemptNum || 1, clean: clean, guesses: state.secretGuesses || 0 };
+      if(clean && state.tier < 3 && !r["earned_t" + state.tier]){ r.earned = (r.earned||0) + 1; r["earned_t" + state.tier] = 1; state.earnedHint = true; }
+      else state.earnedHint = false;
+      saveSetRec(state.date, r);
+    }
+    setTimeout(()=>{ updateTurnUI(); clearProgress(); markDone(); renderSetDots();
       // telemetry: completion events ride the same deferred bookkeeping window (per the reveal doctrine)
       try{ if(window.PBSTelemetry){
         const sc = computeScore();
@@ -3413,6 +3785,7 @@ if(typeof module !== "undefined" && module.exports){
         try{ PBSTelemetry.game("verbatim:pbs_link_tap", { quote_id: state.quote.id, url: link.url }); }catch(e){}
       });
     }catch(e){}
+    applySetAfterglow();
     afterglowEl.classList.add("show");
     // Center the revealed quote (the hero), not the stats panel below it —
     // otherwise the view scrolls down and pushes the quote out of frame on mobile.
@@ -3422,6 +3795,49 @@ if(typeof module !== "undefined" && module.exports){
     }
   }
 
+  function applySetAfterglow(){
+    const nextB = $("nextBtn"), rev = $("setReveal"), shareB = $("shareBtn"), newB = $("newBtn"), earn = $("earnLine");
+    nextB.hidden = true; rev.hidden = true; rev.innerHTML = ""; earn.hidden = true;
+    shareB.hidden = false; newB.hidden = false;
+    if(!state.tier || !state.date) return;
+    newB.hidden = true;
+    const ds = setFor(state.date);
+    if(state.tier < 3){
+      shareB.hidden = true;
+      nextB.hidden = false;
+      nextB.textContent = "Next: puzzle " + (state.tier + 1) + " of 3";
+      $("tomorrowLine").textContent = state.tier === 1 ? "Two more to go. Each one is a little harder." : "One more to go, and then today's theme.";
+      if(state.earnedHint){ earn.hidden = false; earn.textContent = "Clean solve! You earned a hint for later today."; }
+      return;
+    }
+    // finale: reveal the theme with all three lines together
+    shareB.textContent = "Share today's set";
+    const rec = loadSetRec(state.date);
+    let total = 0; for(let t=1;t<=3;t++) if(rec["t"+t]) total += rec["t"+t].ms || 0;
+    let h = '<p class="sr-kicker">Today\'s theme</p><h3 class="sr-theme">' + escapeHtml(ds.theme) + '</h3><ol class="sr-lines">';
+    ds.items.forEach(it=>{
+      h += '<li><span class="sr-q">' + (it.k === "quote" ? "\u201C" + escapeHtml(it.t) + "\u201D" : escapeHtml(it.t)) + '</span>'
+         + '<span class="sr-by">' + (it.k === "quote" ? "\u2014 " + escapeHtml(it.a) : escapeHtml(it.s)) + '</span></li>';
+    });
+    h += '</ol><p class="sr-note">' + escapeHtml(ds.note) + '</p>';
+    if(total) h += '<p class="sr-total">All three set in ' + fmtTime(Math.round(total/1000)) + '</p>';
+    rev.innerHTML = h; rev.hidden = false;
+    $("tomorrowLine").textContent = "A new set of three arrives each morning.";
+  }
+  function goNextTier(){
+    if(!state || !state.tier || state.tier >= 3 || !state.date) return;
+    try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:nav", { to: "next_tier", tier: state.tier + 1 }); }catch(e){}
+    playSetTier(state.date, state.tier + 1);
+  }
+  function blankedLine(q){
+    const b = (q.blank || "").toLowerCase();
+    let used = false;
+    return q.text.split(/\s+/).map(w=>{
+      const core = w.replace(/[^A-Za-z]/g,"");
+      if(!used && b && core.toLowerCase() === b){ used = true; return w.replace(core, "_".repeat(core.length)); }
+      return w;
+    }).join(" ");
+  }
   function buildResult(){
     return { game:"verbatim", seed:state.seed, puzzleNumber:state.seed, quoteId:state.quote.id,
              author:state.quote.author, moves:state.moves, solved:true,
@@ -3431,6 +3847,14 @@ if(typeof module !== "undefined" && module.exports){
 
   /* -------- share -------- */
   function shareText(){
+    if(state && state.tier && state.date){
+      const ds = setFor(state.date), q1 = QUOTES[ds.idx[0]], rec = loadSetRec(state.date);
+      let total = 0, n = 0; for(let t=1;t<=3;t++) if(rec["t"+t]){ total += rec["t"+t].ms || 0; n++; }
+      const marks = [1,2,3].map(t=> !rec["t"+t] ? "\u25CB" : rec["t"+t].clean ? "\u25CF" : "\u25D0").join(" ");
+      const line = q1.kind === "quote" ? "\u201C" + blankedLine(q1) + "\u201D\n\u2014 " + q1.author : blankedLine(q1);
+      return "Verbatim \u00B7 " + fmtShort(state.date) + "\n" + marks + "  " + n + " of 3 set in " + fmtTime(Math.round(total/1000)) +
+        "\n\n" + line + "\n\nFill the blank, then two more puzzles are waiting.\n" + currentUrl();
+    }
     const { score, elapsedSec } = computeScore();
     const label = state.date ? fmtShort(state.date) : ("№ " + state.seed);
     return "Verbatim " + label + " — " + score + " pts in " + fmtTime(elapsedSec) +
@@ -3471,6 +3895,8 @@ if(typeof module !== "undefined" && module.exports){
   });
 
   $("shareBtn").addEventListener("click", doShare);
+  $("nextBtn").addEventListener("click", goNextTier);
+  $("hintBtn").addEventListener("click", useHint);
   $("undoBtn").addEventListener("click", undoLast);
 
   // Heart / love control — wobble + juicy burst when you tap to love the quote.
@@ -3531,9 +3957,17 @@ if(typeof module !== "undefined" && module.exports){
   // ---------- home screen ----------
   function hideOverlays(){ $("home").classList.remove("show"); $("archive").classList.remove("show"); $("passport").classList.remove("show"); $("packView").classList.remove("show"); }
   function playDate(d){
+    if(setFor(d)){ playSetTier(d, nextTierFor(d)); return; }
     hideOverlays();
     gameStarted = true;
     initGame(dateSeed(d), { date:d, quoteIdx: quoteIdxForDate(d) });
+    window.scrollTo(0,0);
+  }
+  function playSetTier(d, t){
+    const ds = setFor(d); if(!ds) return;
+    hideOverlays();
+    gameStarted = true;
+    initGame(setSeed(d, t), { date:d, quoteIdx: ds.idx[t-1] });
     window.scrollTo(0,0);
   }
   function showHome(){
@@ -3549,7 +3983,9 @@ if(typeof module !== "undefined" && module.exports){
     if(sv) $("continueSub").textContent = progressLabel(sv) + " · " + (sv.mode==="easy"?"Easy":"Normal");
     const t = todayDate();
     $("heroDate").textContent = fmtLong(t);
-    $("heroAuthor").textContent = "— " + QUOTES[quoteIdxForDate(t)].author;
+    const tSet = setFor(t);
+    $("heroLabel").innerHTML = tSet ? "Today&rsquo;s Puzzles" : "Today&rsquo;s Quote";
+    $("heroAuthor").textContent = tSet ? ("Three puzzles today \u00B7 " + tiersDone(t) + " of 3 done") : ("— " + QUOTES[quoteIdxForDate(t)].author);
     const heroDone = $("heroCard").querySelector(".hero-done");
     if(heroDone) heroDone.remove();
     if(isDoneDate(t)){
@@ -3565,8 +4001,9 @@ if(typeof module !== "undefined" && module.exports){
       card.type = "button"; card.className = "day-card" + (i===0 ? " today" : "");
       card.innerHTML = '<span class="dc-label">'+(i===0 ? "Today" : DAYS[d.getDay()])+'</span>'
         + '<span class="dc-date">'+fmtShort(d)+'</span>'
-        + '<span class="dc-author">'+escapeHtml(QUOTES[quoteIdxForDate(d)].author)+'</span>'
-        + (isDoneDate(d) ? '<span class="dc-check" aria-label="Solved">&#10003;</span>' : '');
+        + '<span class="dc-author">'+escapeHtml(setFor(d) ? cardLabel(d) : QUOTES[quoteIdxForDate(d)].author)+'</span>'
+        + (isDoneDate(d) ? '<span class="dc-check" aria-label="Solved">&#10003;</span>'
+           : (setFor(d) && tiersDone(d) ? '<span class="dc-prog">'+tiersDone(d)+'/3</span>' : ''));
       card.addEventListener("click", ()=> playDate(d));
       row.appendChild(card);
     }
@@ -3576,6 +4013,10 @@ if(typeof module !== "undefined" && module.exports){
     arch.addEventListener("click", showArchive);
     row.appendChild(arch);
     renderPacks();
+  }
+  function cardLabel(d){
+    const ds = setFor(d); const a = ds.items[0].a;
+    return ds.items[0].k === "fact" ? a + " \u00B7 3 facts" : a + (ds.shape === "one" ? " \u00B7 3 quotes" : " & more");
   }
   function renderPacks(){
     const row = $("packRow"); row.innerHTML = "";
@@ -3769,7 +4210,11 @@ if(typeof module !== "undefined" && module.exports){
     try{ if(window.PBSTelemetry) PBSTelemetry.sessionStart(); }catch(e){}
     // the app always opens to the main menu; clear any stale puzzle params
     // (old bookmarks captured mid-game URLs like ?seed=22816)
+    let deep = null;
+    try{ const k = new URLSearchParams(location.search).get("date"); const d = parseDateKey(k);
+      if(d && setFor(d) && d0(d) <= todayDate() && !isLockedDate(d)) deep = d; }catch(e){}
     try{ if(location.search) history.replaceState(null, "", location.pathname); }catch(e){}
+    if(deep){ playSetTier(deep, nextTierFor(deep)); return; }
     showHome();
   }
   function unlock(){
