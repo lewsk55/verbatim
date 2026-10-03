@@ -860,6 +860,7 @@
   .sr-by{ display:block; font-family:var(--ui); font-size:.76rem; color:var(--ink-soft); margin-top:2px; }
   .sr-note{ margin:12px 0 0; font-size:.84rem; line-height:1.5; color:var(--ink-soft); }
   .sr-total{ margin:8px 0 0; font-size:.8rem; font-weight:700; color:var(--navy); }
+  .fc-prog{ margin-left:auto; font-size:.72rem; font-weight:700; color:var(--pbs-blue); }
   .dc-prog{ position:absolute; top:6px; right:8px; font-size:.68rem; font-weight:700; color:var(--pbs-blue); }
   .gameover{ display:none; text-align:center; padding:18px 0 6px; }
   .gameover.show{ display:block; }
@@ -1546,7 +1547,6 @@ QUOTES.push(
   {id:"pt30", label:"Antoine de Saint-Exupéry", text:"If you want to build a ship, do not drum up people to collect wood, but rather teach them to long for the endless immensity of the sea.", author:"Antoine de Saint-Exupéry", src:"attributed"}
 );
 
-/* -------- Seeded PRNG (mulberry32) + string hash -------- */
 /* ---- Daily sets: three linked puzzles a day, Sept 27 – Oct 31, 2026 (v0.6a) ----
    Tier 1: short warm-up, pure assembly (no mystery word). Its `b` word is the blank on the share card.
    Tier 2: mystery word returns (`m`).  Tier 3: longest, fewest anchors, mystery word + definition clue (`c`).
@@ -1813,6 +1813,212 @@ DAILY_SETS.forEach(ds=>{
   SET_BY_DATE[ds.d] = ds;
 });
 
+/* ---- Set packs: every pack puzzle is a three-tier set (warm-up, harder, finale with clue) ----
+   All tiers are Thursday length or longer (12+ words), and sets get longer through each pack. */
+const SET_PACKS = {
+ world: [
+  { label:"The Rosetta Stone", note:"The stone has been on display at the British Museum since 1802.", items:[
+    {t:"French soldiers found the Rosetta Stone in Egypt in 1799, during Napoleon's campaign.", b:"soldiers"},
+    {t:"The stone carries the same decree written three ways: in hieroglyphs, Demotic script, and Greek.", m:"decree"},
+    {t:"Because scholars could already read the Greek text, Jean-Fran\u00E7ois Champollion used it to help crack Egyptian hieroglyphs in 1822.", m:"scholars", c:"Learned experts who study a subject"}]},
+  { label:"The Great Wall", note:"The walls stretch across northern China and were built and rebuilt over roughly two thousand years.", items:[
+    {t:"The Great Wall of China is not a single wall but many walls built over centuries.", b:"centuries"},
+    {t:"Much of the wall that tourists visit today was built during the Ming dynasty.", m:"tourists"},
+    {t:"Despite a popular myth, the Great Wall is generally not visible to the naked eye from low Earth orbit.", m:"visible", c:"Able to be seen"}]},
+  { label:"Gutenberg's Press", note:"Gutenberg worked in Mainz, Germany. His press made books far cheaper to produce.", items:[
+    {t:"Johannes Gutenberg developed a printing press with movable metal type in Mainz around 1450.", b:"printing"},
+    {t:"His most famous work, the Gutenberg Bible, was printed in the 1450s, and fewer than fifty copies survive.", m:"printed"},
+    {t:"Movable type had been invented centuries earlier in China, but Gutenberg's system spread rapidly across Europe and helped fuel the Reformation.", m:"rapidly", c:"Very quickly"}]},
+  { label:"Magna Carta", note:"Four copies of the 1215 charter survive: two at the British Library and one each at Lincoln and Salisbury cathedrals.", items:[
+    {t:"King John of England agreed to the Magna Carta at Runnymede, beside the River Thames, in 1215.", b:"England"},
+    {t:"The charter limited the king's power, but Pope Innocent III annulled it within ten weeks.", m:"limited"},
+    {t:"Only three of its clauses remain law in England and Wales, including a promise not to sell, deny, or delay justice to anyone.", m:"justice", c:"Fair treatment under the law"}]},
+  { label:"The Great Pyramid", note:"The Great Pyramid is the oldest of the Seven Wonders of the Ancient World and the only one still standing.", items:[
+    {t:"The Great Pyramid of Giza was built for the pharaoh Khufu about 4,500 years ago.", b:"pharaoh"},
+    {t:"For more than 3,700 years it was the tallest structure ever made by human hands.", m:"tallest"},
+    {t:"Evidence from nearby workers' villages suggests the pyramids were built by paid laborers, not by enslaved people as long believed.", m:"laborers", c:"Workers who do physical jobs"}]},
+  { label:"The Silk Road", note:"Many routes ran overland across Central Asia; others went by sea through the Indian Ocean.", items:[
+    {t:"The Silk Road was a network of trade routes linking China with the Mediterranean world.", b:"Silk"},
+    {t:"Besides silk, merchants carried spices, paper, glass, and ideas, including religions such as Buddhism.", m:"spices"},
+    {t:"The name Silk Road was coined in 1877 by the German geographer Ferdinand von Richthofen, long after the routes had faded.", m:"coined", c:"Invented a new word or phrase"}]},
+  { label:"The Black Death", note:"Recurring outbreaks of plague struck Europe for centuries after the first wave.", items:[
+    {t:"The Black Death swept through Europe between 1347 and 1351, killing millions of people.", b:"Europe"},
+    {t:"It was most likely bubonic plague, spread by fleas that lived on rats and other rodents.", m:"fleas"},
+    {t:"Historians estimate the plague killed between a third and a half of Europe's people, and labor shortages later pushed wages higher.", m:"wages", c:"Pay for work"}]},
+  { label:"Crossing the Rubicon", note:"\u201CCrossing the Rubicon\u201D still means passing a point of no return.", items:[
+    {t:"Julius Caesar led his army across the Rubicon River in 49 BCE, starting a civil war.", b:"Rubicon"},
+    {t:"He was assassinated on the Ides of March, 44 BCE, by senators who feared his growing power.", m:"senators"},
+    {t:"His adopted heir Octavian later defeated his rivals and became Augustus, the first Roman emperor, ending the Roman Republic.", m:"adopted", c:"Legally taken in as one's own child"}]},
+  { label:"The Mongol Empire", note:"At its height in the late 1200s, the empire stretched from Korea to Eastern Europe.", items:[
+    {t:"Under Genghis Khan and his heirs, the Mongol Empire became the largest contiguous land empire in history.", b:"largest"},
+    {t:"Mongol messengers used a relay system of horse stations to carry news across the vast empire.", m:"relay"},
+    {t:"His grandson Kublai Khan founded China's Yuan dynasty, and the Venetian traveler Marco Polo described his court at length.", m:"traveler", c:"Someone on a journey"}]},
+  { label:"The Fall of Constantinople", note:"Constantinople had been the capital of the Byzantine, or Eastern Roman, Empire.", items:[
+    {t:"Ottoman forces captured Constantinople in 1453, ending more than a thousand years of Byzantine rule.", b:"Ottoman"},
+    {t:"Sultan Mehmed II used enormous cannons to batter the city's ancient walls during the long siege.", m:"cannons"},
+    {t:"The city became the Ottoman capital and is now Istanbul, Turkey's largest city, which straddles the boundary between Europe and Asia.", m:"capital", c:"A seat of government"}]},
+  { label:"Around the World", note:"About 18 of the roughly 270 men who set out returned on the Victoria.", items:[
+    {t:"Ferdinand Magellan led the first expedition to sail all the way around the world, departing Spain in 1519.", b:"sail"},
+    {t:"Magellan himself was killed in the Philippines in 1521, before the voyage was complete.", m:"killed"},
+    {t:"Only one of the original five ships, the Victoria, returned to Spain in 1522 under the command of Juan Sebasti\u00E1n Elcano.", m:"command", c:"Authority to lead"}]},
+  { label:"The Terracotta Army", note:"The site, near Xi'an, is estimated to hold thousands of soldiers, and much of it is still unexcavated.", items:[
+    {t:"Farmers digging a well in northwest China in 1974 discovered the buried Terracotta Army.", b:"well"},
+    {t:"The clay soldiers were made to guard the tomb of Qin Shi Huang, China's first emperor.", m:"guard"},
+    {t:"Each life-size figure was assembled from molded parts and then finished by hand, giving many of the soldiers individual faces.", m:"molded", c:"Shaped in a form"}]},
+  { label:"Mansa Musa", note:"Mali's wealth came largely from gold and the trans-Saharan trade.", items:[
+    {t:"Mansa Musa ruled the Mali Empire in West Africa during the fourteenth century.", b:"Africa"},
+    {t:"His pilgrimage to Mecca in 1324 was so lavish that his gifts of gold disrupted prices in Cairo.", m:"lavish"},
+    {t:"Under his rule, the city of Timbuktu grew into a famous center of learning, with mosques and libraries drawing scholars from far away.", m:"mosques", c:"Muslim houses of worship"}]},
+  { label:"The French Revolution", note:"July 14, Bastille Day, is France's national holiday.", items:[
+    {t:"The French Revolution began in 1789, and crowds stormed the Bastille prison in Paris on July 14.", b:"Bastille"},
+    {t:"That August, the National Assembly adopted the Declaration of the Rights of Man and of the Citizen.", m:"Assembly"},
+    {t:"King Louis XVI was executed by guillotine in 1793, and a period of mass executions known as the Reign of Terror soon followed.", m:"period", c:"A span of time"}]},
+  { label:"Machu Picchu", note:"Machu Picchu sits nearly 8,000 feet above sea level and is a UNESCO World Heritage Site.", items:[
+    {t:"The Inca built Machu Picchu high in the Andes mountains of Peru in the fifteenth century.", b:"Andes"},
+    {t:"Many of its stone walls fit together so tightly without mortar that a knife blade cannot slip between the blocks.", m:"mortar"},
+    {t:"The site was little known to the outside world until 1911, when the American explorer Hiram Bingham brought it international attention.", m:"explorer", c:"One who travels to discover new places"}]},
+  { label:"The Meiji Restoration", note:"Meiji means \u201Center\u201D rule; the period is named for Emperor Meiji.", items:[
+    {t:"In 1868 the Meiji Restoration returned power in Japan from the shoguns to the emperor.", b:"emperor"},
+    {t:"Over the next few decades, Japan built railways, factories, and a modern army at remarkable speed.", m:"railways"},
+    {t:"The new government dismantled the samurai class, and in 1876 samurai were even banned from carrying swords in public.", m:"swords", c:"Long bladed weapons"}]},
+  { label:"The Haitian Revolution", note:"Toussaint Louverture died in a French prison in 1803, months before Haiti's independence.", items:[
+    {t:"The Haitian Revolution began in 1791 as an uprising of enslaved people in the French colony of Saint-Domingue.", b:"uprising"},
+    {t:"Toussaint Louverture, a formerly enslaved man, rose to become the revolution's most famous leader.", m:"famous"},
+    {t:"In 1804 Haiti declared its independence, becoming the first nation founded after a successful revolt by enslaved people.", m:"declared", c:"Formally announced"}]},
+  { label:"The Suez Canal", note:"The canal is about 120 miles long and has no locks.", items:[
+    {t:"The Suez Canal opened in Egypt in 1869, linking the Mediterranean Sea to the Red Sea.", b:"linking"},
+    {t:"Ships no longer had to sail around Africa, cutting thousands of miles from voyages between Europe and Asia.", m:"voyages"},
+    {t:"Egyptian President Gamal Abdel Nasser nationalized the canal in 1956, setting off an international crisis involving Britain, France, and Israel.", m:"crisis", c:"A time of intense danger"}]},
+  { label:"The Code of Hammurabi", note:"The stele was found in 1901 at Susa, in present-day Iran.", items:[
+    {t:"King Hammurabi of Babylon issued one of the oldest known written law codes in the 1700s BCE.", b:"Babylon"},
+    {t:"Its 282 laws were carved on a tall basalt stele, which is now displayed at the Louvre in Paris.", m:"carved"},
+    {t:"The code set punishments that often depended on social class, and many of its laws followed the principle of an eye for an eye.", m:"social", c:"Relating to society and rank"}]},
+  { label:"James Watt's Engine", note:"Watt worked with the manufacturer Matthew Boulton to build and sell his engines.", items:[
+    {t:"James Watt did not invent the steam engine, but he greatly improved it in the 1760s and 1770s.", b:"invent"},
+    {t:"His separate condenser saved fuel by keeping the main cylinder hot, making engines far more efficient.", m:"cylinder"},
+    {t:"Steam power drove factories, ships, and railways during the Industrial Revolution, and the unit of power called the watt honors his name.", m:"honors", c:"Shows respect for"}]},
+  { label:"The Peace of Westphalia", note:"The Thirty Years' War lasted from 1618 to 1648 and devastated much of central Europe.", items:[
+    {t:"The Peace of Westphalia in 1648 ended the Thirty Years' War, one of Europe's deadliest conflicts.", b:"deadliest"},
+    {t:"The treaties were negotiated in two German cities, Osnabr\u00FCck and M\u00FCnster, over several years of talks.", m:"treaties"},
+    {t:"Many historians see the settlement as an early foundation of the modern system of sovereign states, though scholars still debate that claim.", m:"debate", c:"Argue about"}]},
+  { label:"Cuneiform", note:"Cuneiform was used for more than three thousand years and for more than a dozen languages.", items:[
+    {t:"The Sumerians of ancient Mesopotamia developed cuneiform, one of the world's earliest writing systems, more than five thousand years ago.", b:"writing"},
+    {t:"Scribes pressed a cut reed into soft clay tablets, leaving wedge-shaped marks that gave the script its name.", m:"tablets"},
+    {t:"Many of the earliest tablets were simple records of grain and livestock, suggesting that writing began as a tool for keeping accounts.", m:"records", c:"Written accounts of facts"}]},
+  { label:"The Berlin Airlift", note:"Over about fifteen months, Allied planes flew more than 270,000 flights into West Berlin.", items:[
+    {t:"In June 1948 the Soviet Union blocked all road, rail, and canal access to West Berlin.", b:"blocked"},
+    {t:"The United States and Britain responded with the Berlin Airlift, flying food and coal into the city.", m:"Airlift"},
+    {t:"At the height of the airlift, a plane landed in West Berlin every few minutes, and the Soviets lifted the blockade in May 1949.", m:"landed", c:"Came down onto the ground"}]},
+  { label:"Independence and Partition", note:"August 15 is Independence Day in India; August 14 is Independence Day in Pakistan.", items:[
+    {t:"India became independent from Britain at midnight on August 15, 1947, after a long freedom movement.", b:"midnight"},
+    {t:"A day earlier, Pakistan became independent, as British India was partitioned into two countries.", m:"earlier"},
+    {t:"The partition uprooted roughly fifteen million people, one of the largest mass migrations in history, amid widespread violence.", m:"uprooted", c:"Forced away from home"}]},
+  { label:"South Africa Votes", note:"April 27, the date of the 1994 election, is now Freedom Day in South Africa.", items:[
+    {t:"In 1994 South Africa held its first elections in which citizens of all races could vote.", b:"races"},
+    {t:"Nelson Mandela, who had spent twenty-seven years in prison, was elected the country's first Black president.", m:"prison"},
+    {t:"Apartheid, a system of racial segregation enforced by law since 1948, was dismantled in the early 1990s through negotiations between the government and its opponents.", m:"enforced", c:"Made people obey"}]}
+ ],
+ science: [
+  { label:"The Speed of Light", note:"Light from the next-nearest star, Proxima Centauri, takes over four years to reach us.", items:[
+    {t:"Light travels through empty space at nearly three hundred thousand kilometers every second.", b:"empty"},
+    {t:"Sunlight takes a little more than eight minutes to travel from the Sun to Earth.", m:"minutes"},
+    {t:"Nothing with mass can reach the speed of light, which is why physicists call it the universe's speed limit.", m:"reach", c:"Arrive at"}]},
+  { label:"Newton's Laws", note:"Newton's Principia also laid out his law of universal gravitation.", items:[
+    {t:"Isaac Newton published his three laws of motion in 1687 in a book called the Principia.", b:"motion"},
+    {t:"His third law says that every action produces an equal and opposite reaction.", m:"opposite"},
+    {t:"Newton also showed that the force pulling an apple to the ground is the same gravity that keeps the Moon in orbit.", m:"gravity", c:"The force that pulls objects together"}]},
+  { label:"The Double Helix", note:"Rosalind Franklin died in 1958; Watson, Crick, and Maurice Wilkins shared the 1962 Nobel Prize.", items:[
+    {t:"In 1953 James Watson and Francis Crick proposed that DNA is shaped like a double helix.", b:"double"},
+    {t:"Their model relied on an X-ray image of DNA known as Photo 51, made in Rosalind Franklin's lab.", m:"image"},
+    {t:"The two strands of the helix are held together by paired bases, and the order of those bases stores genetic instructions.", m:"strands", c:"Long, thin threads"}]},
+  { label:"Drifting Continents", note:"Wegener noticed how the coastlines of South America and Africa seem to fit together.", items:[
+    {t:"In 1912 Alfred Wegener proposed that the continents slowly drift across the surface of the Earth.", b:"continents"},
+    {t:"Most geologists rejected his idea for decades, partly because he could not explain what moved the continents.", m:"rejected"},
+    {t:"Evidence from the ocean floor in the 1960s supported plate tectonics, the theory that Earth's crust is broken into moving plates.", m:"broken", c:"Split into pieces"}]},
+  { label:"Photosynthesis", note:"Photosynthesis takes place inside chloroplasts, tiny structures in plant cells.", items:[
+    {t:"Plants use sunlight to turn carbon dioxide and water into sugar and oxygen through photosynthesis.", b:"oxygen"},
+    {t:"The pigment chlorophyll absorbs mostly red and blue light and reflects green, which is why leaves look green.", m:"pigment"},
+    {t:"Tiny ocean organisms called phytoplankton carry out a large share of photosynthesis on Earth, producing roughly half of the planet's oxygen.", m:"share", c:"A portion of something"}]},
+  { label:"The Periodic Table", note:"Element 101, mendelevium, is named in Mendeleev's honor.", items:[
+    {t:"Dmitri Mendeleev published his periodic table of the chemical elements in 1869 in Russia.", b:"chemical"},
+    {t:"He left gaps in the table for elements that had not yet been discovered and predicted their properties.", m:"table"},
+    {t:"When gallium was discovered in 1875, its properties closely matched one of Mendeleev's predictions, helping win acceptance for his table.", m:"closely", c:"In a very near way"}]},
+  { label:"The First Vaccine", note:"Smallpox is the only human disease ever eradicated worldwide.", items:[
+    {t:"In 1796 Edward Jenner tested an early vaccine against smallpox on a young English boy.", b:"smallpox"},
+    {t:"He used material from cowpox sores, a milder disease that milkmaids often caught from cows.", m:"milder"},
+    {t:"The word vaccine comes from the Latin word for cow, and smallpox was declared eradicated worldwide in 1980.", m:"Latin", c:"The language of ancient Rome"}]},
+  { label:"Darwin's Voyage", note:"Darwin's observations in the Gal\u00E1pagos Islands later shaped his thinking on evolution.", items:[
+    {t:"Charles Darwin sailed around the world aboard HMS Beagle from 1831 to 1836.", b:"sailed"},
+    {t:"He published On the Origin of Species in 1859, describing evolution by natural selection.", m:"natural"},
+    {t:"Alfred Russel Wallace reached similar ideas on his own, and papers by both men were presented together in 1858.", m:"similar", c:"Alike but not identical"}]},
+  { label:"Picturing a Black Hole", note:"M87's black hole is about 55 million light-years from Earth and billions of times the Sun's mass.", items:[
+    {t:"In 2019 astronomers released the first image of a black hole, in the galaxy M87.", b:"image"},
+    {t:"The picture came from the Event Horizon Telescope, a network of radio dishes spread across the planet.", m:"network"},
+    {t:"A black hole's gravity is so strong that not even light can escape once it crosses the boundary called the event horizon.", m:"boundary", c:"A dividing line or limit"}]},
+  { label:"Why Ice Floats", note:"Most substances are denser as solids than as liquids. Water is a famous exception.", items:[
+    {t:"Unlike most substances, water expands when it freezes, so ice floats on liquid water.", b:"floats"},
+    {t:"Liquid water is densest at about four degrees Celsius, so colder water rises toward the surface of a lake.", m:"densest"},
+    {t:"Because ice forms on top and insulates the water below, lakes rarely freeze solid, allowing fish to survive the winter.", m:"survive", c:"Stay alive through"}]},
+  { label:"Discovering Cells", note:"Hooke published his drawings in Micrographia in 1665.", items:[
+    {t:"In 1665 Robert Hooke looked at cork through a microscope and named its tiny compartments cells.", b:"cork"},
+    {t:"He chose the word because the boxes reminded him of the small rooms where monks lived.", m:"reminded"},
+    {t:"Today biologists know that all living things are made of cells, and that every cell comes from an existing cell.", m:"existing", c:"Already present"}]},
+  { label:"Gravitational Waves", note:"LIGO's two detectors are in Louisiana and Washington State, nearly 2,000 miles apart.", items:[
+    {t:"In 2015 scientists first detected gravitational waves, ripples in space and time predicted by Einstein.", b:"ripples"},
+    {t:"The waves came from two black holes that spiraled together and merged more than a billion years ago.", m:"merged"},
+    {t:"The LIGO detectors measured a stretch in space far smaller than the width of a proton, and the discovery won a Nobel Prize in 2017.", m:"measured", c:"Determined the size or amount of"}]},
+  { label:"The Speed of Sound", note:"Sound cannot travel through the vacuum of space at all.", items:[
+    {t:"Sound travels through air at about 343 meters per second at room temperature.", b:"air"},
+    {t:"It travels more than four times as fast in water, and faster still in steel.", m:"travels"},
+    {t:"When a jet flies faster than sound, it creates a shock wave that people on the ground hear as a sonic boom.", m:"shock", c:"A sudden, violent jolt"}]},
+  { label:"Lightning and Thunder", note:"A lightning bolt can reach about 50,000 degrees Fahrenheit.", items:[
+    {t:"A lightning bolt can heat the air around it to about five times hotter than the Sun's surface.", b:"lightning"},
+    {t:"That sudden heating makes the air expand explosively, and the result is the sound we call thunder.", m:"expand"},
+    {t:"Because light travels much faster than sound, counting the seconds between flash and thunder can estimate a storm's distance: about five seconds per mile.", m:"estimate", c:"Roughly calculate"}]},
+  { label:"Water Bears", note:"Tardigrades live almost everywhere, from mountaintops to the deep sea, including in moss.", items:[
+    {t:"Tardigrades, also called water bears, are tiny animals that are usually less than a millimeter long.", b:"water"},
+    {t:"In a dried-out state, they can survive extreme cold, intense radiation, and years without water.", m:"extreme"},
+    {t:"In 2007 tardigrades were carried into low Earth orbit and exposed to the vacuum of space, and some of them survived.", m:"exposed", c:"Left unprotected"}]},
+  { label:"Our Moon", note:"The Moon always shows the same face to Earth because it spins once for every orbit.", items:[
+    {t:"Most scientists think the Moon formed after a Mars-sized body crashed into the young Earth.", b:"crashed"},
+    {t:"The Moon's gravity raises tides in the oceans, and the Moon is slowly drifting away from Earth.", m:"drifting"},
+    {t:"Lasers bounced off mirrors left by Apollo astronauts show that the Moon moves about 3.8 centimeters farther away each year.", m:"mirrors", c:"Surfaces that reflect light"}]},
+  { label:"Penicillin", note:"Penicillin was mass-produced during World War II and saved many wounded soldiers.", items:[
+    {t:"In 1928 Alexander Fleming noticed that mold had killed bacteria in one of his lab dishes.", b:"mold"},
+    {t:"The mold made a substance he named penicillin, which became one of the first widely used antibiotics.", m:"widely"},
+    {t:"Howard Florey and Ernst Chain turned penicillin into a usable drug in the 1940s, and all three men shared the 1945 Nobel Prize.", m:"usable", c:"Fit to be put to use"}]},
+  { label:"Carbon Dating", note:"Willard Libby developed radiocarbon dating in the late 1940s and won the 1960 Nobel Prize in Chemistry.", items:[
+    {t:"Radiocarbon dating measures how much carbon-14 remains in once-living material to estimate its age.", b:"remains"},
+    {t:"Half of the carbon-14 in a sample decays in about five thousand seven hundred years.", m:"decays"},
+    {t:"Because so little carbon-14 is left after about fifty thousand years, the method cannot reliably date anything older, such as dinosaur bones.", m:"reliably", c:"In a dependable way"}]},
+  { label:"The Human Brain", note:"Scientists are still mapping how the brain's networks produce thought and memory.", items:[
+    {t:"The adult human brain weighs about three pounds and contains roughly eighty-six billion nerve cells called neurons.", b:"neurons"},
+    {t:"Although it makes up only about two percent of body weight, the brain uses roughly twenty percent of the body's energy.", m:"weight"},
+    {t:"Neurons pass signals across tiny gaps called synapses, and a single neuron can connect with thousands of others, forming vast networks that change as we learn.", m:"synapses", c:"Junctions between nerve cells"}]},
+  { label:"The Big Bang", note:"The leftover glow is called the cosmic microwave background.", items:[
+    {t:"The universe began expanding from an extremely hot, dense state about 13.8 billion years ago.", b:"expanding"},
+    {t:"In 1965 two radio astronomers accidentally discovered the faint microwave glow left over from that early universe.", m:"faint"},
+    {t:"Astronomers later found that the expansion of the universe is speeding up, driven by a mysterious influence that scientists call dark energy.", m:"speeding", c:"Moving faster and faster"}]}
+ ]
+};
+
+const SET_PACK_DATA = {};
+const SET_PACK_PREFIX = { world:"wh", science:"sc" };
+const SET_PACK_AUTHOR = { world:"World History", science:"NOVA Science" };
+Object.keys(SET_PACKS).forEach(pid=>{
+  SET_PACK_DATA[pid] = SET_PACKS[pid].map((st, si)=>{
+    const entry = { label:st.label, theme:st.label, note:st.note, shape:"facts", idx:[], items:[] };
+    st.items.forEach((it, ti)=>{
+      entry.idx.push(QUOTES.length);
+      entry.items.push({ k:"fact", t:it.t, a:SET_PACK_AUTHOR[pid], s:st.label });
+      QUOTES.push({ id: SET_PACK_PREFIX[pid] + String(si+1).padStart(2,"0") + "abc"[ti], label: st.label, text: it.t,
+                    author: SET_PACK_AUTHOR[pid], src: st.label, kind:"fact", tier: ti+1, packSet:true, packId: pid, packSetIdx: si,
+                    mystery: it.m || null, clue: it.c || null, blank: it.b || null });
+    });
+    return entry;
+  });
+});
+/* -------- Seeded PRNG (mulberry32) + string hash -------- */
 function xfnv1a(str){
   let h = 2166136261 >>> 0;
   for(let i=0;i<str.length;i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
@@ -1919,7 +2125,8 @@ function buildPuzzle(seed, forceIdx){
   // standalone punctuation (em dashes etc.) is placed automatically, never dealt to the bank
   words.forEach((w, i)=>{ if(!/[A-Za-z0-9]/.test(w)) anchors.add(i); });
   const interiorTarget = !q.tier ? Math.floor(words.length / 8)   // 0 short · 1 medium · 2–3 long
-    : q.tier === 1 ? Math.max(1, Math.floor(words.length / 4))      // warm-up: generous footholds
+    : q.tier === 1 ? (q.packSet ? Math.max(1, Math.floor(words.length / 8))   // pack warm-up: Thursday-strength
+                                 : Math.max(1, Math.floor(words.length / 4)))   // daily warm-up: generous footholds
     : q.tier === 2 ? 1                                              // one interior anchor
     : (words.length >= 24 ? 1 : 0);                                 // finale: first word only (one more on very long lines)
   let guard = 0;
@@ -2035,7 +2242,7 @@ if(typeof module !== "undefined" && module.exports){
     url: "https://jpasgxttyiaorhksybez.supabase.co",
     key: "sb_publishable_XEBCZFTnhakXn5G14MO9cg_tiwLrTpB", // publishable; RLS = insert+read only
     gameId: "verbatim",
-    gameVersion: "0.6a",
+    gameVersion: "0.6c",
     logVersion: 1,
     flushMs: 4000,          // standing flush cadence
     maxBatch: 40,           // events per POST (keepalive-safe size)
@@ -2262,7 +2469,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.6a";
+  const VERSION = "0.6c";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "easy" | "normal" — Normal (formerly Hard) is the default
   try{
@@ -2330,25 +2537,34 @@ if(typeof module !== "undefined" && module.exports){
   function doneMap(){ try{ return JSON.parse(localStorage.getItem("verbatim_done") || "{}"); }catch(e){ return {}; } }
   function markDone(){
     if(!state) return;
-    const k = state.pack ? ("p:" + state.pack + ":" + state.packIdx)
-            : (state.date && state.tier) ? "d:" + dateKey(state.date) + ":t" + state.tier
+    const k = state.setKey ? state.setKey + ":t" + state.tier
+            : state.pack ? ("p:" + state.pack + ":" + state.packIdx)
             : state.date ? "d:" + dateKey(state.date) : "s:" + state.seed;
     try{ const m = doneMap(); m[k] = 1;
-      if(state.date && state.tier === 3) m["d:" + dateKey(state.date)] = 1;   // the day counts as solved after the finale
+      if(state.setKey && state.tier === 3) m[state.setKey] = 1;   // the set counts as solved after the finale
       localStorage.setItem("verbatim_done", JSON.stringify(m)); }catch(e){}
   }
   function isDoneDate(d){ return !!doneMap()["d:" + dateKey(d)]; }
   /* -------- v0.6a daily sets: three linked puzzles a day -------- */
   function setFor(d){ return d ? (SET_BY_DATE[dateKey(d)] || null) : null; }
-  function isDoneTier(d, t){ return !!doneMap()["d:" + dateKey(d) + ":t" + t]; }
-  function tiersDone(d){ let n=0; for(let t=1;t<=3;t++) if(isDoneTier(d,t)) n++; return n; }
-  function nextTierFor(d){ for(let t=1;t<=3;t++) if(!isDoneTier(d,t)) return t; return 1; }
+  // a set key is "d:YYYY-MM-DD" (daily) or "p:<pack>:<setIndex>" (set pack)
+  function setData(sk){
+    if(!sk) return null;
+    if(sk.startsWith("d:")) return SET_BY_DATE[sk.slice(2)] || null;
+    const parts = sk.split(":"); return (SET_PACK_DATA[parts[1]] || [])[+parts[2]] || null;
+  }
+  function skDone(sk, t){ return !!doneMap()[sk + ":t" + t]; }
+  function skTiersDone(sk){ let n=0; for(let t=1;t<=3;t++) if(skDone(sk,t)) n++; return n; }
+  function skNextTier(sk){ for(let t=1;t<=3;t++) if(!skDone(sk,t)) return t; return 1; }
+  function isDoneTier(d, t){ return skDone("d:" + dateKey(d), t); }
+  function tiersDone(d){ return skTiersDone("d:" + dateKey(d)); }
+  function nextTierFor(d){ return skNextTier("d:" + dateKey(d)); }
   function setSeed(d, t){ return 900000 + daysBetween(ARCHIVE_START, d)*10 + t; }
-  function setRecKey(d){ return "verbatim_set_" + dateKey(d); }
-  function loadSetRec(d){ try{ return JSON.parse(localStorage.getItem(setRecKey(d)) || "{}"); }catch(e){ return {}; } }
-  function saveSetRec(d, r){ try{ localStorage.setItem(setRecKey(d), JSON.stringify(r)); }catch(e){} }
-  // hint tokens (test): a clean solve of puzzle 1 or 2 earns one token, spendable later the same day
-  function hintTokens(){ if(!state || !state.tier || !state.date) return 0; const r = loadSetRec(state.date); return Math.max(0, (r.earned||0) - (r.spent||0)); }
+  function setRecKey(sk){ return "verbatim_set_" + (sk.startsWith("d:") ? sk.slice(2) : sk); }
+  function loadSetRec(sk){ try{ return JSON.parse(localStorage.getItem(setRecKey(sk)) || "{}"); }catch(e){ return {}; } }
+  function saveSetRec(sk, r){ try{ localStorage.setItem(setRecKey(sk), JSON.stringify(r)); }catch(e){} }
+  // hint tokens (test): a clean solve of puzzle 1 or 2 earns one token, spendable later in the same set
+  function hintTokens(){ if(!state || !state.tier || !state.setKey) return 0; const r = loadSetRec(state.setKey); return Math.max(0, (r.earned||0) - (r.spent||0)); }
   function updateHintUI(){
     const b = $("hintBtn"); if(!b) return;
     const n = hintTokens();
@@ -2364,7 +2580,7 @@ if(typeof module !== "undefined" && module.exports){
     if(state.slots[slotIdx].word !== null) returnWord(slotIdx);
     const item = state.bank.find(b=> b.word === want);
     if(!item) return;
-    const r = loadSetRec(state.date); r.spent = (r.spent||0) + 1; saveSetRec(state.date, r);
+    const r = loadSetRec(state.setKey); r.spent = (r.spent||0) + 1; saveSetRec(state.setKey, r);
     state.hintsUsed++;
     try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:hint", { tier: state.tier, tokens_left: hintTokens() }); }catch(e){}
     bankToSlot(item.key, slotIdx);
@@ -2373,11 +2589,11 @@ if(typeof module !== "undefined" && module.exports){
   }
   function renderSetDots(){
     const el = $("setDots"); if(!el) return;
-    if(!state || !state.tier || !state.date){ el.hidden = true; el.innerHTML = ""; return; }
+    if(!state || !state.tier || !state.setKey){ el.hidden = true; el.innerHTML = ""; return; }
     el.hidden = false;
     let h = "";
     for(let t=1;t<=3;t++){
-      const cls = isDoneTier(state.date, t) ? "done" : (t === state.tier ? "cur" : "");
+      const cls = skDone(state.setKey, t) ? "done" : (t === state.tier ? "cur" : "");
       h += '<span class="sd ' + cls + '" aria-hidden="true"></span>';
     }
     el.innerHTML = h;
@@ -2500,11 +2716,11 @@ if(typeof module !== "undefined" && module.exports){
   /* -------- puzzle packs -------- */
   const PACKS = [
     { id:"local",   title:"Local History", sub:"D.C. & Northern Virginia", kind:"facts", presenter:"weta", presenterName:"WETA", start:PACK_START,     count:20 },
-    { id:"science", title:"Science",       sub:"Factoids & laws",          kind:"facts", presenter:"nova", presenterName:"NOVA", start:PACK_START+20,  count:20 },
+    { id:"science", title:"Science",       sub:"Three-step science sets",  kind:"facts", presenter:"nova", presenterName:"NOVA", sets:true, count:SET_PACKS.science.length },
     { id:"voices",  title:"DC & Virginia Voices", sub:"Local legends, in their words", kind:"quotes", special:true, presenter:"weta", presenterName:"WETA", start:PACK_START+40, count:40 },
     { id:"tough",   title:"Tough Puzzles", sub:"Longer quotes, bigger bite", kind:"quotes", start:PACK_START+80, count:30 },
+    { id:"world",   title:"World History", sub:"Empires, inventions & turning points", kind:"facts", sets:true, count:SET_PACKS.world.length },
     { id:"us",      title:"US History",    sub:"Coming soon", soon:true },
-    { id:"world",   title:"World History", sub:"Coming soon", soon:true },
     { id:"geo",     title:"Geography",     sub:"Coming soon", soon:true }
   ];
   function packById(id){ return PACKS.find(p=>p.id===id) || null; }
@@ -2513,6 +2729,11 @@ if(typeof module !== "undefined" && module.exports){
     if(pk._order) return pk._order;
     const idxs = [];
     for(let i=0;i<pk.count;i++) idxs.push(i);
+    if(pk.sets){   // set packs: total length of the three steps, finale weighted double
+      const sc = i=> { const ix = SET_PACK_DATA[pk.id][i].idx; return tokenize(QUOTES[ix[0]].text).length + tokenize(QUOTES[ix[1]].text).length + 2*tokenize(QUOTES[ix[2]].text).length; };
+      idxs.sort((a,b)=> sc(a) - sc(b) || a-b);
+      pk._order = idxs; return idxs;
+    }
     idxs.sort((a,b)=> tokenize(QUOTES[pk.start+a].text).length - tokenize(QUOTES[pk.start+b].text).length || a-b);
     pk._order = idxs;
     return idxs;
@@ -2572,6 +2793,7 @@ if(typeof module !== "undefined" && module.exports){
       guesses:[], current:"", keyStatus:{}, secretGuesses:0, secretSolved:false,
       mode, hard: (mode==="normal" && pz.quote.tier !== 1) ? buildHard(seed, words, secretIndex, anchors, pz.quote.author) : null,
       tier: pz.quote.tier || null, hintsUsed: 0,
+      setKey: pz.quote.setDate ? ("d:" + pz.quote.setDate) : (pz.quote.packSet ? ("p:" + pz.quote.packId + ":" + pz.quote.packSetIdx) : null),
       steps:[], stepIdx:-1, curScramble:null, scramSel:null,
       date: (opts && opts.date) ? d0(opts.date) : null,
       pack: (opts && opts.pack) || null, packIdx: (opts && opts.packIdx != null) ? opts.packIdx : null,
@@ -2638,7 +2860,7 @@ if(typeof module !== "undefined" && module.exports){
     const hb = $("heartBtn");
     hb.setAttribute("aria-label", isFacts ? "Love this fact" : "Love this quote");
     hb.querySelector(".heart-label").textContent = isFacts ? "Love this fact" : "Love this quote";
-    $("tomorrowLine").textContent = state.tier ? "A new set of three arrives each morning."
+    $("tomorrowLine").textContent = (state.tier && !state.pack) ? "A new set of three arrives each morning."
       : !state.pack ? "A new quotation arrives each morning."
       : (isFacts ? "More facts await in this pack." : "More quotes await in this pack.");
 
@@ -2684,14 +2906,14 @@ if(typeof module !== "undefined" && module.exports){
   // telemetry: shared run descriptor (puzzle identity incl. bonus packs, mode, budget)
   function tmRunInfo(){
     const pt  = state.pack ? "pack" : (state.date ? "daily" : "seed");
-    const ref = state.pack ? ("p:" + state.pack + ":" + state.packIdx)
-              : (state.date && state.tier) ? ("d:" + dateKey(state.date) + ":t" + state.tier)
+    const ref = state.setKey ? (state.setKey + ":t" + state.tier)
+              : state.pack ? ("p:" + state.pack + ":" + state.packIdx)
               : state.date ? ("d:" + dateKey(state.date))
               : ("s:" + state.seed);
     return { mode: state.mode, puzzle_type: pt,
              pack_id: state.pack || null,
              puzzle_idx: state.packIdx != null ? state.packIdx : (state.tier ? state.tier - 1 : null),
-             set_tier: state.tier || null, set_shape: state.tier ? ((setFor(state.date)||{}).shape || null) : null,
+             set_tier: state.tier || null, set_shape: state.setKey ? ((setData(state.setKey)||{}).shape || null) : null,
              puzzle_ord: state.packOrd || null,
              puzzle_ref: ref,
              daily_id: state.date ? dateKey(state.date) : null,
@@ -3719,13 +3941,13 @@ if(typeof module !== "undefined" && module.exports){
     solveSequence();
     // 3. bookkeeping (synchronous localStorage writes, UI chrome) deferred
     //    off the critical path — Safari can take these after the gold begins
-    if(state.tier && state.date){
-      const r = loadSetRec(state.date);
+    if(state.tier && state.setKey){
+      const r = loadSetRec(state.setKey);
       const clean = (state.attemptNum || 1) === 1 && state.errorsLeft === state.errorBudget && !state.hintsUsed;
       r["t" + state.tier] = { ms: state.elapsedMs, attempts: state.attemptNum || 1, clean: clean, guesses: state.secretGuesses || 0 };
       if(clean && state.tier < 3 && !r["earned_t" + state.tier]){ r.earned = (r.earned||0) + 1; r["earned_t" + state.tier] = 1; state.earnedHint = true; }
       else state.earnedHint = false;
-      saveSetRec(state.date, r);
+      saveSetRec(state.setKey, r);
     }
     setTimeout(()=>{ updateTurnUI(); clearProgress(); markDone(); renderSetDots();
       // telemetry: completion events ride the same deferred bookkeeping window (per the reveal doctrine)
@@ -3833,22 +4055,23 @@ if(typeof module !== "undefined" && module.exports){
     const nextB = $("nextBtn"), rev = $("setReveal"), shareB = $("shareBtn"), newB = $("newBtn"), earn = $("earnLine");
     nextB.hidden = true; rev.hidden = true; rev.innerHTML = ""; earn.hidden = true;
     shareB.hidden = false; newB.hidden = false;
-    if(!state.tier || !state.date) return;
+    if(!state.tier || !state.setKey) return;
     newB.hidden = true;
-    const ds = setFor(state.date);
+    const ds = setData(state.setKey);
     if(state.tier < 3){
       shareB.hidden = true;
       nextB.hidden = false;
       nextB.textContent = "Next: puzzle " + (state.tier + 1) + " of 3";
-      $("tomorrowLine").textContent = state.tier === 1 ? "Two more to go. Each one is a little harder." : "One more to go, and then today's theme.";
+      $("tomorrowLine").textContent = state.tier === 1 ? "Two more to go. Each one is a little harder."
+        : (state.pack ? "One more to go to finish this set." : "One more to go, and then today's theme.");
       if(state.earnedHint){ earn.hidden = false; earn.textContent = "Clean solve! You earned a hint for later today."; }
       return;
     }
     // finale: reveal the theme with all three lines together
     shareB.textContent = "Share today's set";
-    const rec = loadSetRec(state.date);
+    const rec = loadSetRec(state.setKey);
     let total = 0; for(let t=1;t<=3;t++) if(rec["t"+t]) total += rec["t"+t].ms || 0;
-    let h = '<p class="sr-kicker">Today\'s theme</p><h3 class="sr-theme">' + escapeHtml(ds.theme) + '</h3><ol class="sr-lines">';
+    let h = '<p class="sr-kicker">' + (state.pack ? "Set complete" : "Today\'s theme") + '</p><h3 class="sr-theme">' + escapeHtml(ds.theme) + '</h3><ol class="sr-lines">';
     ds.items.forEach(it=>{
       h += '<li><span class="sr-q">' + (it.k === "quote" ? "\u201C" + escapeHtml(it.t) + "\u201D" : escapeHtml(it.t)) + '</span>'
          + '<span class="sr-by">' + (it.k === "quote" ? "\u2014 " + escapeHtml(it.a) : escapeHtml(it.s)) + '</span></li>';
@@ -3856,12 +4079,28 @@ if(typeof module !== "undefined" && module.exports){
     h += '</ol><p class="sr-note">' + escapeHtml(ds.note) + '</p>';
     if(total) h += '<p class="sr-total">All three set in ' + fmtTime(Math.round(total/1000)) + '</p>';
     rev.innerHTML = h; rev.hidden = false;
-    $("tomorrowLine").textContent = "A new set of three arrives each morning.";
+    $("tomorrowLine").textContent = state.pack ? "" : "A new set of three arrives each morning.";
+    const nxt = state.pack ? nextPackSet() : null;
+    if(nxt){ nextB.hidden = false; nextB.textContent = "Next set: " + nxt.label; }
   }
   function goNextTier(){
-    if(!state || !state.tier || state.tier >= 3 || !state.date) return;
-    try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:nav", { to: "next_tier", tier: state.tier + 1 }); }catch(e){}
+    if(!state || !state.tier || !state.setKey) return;
+    if(state.pack){
+      if(state.tier < 3){ track("next_tier"); playPackSetTier(state.pack, state.packIdx, state.packOrd, state.tier + 1); return; }
+      const nxt = nextPackSet(); if(!nxt) return;
+      track("next_set"); playPackSetTier(state.pack, nxt.i, nxt.ord, skNextTier("p:" + state.pack + ":" + nxt.i)); return;
+    }
+    if(state.tier >= 3 || !state.date) return;
+    track("next_tier");
     playSetTier(state.date, state.tier + 1);
+    function track(to){ try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:nav", { to: to, tier: state.tier + 1 }); }catch(e){} }
+  }
+  function nextPackSet(){
+    const pk = packById(state.pack); if(!pk || !pk.sets) return null;
+    const order = packOrder(pk), r = order.indexOf(state.packIdx);
+    if(r < 0 || r + 1 >= order.length) return null;
+    const i = order[r + 1];
+    return { i: i, ord: r + 2, label: SET_PACK_DATA[pk.id][i].label };
   }
   function blankedLine(q){
     const b = (q.blank || "").toLowerCase();
@@ -3881,13 +4120,14 @@ if(typeof module !== "undefined" && module.exports){
 
   /* -------- share -------- */
   function shareText(){
-    if(state && state.tier && state.date){
-      const ds = setFor(state.date), q1 = QUOTES[ds.idx[0]], rec = loadSetRec(state.date);
+    if(state && state.tier && state.setKey){
+      const ds = setData(state.setKey), q1 = QUOTES[ds.idx[0]], rec = loadSetRec(state.setKey);
+      const head = state.pack ? ((packById(state.pack)||{}).title + " \u00B7 " + ds.label) : fmtShort(state.date);
       let total = 0, n = 0; for(let t=1;t<=3;t++) if(rec["t"+t]){ total += rec["t"+t].ms || 0; n++; }
       const marks = [1,2,3].map(t=> !rec["t"+t] ? "\u25CB" : rec["t"+t].clean ? "\u25CF" : "\u25D0").join(" ");
       const line = q1.kind === "quote" ? "\u201C" + blankedLine(q1) + "\u201D\n\u2014 " + q1.author : blankedLine(q1);
-      return "Verbatim \u00B7 " + fmtShort(state.date) + "\n" + marks + "  " + n + " of 3 set in " + fmtTime(Math.round(total/1000)) +
-        "\n\n" + line + "\n\nFill the blank, then two more puzzles are waiting.\n" + currentUrl();
+      return "Verbatim \u00B7 " + head + "\n" + marks + "  " + n + " of 3 set in " + fmtTime(Math.round(total/1000)) +
+        "\n\n" + line + "\n\n" + (state.pack ? "Fill the blank, then two harder puzzles follow." : "Fill the blank, then two more puzzles are waiting.") + "\n" + currentUrl();
     }
     const { score, elapsedSec } = computeScore();
     const label = state.date ? fmtShort(state.date) : ("№ " + state.seed);
@@ -4075,13 +4315,15 @@ if(typeof module !== "undefined" && module.exports){
     const list = $("packList"); list.innerHTML = "";
     const order = packOrder(pk);
     order.forEach((rawIdx, rank)=>{
-      const q = QUOTES[pk.start + rawIdx];
-      const stars = packStars(pk, rank);
+      const q = pk.sets ? { label: SET_PACK_DATA[pk.id][rawIdx].label } : QUOTES[pk.start + rawIdx];
+      const sk = "p:" + pk.id + ":" + rawIdx;
+      const prog = pk.sets && !isDonePack(pk.id, rawIdx) && skTiersDone(sk) ? '<span class="fc-prog">' + skTiersDone(sk) + '/3</span>' : '';
+      const stars = pk.sets ? Math.min(5, packStars(pk, rank) + 1) : packStars(pk, rank);   // set packs start at Thursday strength
       const card = document.createElement("button");
       card.type = "button"; card.className = "fact-card";
       card.innerHTML = '<span class="fc-num">'+(rank+1)+'</span>'
         + '<span class="fc-mid"><span class="fc-label">'+escapeHtml(q.label || ("Fact "+(rank+1)))+'</span><span class="fc-stars">'+starRow(stars)+'</span></span>'
-        + (isDonePack(pk.id, rawIdx) ? '<span class="fc-check">&#10003;</span>' : '');
+        + (isDonePack(pk.id, rawIdx) ? '<span class="fc-check">&#10003;</span>' : prog);
       card.addEventListener("click", ()=> playPack(pk.id, rawIdx, rank+1));
       list.appendChild(card);
     });
@@ -4091,9 +4333,18 @@ if(typeof module !== "undefined" && module.exports){
   function playPack(id, i, ord){
     const pk = packById(id); if(!pk) return;
     if(ord == null) ord = packOrder(pk).indexOf(i) + 1;
+    if(pk.sets){ playPackSetTier(id, i, ord, skNextTier("p:" + id + ":" + i)); return; }
     hideOverlays();
     gameStarted = true;
     initGame(packSeed(pk, i), { pack:id, packIdx:i, packOrd:ord, quoteIdx: pk.start + i });
+    window.scrollTo(0,0);
+  }
+  function playPackSetTier(id, i, ord, t){
+    const pk = packById(id); if(!pk || !pk.sets) return;
+    const ds = SET_PACK_DATA[id][i]; if(!ds) return;
+    hideOverlays();
+    gameStarted = true;
+    initGame(500000 + PACKS.indexOf(pk)*1000 + i*10 + t, { pack:id, packIdx:i, packOrd:ord, quoteIdx: ds.idx[t-1] });
     window.scrollTo(0,0);
   }
   $("heroCard").addEventListener("click", ()=> playDate(todayDate()));
