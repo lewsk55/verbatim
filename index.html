@@ -864,6 +864,18 @@
   .dc-prog{ position:absolute; top:6px; right:8px; font-size:.68rem; font-weight:700; color:var(--pbs-blue); }
   .gameover{ display:none; text-align:center; padding:18px 0 6px; }
   .gameover.show{ display:block; }
+  #board{ position:relative; }
+  #board.is-paused > :not(.pause-cover){ filter:blur(14px); pointer-events:none; user-select:none; }
+  .pause-cover{ position:absolute; inset:0; z-index:30; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
+    background:rgba(250,248,242,.55); border:0; border-radius:inherit; cursor:pointer; font:inherit; color:var(--navy); }
+  .pause-cover[hidden]{ display:none; }
+  .pause-cover .pc-title{ font-family:var(--serif); font-size:2rem; font-weight:600; }
+  .pause-cover .pc-why{ font-size:.85rem; color:var(--ink-soft); }
+  .pause-cover .pc-go{ margin-top:6px; padding:10px 22px; border-radius:999px; background:var(--pbs-blue); color:#fff; font-weight:700; font-size:.9rem; }
+  .go-mode{ margin:10px auto 4px; display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .go-mode-lab{ font-size:.72rem; font-weight:700; letter-spacing:.06em; color:var(--ink-soft); }
+  .go-mode .mode-tog{ margin:0; min-width:220px; }
+  #scoreLine{ white-space:pre-line; }
   .go-title{ font-family:var(--serif); font-weight:600; font-size:1.5rem; color:var(--navy); }
   .go-sub{ font-family:var(--ui); font-size:.88rem; color:var(--ink-soft); margin:6px 0 14px; }
   .go-controls{ flex-direction:column; align-items:center; gap:10px; }
@@ -1045,6 +1057,11 @@
 
 <main>
   <section class="card" id="board" aria-live="polite">
+    <button class="pause-cover" id="pauseCover" type="button" hidden aria-label="Resume puzzle">
+      <span class="pc-title">Paused</span>
+      <span class="pc-why" id="pauseWhy">The clock is stopped.</span>
+      <span class="pc-go">Tap to resume</span>
+    </button>
     <div class="stage" id="stage">
       <div class="line" id="line" aria-label="The quotation you are assembling"></div>
       <span class="sweep" id="sweep" aria-hidden="true"></span>
@@ -1081,6 +1098,13 @@
     <!-- Afterglow: appears in place once solved -->
     <div class="gameover" id="gameover">
       <div class="go-title">Out of mistakes</div>
+      <div class="go-mode">
+        <span class="go-mode-lab">Difficulty for your next try</span>
+        <div class="mode-tog" role="group" aria-label="Difficulty for your next try">
+          <button id="goEasy" type="button">Easy</button>
+          <button id="goNorm" type="button">Normal</button>
+        </div>
+      </div>
       <div class="controls go-controls">
         <button class="btn btn-primary go-retry" id="retryBtn">Try again</button>
         <button class="btn btn-ghost" id="goHomeBtn">Home</button>
@@ -1123,7 +1147,8 @@
   <div class="body">
     <p>Each day brings three linked puzzles, from a quick warm-up to a longer finale. Solve all three to reveal what ties them together.</p>
     <p>You're shown who said each line (or what a fact is about). A word or two is already in place. Tap words from the bank to drop them into the blanks, in the order you think the line goes.</p>
-    <p>Puzzles two and three hide a <b>mystery word</b> to uncover at the end; the finale adds a clue. Longer mystery words start with a letter or more filled in. Solve an early puzzle without a slip to earn a hint for later.</p>
+    <p>Puzzles two and three hide a <b>mystery word</b> to uncover at the end; the finale adds a clue. Longer mystery words start with a letter or more filled in.</p>
+    <p><b>Scoring:</b> each puzzle in a set is worth more than the last, then multiplied by your speed (seconds per word, with no limit: the faster you go, the higher it climbs) and your accuracy (a perfect solve earns a bonus; each slip trims it). Your set score adds up your best run of each puzzle, so replay to beat it. The clock only runs while you're playing. Solve an early puzzle without a slip to earn a hint for later.</p>
     <p>Tap <b>Set the line</b> to check. Words in the right spot lock in; the rest come back to the bank. There's no limit on tries — but the fewer moves it takes, the higher you'll place.</p>
     <p>Solve it, and the line sets into print to share.</p>
   </div>
@@ -1801,6 +1826,12 @@ const DAILY_SETS = [
 ];
 
 // set items live after the main bank and the packs, so legacy dailies (e.g. Aug 4, Julia Child) never shift
+// darker subjects (war, death, oppression...) get minor harmony; sets share one mood
+const SOMBER_RE = /\b(war|wars|warfare|holocaust|genocide|slavery|massacre|grief|mourning|sorrow|tormentor|oppressor|cruelty|hatred|tragedy)\b/i;
+function isSomberText(t){ return SOMBER_RE.test(t || ""); }
+// hand-picked sets whose subject is dark (war, plague, oppression, disaster) or eerie
+const SOMBER_DATES = ["2026-09-30","2026-10-07","2026-10-08","2026-10-19","2026-10-24","2026-10-25","2026-10-30","2026-10-31"];
+const SOMBER_PACK_SETS = { world:["The Black Death","Crossing the Rubicon","The Fall of Constantinople","The French Revolution","The Haitian Revolution","The Peace of Westphalia","Independence and Partition","South Africa Votes"], science:[] };
 const SET_START = QUOTES.length;
 const SET_BY_DATE = {};
 DAILY_SETS.forEach(ds=>{
@@ -1811,6 +1842,7 @@ DAILY_SETS.forEach(ds=>{
                   kind:it.k, tier:i+1, setDate:ds.d, mystery:it.m||null, clue:it.c||null, blank:it.b||null });
   });
   SET_BY_DATE[ds.d] = ds;
+  ds.idx.forEach(qi=> QUOTES[qi].mood = SOMBER_DATES.includes(ds.d) ? "somber" : "bright");
 });
 
 /* ---- Set packs: every pack puzzle is a three-tier set (warm-up, harder, finale with clue) ----
@@ -2015,6 +2047,7 @@ Object.keys(SET_PACKS).forEach(pid=>{
                     author: SET_PACK_AUTHOR[pid], src: st.label, kind:"fact", tier: ti+1, packSet:true, packId: pid, packSetIdx: si,
                     mystery: it.m || null, clue: it.c || null, blank: it.b || null });
     });
+    entry.idx.forEach(qi=> QUOTES[qi].mood = (SOMBER_PACK_SETS[pid]||[]).includes(st.label) ? "somber" : "bright");
     return entry;
   });
 });
@@ -2242,7 +2275,7 @@ if(typeof module !== "undefined" && module.exports){
     url: "https://jpasgxttyiaorhksybez.supabase.co",
     key: "sb_publishable_XEBCZFTnhakXn5G14MO9cg_tiwLrTpB", // publishable; RLS = insert+read only
     gameId: "verbatim",
-    gameVersion: "0.6c",
+    gameVersion: "0.6e",
     logVersion: 1,
     flushMs: 4000,          // standing flush cadence
     maxBatch: 40,           // events per POST (keepalive-safe size)
@@ -2469,7 +2502,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.6c";
+  const VERSION = "0.6e";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "easy" | "normal" — Normal (formerly Hard) is the default
   try{
@@ -2483,6 +2516,8 @@ if(typeof module !== "undefined" && module.exports){
     try{ localStorage.setItem(MODE_KEY, m); }catch(e){}
     const te = document.getElementById("togEasy"), tn = document.getElementById("togNorm");
     if(te && tn){ te.classList.toggle("on", m==="easy"); tn.classList.toggle("on", m==="normal"); }
+    const ge = document.getElementById("goEasy"), gn = document.getElementById("goNorm");
+    if(ge && gn){ ge.classList.toggle("on", m==="easy"); gn.classList.toggle("on", m==="normal"); }
   }
 
   let state = null, drag = null, justDragged = false;
@@ -2611,7 +2646,7 @@ if(typeof module !== "undefined" && module.exports){
         pack: state.pack, packIdx: state.packIdx, packOrd: state.packOrd,
         quoteIdx: QUOTES.indexOf(state.quote),
         moves: state.moves, errorsLeft: state.errorsLeft, placeSeq: state.placeSeq,
-        elapsed: Date.now() - state.startTime,
+        elapsed: clockNow() - state.startTime,
         attemptNum: state.attemptNum || 1,
         runId: state.runId || null,
         phase: state.phase, stepIdx: state.stepIdx,
@@ -2805,10 +2840,12 @@ if(typeof module !== "undefined" && module.exports){
     {
       const mrng = mulberry32(xfnv1a("music:" + seed));
       const roots = [48,50,51,53,55,56,58,60];                        // GGW's root pool
+      const somber = pz.quote.mood ? pz.quote.mood === "somber" : isSomberText(pz.quote.text);
       const mkey = { root: roots[Math.floor(mrng()*roots.length)],
-                     scale: SCALE_MAJOR,       // plain major throughout — keeps every climb unambiguously bright
-                     mood: "bright" };
-      const mprog = PROG_BRIGHT[Math.floor(mrng()*PROG_BRIGHT.length)];
+                     scale: somber ? SCALE_MINOR : SCALE_MAJOR,   // darker subjects climb in natural minor
+                     mood: somber ? "somber" : "bright" };
+      const mprog = somber ? PROG_SOMBER[Math.floor(mrng()*PROG_SOMBER.length)]
+                           : PROG_BRIGHT[Math.floor(mrng()*PROG_BRIGHT.length)];
       state.music = {
         key: mkey,
         prog: mprog,
@@ -2940,11 +2977,55 @@ if(typeof module !== "undefined" && module.exports){
   }
   // failed attempts accumulate here so the final solve time covers EVERY try
   let attemptCarry = { seed:null, ms:0, tries:0, runId:null };
+  /* -------- active-time clock: pauses when the tab is hidden, the window loses focus,
+     the player leaves for a menu, or nothing has been touched for a minute -------- */
+  const IDLE_MS = 60000;
+  let lastInputAt = Date.now(), winFocused = true;
+  function clockNow(){ return (state && state.clockPausedAt) ? state.clockPausedAt : Date.now(); }
+  function clockLive(){ return !!state && !state.solved && state.phase !== "over" && state.phase !== "done"; }
+  function gameOnScreen(){
+    return !document.hidden && winFocused && gameStarted &&
+      !document.querySelector("#home.show, #archive.show, #passport.show, #packView.show");
+  }
+  function pauseClock(at, reason){
+    if(!clockLive() || state.clockPausedAt) return;
+    state.clockPausedAt = Math.min(Date.now(), at || Date.now()); state.pauseReason = reason || "away";
+    updatePauseUI();
+  }
+  function resumeClock(){
+    if(!state || !state.clockPausedAt) return;
+    state.startTime += Date.now() - state.clockPausedAt;
+    state.clockPausedAt = null; state.pauseReason = null; lastInputAt = Date.now();
+    updatePauseUI();
+  }
+  function updatePauseUI(){
+    const cov = document.getElementById("pauseCover"), board = document.getElementById("board");
+    if(!cov || !board) return;
+    const on = !!(state && state.clockPausedAt && clockLive());
+    cov.hidden = !on;
+    board.classList.toggle("is-paused", on);
+    if(on) $("pauseWhy").textContent = state.pauseReason === "idle" ? "Paused after a minute without a move." : "Paused while you were away.";
+  }
+  function clockTick(){
+    if(!clockLive()) return;
+    if(!gameOnScreen()){ pauseClock(Date.now(), "away"); return; }
+    if(Date.now() - lastInputAt > IDLE_MS){ pauseClock(lastInputAt + IDLE_MS, "idle"); return; }
+    if(state.clockPausedAt && state.pauseReason === "away") resumeClock();
+    updatePauseUI();
+  }
+  setInterval(clockTick, 500);
+  document.addEventListener("visibilitychange", clockTick);
+  window.addEventListener("blur", ()=>{ winFocused = false; clockTick(); });
+  window.addEventListener("focus", ()=>{ winFocused = true; clockTick(); });
+  ["pointerdown","keydown","touchstart","wheel"].forEach(ev=> document.addEventListener(ev, ()=>{
+    lastInputAt = Date.now();
+    if(state && state.clockPausedAt && gameOnScreen()) resumeClock();
+  }, { capture:true, passive:true }));
   let _resuming = false;   // telemetry: resumeProgress re-enters initGame without minting a new run
   function gameOver(){
     const prevPhase = state.phase;
     state.phase = "over";
-    const spent = Date.now() - state.startTime;   // startTime already includes prior carry
+    const spent = clockNow() - state.startTime;   // startTime already includes prior carry (active time only)
     attemptCarry = { seed: state.seed, ms: spent, tries: (state.attemptNum || 1), runId: state.runId || null };
     try{ if(window.PBSTelemetry) PBSTelemetry.track("level_fail", {
       attempt_num: state.attemptNum || 1, duration_ms: spent, moves: state.moves,
@@ -2956,6 +3037,7 @@ if(typeof module !== "undefined" && module.exports){
     scrambleEl.classList.remove("show");
     undoBtn.classList.remove("show");
     chromeEls.forEach(el=> el.classList.add("is-hidden"));
+    setMode(mode);   // reflect the current difficulty on the retry toggle
     $("gameover").classList.add("show");
     haptic([40,80,40]);
     try{ $("gameover").scrollIntoView({behavior:"smooth", block:"center"}); }catch(e){}
@@ -3283,6 +3365,7 @@ if(typeof module !== "undefined" && module.exports){
   /* -- GGW's key / chord / progression brain, bright (major) moods only -- */
   const SCALE_MAJOR  = [0,2,4,5,7,9,11];
   const SCALE_LYDIAN = [0,2,4,6,7,9,11];
+  const SCALE_MINOR  = [0,2,3,5,7,8,10];   // natural minor (Aeolian)
   const CHORD_INTERVALS = {
     "M":    [0,4,7],
     "m7":   [0,3,7,10],
@@ -3293,7 +3376,17 @@ if(typeof module !== "undefined" && module.exports){
     "sus4": [0,5,7],
     "sus2": [0,2,7],
     "69":   [0,4,7,9,14],       // 6/9 — warm jazz color
+    "m":    [0,3,7],
+    "madd9":[0,3,7,14],         // minor with an open, aching 9th
   };
+  // somber progressions on the natural-minor scale: i, iv, v minor; VI and III major for a little light
+  const PROG_SOMBER = [
+    [[0,"m9"],[5,"M7"],[3,"m7"],[4,"m7"]],
+    [[0,"m7"],[3,"m9"],[0,"madd9"],[4,"m7"]],
+    [[0,"madd9"],[5,"M9"],[3,"m9"],[0,"m7"]],
+    [[3,"m9"],[0,"m7"],[5,"M7"],[4,"sus4"]],
+    [[0,"m9"],[2,"M7"],[5,"M9"],[4,"m7"]],
+  ];
   // Verbatim progressions — GGW's bright pool restricted to MAJOR-quality
   // harmony only (I, IV, V with maj9 / add9 / 6-9 / sus colors). The diatonic
   // ii and vi chords were reading minor in the single-note climbs, so they're out.
@@ -3928,7 +4021,7 @@ if(typeof module !== "undefined" && module.exports){
   /* ===================== Final solve ===================== */
   function finishSolve(){
     state.solved = true; state.phase = "done"; state.secretSolved = true;
-    state.elapsedMs = Date.now() - state.startTime;   // spans every attempt via the carry
+    state.elapsedMs = clockNow() - state.startTime;   // active time only, spanning every attempt via the carry
     try{ if(window.PBSTelemetry) PBSTelemetry.markRunDone(); }catch(e){}   // one boolean; nothing else on this tick
     if(attemptCarry.seed === state.seed) attemptCarry = { seed:null, ms:0, tries:0 };
     // gold sweep + piano roll begin in the SAME tick, on the line as it
@@ -3953,7 +4046,8 @@ if(typeof module !== "undefined" && module.exports){
       // telemetry: completion events ride the same deferred bookkeeping window (per the reveal doctrine)
       try{ if(window.PBSTelemetry){
         const sc = computeScore();
-        PBSTelemetry.track("level_complete", { attempt_num: state.attemptNum || 1, duration_ms: state.elapsedMs, score: sc.score });
+        PBSTelemetry.track("level_complete", { attempt_num: state.attemptNum || 1, duration_ms: state.elapsedMs, score: sc.score,
+          pace_s_per_word: Math.round(sc.pace*100)/100, suspect_fast: sc.pace < 0.25 });   // flag for review, never a cap
         PBSTelemetry.track("game_complete", Object.assign(tmRunInfo(), {
           duration_ms: state.elapsedMs, attempts: state.attemptNum || 1, moves: state.moves,
           score: sc.score, mistakes_left: state.errorsLeft, secret_guesses: state.secretGuesses }));
@@ -3975,11 +4069,20 @@ if(typeof module !== "undefined" && module.exports){
     const over = Math.max(0, elapsedSec - par);
     // per-move penalty eases on longer puzzles, so it's the RATE of mistakes that
     // matters, not the raw count — a few slips on a 20-word quote shouldn't tank it
-    const perMove = Math.min(48, Math.max(14, Math.round(240 / Math.max(4, n))));
-    let score = 1000 - extraMoves*perMove - extraGuesses*45 - Math.round(over*1.5);
-    // small cushion so a flawless long/hard phrase still sits at the top of the range
-    score += Math.min(80, tiles + s);
-    return { score: Math.max(100, Math.min(1000, Math.round(score))), elapsedSec };
+    // v0.6e: no par, no caps. Speed is pace (active seconds per word); the multiplier is
+    // (PACE_UNIT / pace)^1.5, so halving your time multiplies the score by about 2.8.
+    // PACE_UNIT = 6 s/word = the median active pace in playtest data (33 runs, 3 players, Oct 2026),
+    // so a typical solve lands near x1. Recalibrate as more players come in.
+    const PACE_UNIT = 6, PACE_POWER = 1.5;
+    const base = state.tier ? state.tier * 1000 : 1000;
+    const secs = Math.max(0.05, state.elapsedMs / 1000);   // divide-by-zero guard only, not a cap
+    const pace = secs / Math.max(1, tiles);
+    const speedMult = Math.pow(PACE_UNIT / pace, PACE_POWER);
+    const mistakes = extraMoves + extraGuesses + (state.hintsUsed || 0);   // failed tries already cost time
+    const accMult = mistakes === 0 ? 1.25 : Math.pow(0.85, mistakes);
+    const modeMult = state.mode === "easy" ? 0.8 : 1;
+    const score = Math.round(base * speedMult * accMult * modeMult);
+    return { score, elapsedSec, base, speedMult, accMult, modeMult, mistakes, over, pace };
   }
 
   function solveSequence(){
@@ -4013,11 +4116,23 @@ if(typeof module !== "undefined" && module.exports){
     const { score, elapsedSec } = computeScore();
     state.score = score;
     $("timeLine").textContent = "Solved in " + fmtTime(elapsedSec);
-    let scoreTxt = score + " points · " + state.moves + (state.moves===1?" move":" moves");
+    const sc = computeScore();
+    const fmtX = v=> v >= 10 ? v.toFixed(0) : v >= 1 ? v.toFixed(1) : v.toFixed(2);
+    let scoreTxt = score.toLocaleString() + " points"
+      + "\n" + sc.pace.toFixed(1) + " s per word \u00B7 \u00D7" + fmtX(sc.speedMult) + " speed \u00B7 "
+      + (sc.mistakes === 0 ? "\u00D71.25 perfect" : "\u00D7" + fmtX(sc.accMult) + " (" + sc.mistakes + (sc.mistakes===1?" slip)":" slips)"))
+      + (sc.modeMult < 1 ? " \u00B7 Easy" : "");
     if((state.attemptNum || 1) > 1){
       const n = state.attemptNum;
       const ord = n===2?"2nd":n===3?"3rd":n+"th";
       scoreTxt += " · " + ord + " try";
+    }
+    if(state.tier && state.setKey){   // cumulative: the set score is the sum of its solved steps (best of each)
+      const r = loadSetRec(state.setKey), k = "t" + state.tier;
+      if(r[k]){ r[k].score = Math.max(r[k].score || 0, score); saveSetRec(state.setKey, r); }
+      let tot = 0, n = 0; for(let t=1;t<=3;t++) if(r["t"+t] && r["t"+t].score){ tot += r["t"+t].score; n++; }
+      state.setTotal = tot;
+      scoreTxt += "\nSet score: " + tot.toLocaleString() + " (" + n + " of 3 solved)";
     }
     $("scoreLine").textContent = scoreTxt;
     $("mysteryLine").textContent = state.secretIndex>=0
@@ -4077,7 +4192,8 @@ if(typeof module !== "undefined" && module.exports){
          + '<span class="sr-by">' + (it.k === "quote" ? "\u2014 " + escapeHtml(it.a) : escapeHtml(it.s)) + '</span></li>';
     });
     h += '</ol><p class="sr-note">' + escapeHtml(ds.note) + '</p>';
-    if(total) h += '<p class="sr-total">All three set in ' + fmtTime(Math.round(total/1000)) + '</p>';
+    let pts = 0; for(let t=1;t<=3;t++) if(rec["t"+t]) pts += rec["t"+t].score || 0;
+    if(total) h += '<p class="sr-total">All three set in ' + fmtTime(Math.round(total/1000)) + (pts ? ' \u00B7 ' + pts.toLocaleString() + ' points' : '') + '</p>';
     rev.innerHTML = h; rev.hidden = false;
     $("tomorrowLine").textContent = state.pack ? "" : "A new set of three arrives each morning.";
     const nxt = state.pack ? nextPackSet() : null;
@@ -4123,10 +4239,10 @@ if(typeof module !== "undefined" && module.exports){
     if(state && state.tier && state.setKey){
       const ds = setData(state.setKey), q1 = QUOTES[ds.idx[0]], rec = loadSetRec(state.setKey);
       const head = state.pack ? ((packById(state.pack)||{}).title + " \u00B7 " + ds.label) : fmtShort(state.date);
-      let total = 0, n = 0; for(let t=1;t<=3;t++) if(rec["t"+t]){ total += rec["t"+t].ms || 0; n++; }
+      let total = 0, n = 0, pts = 0; for(let t=1;t<=3;t++) if(rec["t"+t]){ total += rec["t"+t].ms || 0; pts += rec["t"+t].score || 0; n++; }
       const marks = [1,2,3].map(t=> !rec["t"+t] ? "\u25CB" : rec["t"+t].clean ? "\u25CF" : "\u25D0").join(" ");
       const line = q1.kind === "quote" ? "\u201C" + blankedLine(q1) + "\u201D\n\u2014 " + q1.author : blankedLine(q1);
-      return "Verbatim \u00B7 " + head + "\n" + marks + "  " + n + " of 3 set in " + fmtTime(Math.round(total/1000)) +
+      return "Verbatim \u00B7 " + head + "\n" + marks + "  " + n + " of 3 set in " + fmtTime(Math.round(total/1000)) + (pts ? " \u00B7 " + pts.toLocaleString() + " pts" : "") +
         "\n\n" + line + "\n\n" + (state.pack ? "Fill the blank, then two harder puzzles follow." : "Fill the blank, then two more puzzles are waiting.") + "\n" + currentUrl();
     }
     const { score, elapsedSec } = computeScore();
@@ -4247,6 +4363,7 @@ if(typeof module !== "undefined" && module.exports){
   function showHome(){
     try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:nav", { to: "home" }); }catch(e){}
     $("archive").classList.remove("show"); $("passport").classList.remove("show"); $("packView").classList.remove("show");
+    pauseClock(Date.now(), "away");
     renderHome();
     $("home").classList.add("show");
   }
@@ -4476,6 +4593,12 @@ if(typeof module !== "undefined" && module.exports){
     if(state && state.phase === "scramble") renderScramble();
     if(state && state.phase === "wordle") renderWordle();
   });
+  $("pauseCover").addEventListener("click", ()=>{ lastInputAt = Date.now(); if(gameOnScreen()) resumeClock(); });
+  ["goEasy","goNorm"].forEach(id=> $(id).addEventListener("click", ()=>{
+    const m = id === "goEasy" ? "easy" : "normal";
+    setMode(m);
+    try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:settings", { mode: m, context: "retry" }); }catch(e){}
+  }));
   $("retryBtn").addEventListener("click", ()=>{
     if(!lastInit) return;
     try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:retry", { attempts_done: attemptCarry.tries || 1 }); }catch(e){}
