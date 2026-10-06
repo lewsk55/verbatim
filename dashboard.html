@@ -28,6 +28,7 @@
     --pulse:#12A999;
     --s1:#3056CD; --s2:#12A999; --s3:#AD8604; --s4:#B94834;   /* validated series */
     --feed-bg:#F3EFE4;
+    --q0:#C9CCD9; --q1:#A9B8EE; --q2:#6A84DE; --q3:#2638C4;   /* trio completion: 0/3 to 3/3 */
     --ui:Arial,"Helvetica Neue",Helvetica,sans-serif;
     --serif:"Fraunces",Georgia,"Times New Roman",serif;
   }
@@ -37,6 +38,7 @@
       --ink:#EAEDF9; --ink-soft:#A9B0CE; --ink-faint:#6B7398;
       --accent:#8B9BF2; --accent-ink:#0D1330; --pulse:#3FC2BA;
       --feed-bg:#101736;
+      --q0:#3A3F5C; --q1:#34407A; --q2:#5C70D6; --q3:#A3B1F7;
       color-scheme: dark;
     }
   }
@@ -45,8 +47,23 @@
     --ink:#EAEDF9; --ink-soft:#A9B0CE; --ink-faint:#6B7398;
     --accent:#8B9BF2; --accent-ink:#0D1330; --pulse:#3FC2BA;
     --feed-bg:#101736;
+    --q0:#3A3F5C; --q1:#34407A; --q2:#5C70D6; --q3:#A3B1F7;
     color-scheme: dark;
   }
+  /* daily trio summary */
+  #trio td{ vertical-align:middle; }
+  #trio th{ vertical-align:bottom; line-height:1.3; }
+  #trio th small{ display:block; text-transform:none; letter-spacing:0; font-size:10px; color:var(--ink-faint); }
+  #trio th.num, #trio td.num{ padding-left:14px; }
+  #trio td.pz{ white-space:normal; min-width:130px; max-width:200px; line-height:1.35; cursor:help; }
+  #trio .cbar{ display:flex; gap:2px; width:96px; height:10px; border-radius:3px; overflow:hidden; background:var(--card); }
+  #trio .cbar span{ display:block; height:100%; }
+  #trio .cwrap{ display:flex; flex-direction:column; gap:3px; cursor:help; }
+  #trio .clab{ font-size:11px; color:var(--ink-soft); }
+  #trio .clab b{ color:var(--ink); }
+  #trio tr.quiet td{ color:var(--ink-faint); }
+  .trio-key{ display:flex; gap:12px; flex-wrap:wrap; font-size:11px; color:var(--ink-soft); margin:-4px 0 10px; }
+  .trio-key .sw{ display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:4px; vertical-align:-1px; }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
   body{
@@ -125,7 +142,7 @@
   .badge{ display:inline-block; font-size:10px; letter-spacing:.06em; text-transform:uppercase; background:var(--feed-bg); border:1px solid var(--edge); color:var(--ink-soft); border-radius:999px; padding:2px 8px; vertical-align:2px; margin-left:6px; }
 
   /* tooltip */
-  #tip{ position:fixed; pointer-events:none; background:var(--ink); color:var(--bg); font-size:11.5px; line-height:1.5; padding:6px 10px; border-radius:6px; z-index:50; font-variant-numeric:tabular-nums; max-width:340px; }
+  #tip{ white-space:pre-line; position:fixed; pointer-events:none; background:var(--ink); color:var(--bg); font-size:11.5px; line-height:1.5; padding:6px 10px; border-radius:6px; z-index:50; font-variant-numeric:tabular-nums; max-width:340px; }
   #tip[hidden]{ display:none; }
 
   footer{ margin-top:26px; font-size:11px; color:var(--ink-faint); line-height:1.6; }
@@ -182,6 +199,14 @@
       <p class="sub">Plays (bars) and unique players (line), last 14 days, player-local days</p>
       <div class="legend"><span><span class="sw" style="background:var(--s1)"></span>Plays</span><span><span class="sw" style="background:var(--s2)"></span>Players</span></div>
       <div id="daily" class="chart"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Daily trio<span class="badge">last 14 days</span></h2>
+      <p class="sub">One row per day. Completion, time and score count players who played that day's three puzzles on that day (archive plays are in the Puzzles table). Hover a puzzle for its quotes, or a bar for the breakdown.</p>
+      <div class="trio-key"><span><span class="sw" style="background:var(--q3)"></span>3/3</span><span><span class="sw" style="background:var(--q2)"></span>2/3</span><span><span class="sw" style="background:var(--q1)"></span>1/3</span><span><span class="sw" style="background:var(--q0)"></span>0/3 (started, none solved)</span></div>
+      <div class="tablewrap"><table id="trio"></table></div>
+      <p class="note">Time and score are per player, summed across all three puzzles whether or not the trio was finished; unsolved puzzles add time but no score. Time on unsolved puzzles is estimated from in-game activity (pauses over 2 minutes don't count). Returning, New and Shares count everyone active that day.</p>
     </section>
 
     <section class="panel">
@@ -266,6 +291,7 @@ const ago = ts => { const s=Math.max(0,Math.round((Date.now()-new Date(ts))/1000
 /* ---------------- quote lookup: pulled from the game build itself (same origin), so
    tooltips always match the live content without duplicating 379 quotes here ------- */
 let QUOTE_MAP = null;
+let SETS = null;   // DAILY_SETS from the game build: { d, theme, items:[{t,a,s,k}] }
 async function loadQuotes(){
   for(const src of ["index.html", "verbatim_v0_7a.html"]){
     try{
@@ -275,7 +301,9 @@ async function loadQuotes(){
       const i = t.indexOf("const QUOTES = [");
       const j = t.indexOf("/* -------- Seeded PRNG", i);   // marker after the pack-content pushes
       if(i < 0 || j < 0) continue;
-      const arr = new Function(t.slice(i, j) + "\nreturn QUOTES;")();   // main bank + all pack facts/quotes
+      const res = new Function(t.slice(i, j) + "\nreturn { Q: QUOTES, S: (typeof DAILY_SETS !== \"undefined\" ? DAILY_SETS : []) };")();
+      const arr = res.Q;   // main bank + all pack facts/quotes
+      SETS = res.S || [];
       QUOTE_MAP = {};
       arr.forEach(q => { if(q && q.id) QUOTE_MAP[q.id] = q; });
       dirty = true; renderAll();   // repaint the puzzles table now that text is known
@@ -537,6 +565,110 @@ function renderPuzzles(S){
   });
 }
 
+/* ---------------- daily trio summary ---------------- */
+function fmtDur(ms){
+  if(ms == null || isNaN(ms)) return "–";
+  const s = Math.round(ms / 1000);
+  if(s >= 3600) return Math.floor(s/3600) + "h " + String(Math.floor((s%3600)/60)).padStart(2,"0") + "m";
+  return Math.floor(s/60) + ":" + String(s%60).padStart(2,"0");
+}
+function renderTrios(){
+  const el = $("trio");
+  const todayLocal = localDay(new Date().toISOString(), -new Date().getTimezoneOffset());
+  const median = a => { if(!a.length) return null; const s=[...a].sort((x,y)=>x-y); const m=Math.floor(s.length/2); return s.length%2 ? s[m] : (s[m-1]+s[m])/2; };
+
+  // pass 1: runs of daily-set puzzles, plus per-day activity for new/returning/shares
+  const runs = {};                       // run_id -> {player, set, tier, startDay, ts[], solved, score, ms, failMs}
+  const firstDay = {}, dayPlayers = {}, dayShares = {};
+  for(const e of rows){
+    const d = localDay(e.event_ts, e.tz_offset);
+    if(!(e.player_id in firstDay) || d < firstDay[e.player_id]) firstDay[e.player_id] = d;
+    (dayPlayers[d] = dayPlayers[d] || new Set()).add(e.player_id);
+    if(e.event_name === "share") dayShares[d] = (dayShares[d] || 0) + 1;
+    const p = e.payload || {};
+    if(e.event_name === "game_start" && e.run_id && p.set_tier && p.daily_id){
+      runs[e.run_id] = { player:e.player_id, set:p.daily_id, tier:p.set_tier, startDay:d, ts:[Date.parse(e.event_ts)], solved:false, score:0, ms:null, failMs:0 };
+      continue;
+    }
+    const r = e.run_id && runs[e.run_id];
+    if(!r) continue;
+    r.ts.push(Date.parse(e.event_ts));
+    if(e.event_name === "game_complete"){ r.solved = true; r.score = p.score || 0; r.ms = p.duration_ms; }
+    if(e.event_name === "level_fail" && p.duration_ms) r.failMs = Math.max(r.failMs, p.duration_ms);
+  }
+
+  // pass 2: fold runs into player x trio (same-day plays only)
+  const trio = {};                       // set date -> player -> {t:{1:{solved,score}}, ms}
+  Object.values(runs).forEach(r => {
+    if(r.startDay !== r.set) return;     // archive plays live in the Puzzles table
+    let ms = r.ms;
+    if(ms == null){                      // unsolved: active time from in-run event gaps, idle over 2 min dropped
+      let act = 0; for(let i=1;i<r.ts.length;i++) act += Math.min(120000, Math.max(0, r.ts[i]-r.ts[i-1]));
+      ms = Math.max(act, r.failMs);
+    }
+    const byP = (trio[r.set] = trio[r.set] || {});
+    const pp = (byP[r.player] = byP[r.player] || { t:{}, ms:0 });
+    pp.ms += ms;
+    const t = (pp.t[r.tier] = pp.t[r.tier] || { solved:false, score:0 });
+    if(r.solved){ t.solved = true; t.score = Math.max(t.score, r.score); }   // best per puzzle, as the game scores a set
+  });
+
+  // which days to show: the game's own set calendar up to today, else whatever the data has
+  let days = (SETS && SETS.length) ? SETS.map(s => s.d) : Object.keys(trio);
+  days = [...new Set(days)].filter(d => d <= todayLocal).sort().reverse().slice(0, 14);
+  const setOf = d => (SETS || []).find(s => s.d === d);
+
+  if(!days.length){ el.innerHTML = '<tr><td class="empty">No daily trios yet.</td></tr>'; return; }
+  const head = "<thead><tr><th>Date</th><th>Puzzle</th><th>Completed</th><th class='num'>Time<small>median / player</small></th><th class='num'>Score<small>median / player</small></th><th class='num'>Returning<small>players</small></th><th class='num'>New<small>players</small></th><th class='num'>Shares</th></tr></thead>";
+  const tips = [];
+  const body = days.map((d, i) => {
+    const ps = Object.values(trio[d] || {});
+    const dist = [0,0,0,0];
+    const times = [], scores = [];
+    ps.forEach(pp => {
+      const solved = [1,2,3].filter(k => pp.t[k] && pp.t[k].solved).length;
+      dist[solved]++;
+      times.push(pp.ms);
+      scores.push([1,2,3].reduce((s,k) => s + (pp.t[k] ? pp.t[k].score : 0), 0));
+    });
+    const n = ps.length;
+    const active = dayPlayers[d] ? [...dayPlayers[d]] : [];
+    const nNew = active.filter(p => firstDay[p] === d).length;
+    const nRet = active.length - nNew;
+    const set = setOf(d);
+    const dt = new Date(d + "T12:00:00");
+    const dateTxt = dt.toLocaleDateString(undefined, { weekday:"short", month:"short", day:"numeric" });
+    const theme = set ? set.theme : (SETS ? "No set scheduled" : "Loading…");
+
+    // tooltips: the three quotes; the completion breakdown
+    tips[i] = {
+      pz: set ? set.items.map((it, k) => (k+1) + ". “" + it.t + "” — " + it.a).join("\n\n") : theme,
+      cp: n ? `${n} player${n>1?"s":""} started this trio\n3/3: ${dist[3]} · 2/3: ${dist[2]} · 1/3: ${dist[1]} · 0/3: ${dist[0]}` : "Nobody played this trio on its day",
+      tm: n ? `Median ${fmtDur(median(times))} per player · all players combined ${fmtDur(times.reduce((a,b)=>a+b,0))}` : "",
+      sc: n ? `Median ${Math.round(median(scores)).toLocaleString()} · best ${Math.max(...scores).toLocaleString()} · all players combined ${scores.reduce((a,b)=>a+b,0).toLocaleString()}` : ""
+    };
+    const seg = k => n && dist[k] ? `<span style="flex:${dist[k]};background:var(--q${k})"></span>` : "";
+    const comp = n
+      ? `<div class="cwrap" data-tip="cp"><div class="cbar">${seg(3)}${seg(2)}${seg(1)}${seg(0)}</div><div class="clab"><b>${fmtPct(dist[3], n)}</b> 3/3 · ${n} played</div></div>`
+      : "–";
+    const medScore = n ? Math.round(median(scores)).toLocaleString() : "–";
+    return `<tr data-i="${i}"${n ? "" : ' class="quiet"'}><td>${esc(dateTxt)}</td>`
+      + `<td class="pz" data-tip="pz">${esc(theme)}</td>`
+      + `<td>${comp}</td>`
+      + `<td class="num" data-tip="tm">${n ? fmtDur(median(times)) : "–"}</td>`
+      + `<td class="num" data-tip="sc">${medScore}</td>`
+      + `<td class="num">${nRet}</td><td class="num">${nNew}</td><td class="num">${dayShares[d] || 0}</td></tr>`;
+  }).join("");
+  el.innerHTML = head + "<tbody>" + body + "</tbody>";
+  el.querySelectorAll("tbody tr[data-i]").forEach(tr => {
+    const t = tips[+tr.dataset.i];
+    tr.querySelectorAll("[data-tip]").forEach(c => {
+      const txt = t[c.dataset.tip];
+      if(txt){ c.setAttribute("title", txt); tipOn(c, txt); }
+    });
+  });
+}
+
 function renderRetention(S){
   const days = Object.keys(S.cohorts).sort().slice(-10);
   $("retention").innerHTML = !days.length ? '<tr><td class="empty">No players yet.</td></tr>' :
@@ -589,7 +721,7 @@ function renderAll(){
   dirty = false;
   const S = summarize();
   renderTiles(S); renderDaily(S); renderFunnel(S); renderSolving(S);
-  renderDevices(S); renderPuzzles(S); renderRetention(S);
+  renderDevices(S); renderPuzzles(S); renderRetention(S); renderTrios();
   $("meta").textContent = ENV === "dev" ? "Showing dev/test rows (excluded from all playtest reporting)." : "";
   $("fetchMeta").textContent = ` ${rows.length.toLocaleString()} events loaded · updated ${new Date().toLocaleTimeString()}.`;
 }
