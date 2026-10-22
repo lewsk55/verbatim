@@ -155,6 +155,21 @@
   .gate-card p{ font-size:13px; color:var(--ink-soft); margin:4px 0 14px; }
   .gate-card input{ width:100%; font:inherit; font-size:15px; padding:9px 11px; border:1px solid var(--edge); border-radius:8px; background:var(--bg); color:var(--ink); }
   .gate-card button{ margin-top:10px; width:100%; font:inherit; font-size:14px; font-weight:bold; padding:10px; border:0; border-radius:8px; background:var(--pbs-blue); color:#fff; cursor:pointer; }
+  /* ratings */
+  .rsum{ display:flex; gap:16px; flex-wrap:wrap; margin:0 0 12px; font-size:12.5px; color:var(--ink-soft); }
+  .rsum b{ font-family:var(--serif); font-size:20px; font-weight:600; color:var(--ink); margin-right:4px; font-variant-numeric:tabular-nums; }
+  .rsplit{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:18px; margin-bottom:12px; }
+  .rbar{ display:flex; height:10px; border-radius:3px; overflow:hidden; background:var(--feed-bg); min-width:60px; }
+  .rbar span{ display:block; height:100%; }
+  #ratings td.pz{ white-space:normal; min-width:180px; max-width:300px; line-height:1.35; cursor:help; }
+  #ratings td.pz small{ display:block; color:var(--ink-faint); font-size:10.5px; }
+  .ratewrap{ max-height:440px; overflow:auto; }
+  #comments{ display:flex; flex-direction:column; gap:8px; max-height:460px; overflow-y:auto; }
+  .cm{ background:var(--feed-bg); border-radius:8px; padding:9px 11px; font-size:13px; line-height:1.45; }
+  .cm .ct{ color:var(--ink); white-space:pre-wrap; overflow-wrap:anywhere; }
+  .cm .cmeta{ font-size:11px; color:var(--ink-faint); margin-top:4px; cursor:help; }
+  .rk{ display:inline-block; font-size:10px; letter-spacing:.05em; text-transform:uppercase; border-radius:999px; padding:1px 7px; margin-right:6px; vertical-align:1px; color:#fff; }
+  .rk.love{ background:var(--s4); } .rk.up{ background:var(--s1); } .rk.down{ background:#6B7090; } .rk.none{ background:var(--ink-faint); }
   .gate-card .err{ color:#B94834; font-size:12px; min-height:16px; margin-top:8px; }
 </style>
 </head>
@@ -229,6 +244,24 @@
       <h2>Puzzles</h2>
       <p class="sub">Per daily and bonus-pack puzzle, all playtest data, most-played first</p>
       <div class="tablewrap"><table id="puzzles"></table></div>
+    </section>
+
+    <section class="panel">
+      <h2>Player ratings<span class="badge">all time</span></h2>
+      <p class="sub">Each player's current rating per puzzle: love, thumbs up or thumbs down (changing or clearing a rating replaces it). Hearts from builds before v0.6f count as loves. Hover a puzzle for its full text.</p>
+      <div class="rsum" id="rsum"></div>
+      <div class="rsplit">
+        <div><div class="kicker" style="margin-bottom:6px">Rating mix by tier</div><div id="rtier"></div></div>
+        <div><div class="kicker" style="margin-bottom:6px">Rating mix by content</div><div id="rkind"></div></div>
+      </div>
+      <div class="legend"><span><span class="sw" style="background:var(--s4)"></span>Love</span><span><span class="sw" style="background:var(--s1)"></span>Thumbs up</span><span><span class="sw" style="background:#6B7090"></span>Thumbs down</span></div>
+      <div class="tablewrap ratewrap"><table id="ratings"></table></div>
+    </section>
+
+    <section class="panel">
+      <h2>Player comments<span class="badge" id="cmCount">0</span></h2>
+      <p class="sub">Optional notes players leave after rating, newest first. Free text from the public: read before quoting it anywhere.</p>
+      <div id="comments"></div>
     </section>
 
     <section class="panel">
@@ -405,7 +438,7 @@ function summarize(){
       if(e.event_name === "share") f7.shares++;
       if(n === "verbatim:retry") f7.retries++;
       if(n === "verbatim:pbs_link_tap") f7.taps++;
-      if(n === "verbatim:heart") f7.hearts++;
+      if((n === "verbatim:heart" && e.payload && e.payload.on) || (n === "verbatim:rate" && e.payload && e.payload.rating === "love")) f7.hearts++;
     }
     if(e.event_name === "game_complete"){
       const m = e.payload && e.payload.mode || "unknown";
@@ -518,7 +551,7 @@ function renderFunnel(S){
     hbar("Quit", f.quits, f.starts, SERIES.s4, `${f.quits} · ${fmtPct(f.quits, f.starts)}`) +
     hbar("Open / no terminal", open, f.starts, "var(--ink-faint)", String(open)) +
     hbar("Failed attempts", f.fails, Math.max(f.starts, f.fails), SERIES.s3, `${f.fails} · ${f.retries} retried`);
-  $("funnelNote").textContent = `Also in this window: ${f.shares} shares, ${f.hearts} hearts, ${f.taps} PBS link taps.`;
+  $("funnelNote").textContent = `Also in this window: ${f.shares} shares, ${f.hearts} loves, ${f.taps} PBS link taps.`;
 }
 
 function renderSolving(S){
@@ -680,6 +713,83 @@ function renderRetention(S){
     }).join("") + "</tbody>";
 }
 
+/* ---------------- ratings + comments (v0.6f) ---------------- */
+const RLABEL = { love:"Love", up:"Thumbs up", down:"Thumbs down" };
+const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function puzzleLabel(qid){
+  const q = QUOTE_MAP && qid ? QUOTE_MAP[qid] : null;
+  if(!q) return qid || "?";
+  if(q.setDate){ const [y,m,d] = q.setDate.split("-"); return MON[+m-1] + " " + (+d) + " · T" + q.tier; }
+  if(q.packSet) return (q.packId === "world" ? "World History" : q.packId === "science" ? "Science" : q.packId) + ": " + q.label + " · T" + q.tier;
+  if(q.label) return "Pack: " + q.label;
+  return "Classic " + qid;
+}
+function quoteText(qid){
+  const q = QUOTE_MAP && qid ? QUOTE_MAP[qid] : null;
+  return q ? "“" + q.text + "”" + (q.author ? " — " + q.author : "") + (q.src ? "\n" + q.src : "") : (qid ? "quote id " + qid + " (text loads from the game build)" : "");
+}
+function ratingsAgg(){
+  const cur = {};               // player|qid -> rating
+  const comments = [];
+  for(const e of rows){
+    const n = evName(e), p = e.payload || {};
+    if(!p.quote_id) continue;
+    const k = e.player_id + "|" + p.quote_id;
+    if(n === "verbatim:heart"){ if(p.on) cur[k] = "love"; else if(cur[k] === "love") delete cur[k]; }
+    else if(n === "verbatim:rate"){ if(p.rating) cur[k] = p.rating; else delete cur[k]; }
+    else if(n === "verbatim:comment" && p.text){ comments.push({ e, p }); }
+  }
+  const byQ = {}, players = new Set(), tot = { love:0, up:0, down:0 };
+  const byTier = {}, byKind = {};
+  Object.entries(cur).forEach(([k, r]) => {
+    const [pl, qid] = k.split("|");
+    players.add(pl); tot[r]++;
+    const o = (byQ[qid] = byQ[qid] || { qid, love:0, up:0, down:0, cm:0 }); o[r]++;
+    const q = QUOTE_MAP && QUOTE_MAP[qid];
+    const tier = q && q.tier ? "Tier " + q.tier : "Single puzzle";
+    const kind = q && q.kind === "fact" ? "Facts" : "Quotes";
+    (byTier[tier] = byTier[tier] || { love:0, up:0, down:0 })[r]++;
+    (byKind[kind] = byKind[kind] || { love:0, up:0, down:0 })[r]++;
+  });
+  comments.forEach(c => { const o = (byQ[c.p.quote_id] = byQ[c.p.quote_id] || { qid:c.p.quote_id, love:0, up:0, down:0, cm:0 }); o.cm++; });
+  return { byQ, players, tot, byTier, byKind, comments };
+}
+function mixRows(obj, order){
+  const keys = order.filter(k => obj[k]).concat(Object.keys(obj).filter(k => !order.includes(k)));
+  if(!keys.length) return '<div class="empty">No ratings yet.</div>';
+  return keys.map(k => {
+    const o = obj[k], n = o.love + o.up + o.down;
+    const w = x => (100 * x / n).toFixed(1) + "%";
+    const t = `${k}: ${o.love} love · ${o.up} up · ${o.down} down (${n} ratings)`;
+    return `<div class="hrow" title="${esc(t)}"><span class="hl">${esc(k)}</span><span class="rbar"><span style="width:${w(o.love)};background:var(--s4)"></span><span style="width:${w(o.up)};background:var(--s1)"></span><span style="width:${w(o.down)};background:#6B7090"></span></span><span class="hv">${o.love} · ${o.up} · ${o.down}</span></div>`;
+  }).join("");
+}
+function renderRatings(){
+  const A = ratingsAgg();
+  $("rsum").innerHTML = `<span><b>${A.tot.love}</b>loves</span><span><b>${A.tot.up}</b>thumbs up</span><span><b>${A.tot.down}</b>thumbs down</span><span><b>${A.comments.length}</b>comments</span><span><b>${A.players.size}</b>players rating</span>`;
+  $("rtier").innerHTML = mixRows(A.byTier, ["Tier 1","Tier 2","Tier 3","Single puzzle"]);
+  $("rkind").innerHTML = mixRows(A.byKind, ["Quotes","Facts"]);
+  const list = Object.values(A.byQ).sort((a,b) => (b.love-a.love) || (b.up-a.up) || (a.down-b.down) || (b.cm-a.cm));
+  const tbl = $("ratings");
+  tbl.innerHTML = !list.length ? '<tr><td class="empty">No ratings yet. They appear here as players rate puzzles.</td></tr>' :
+    "<thead><tr><th>Puzzle</th><th class='num'>Love</th><th class='num'>Up</th><th class='num'>Down</th><th class='num'>Net</th><th class='num'>Comments</th></tr></thead><tbody>" +
+    list.map((o, i) => {
+      const q = QUOTE_MAP && QUOTE_MAP[o.qid];
+      const snip = q ? (q.author || "") + (q.text ? " · " + q.text.slice(0, 48) + (q.text.length > 48 ? "…" : "") : "") : "";
+      return `<tr data-i="${i}"><td class="pz">${esc(puzzleLabel(o.qid))}<small>${esc(snip)}</small></td><td class="num">${o.love}</td><td class="num">${o.up}</td><td class="num">${o.down}</td><td class="num">${o.love + o.up - o.down}</td><td class="num">${o.cm}</td></tr>`;
+    }).join("") + "</tbody>";
+  tbl.querySelectorAll("tbody tr[data-i]").forEach(tr => tipOn(tr.querySelector("td.pz"), quoteText(list[+tr.dataset.i].qid)));
+  $("cmCount").textContent = A.comments.length;
+  const cms = A.comments.slice().reverse().slice(0, 100);
+  $("comments").innerHTML = !cms.length ? '<div class="empty">No comments yet. Players can add one after rating a puzzle.</div>' :
+    cms.map((c, i) => {
+      const r = c.p.rating || "none";
+      return `<div class="cm"><div class="ct"><span class="rk ${esc(r)}">${esc(RLABEL[r] || "No rating")}</span>${esc(c.p.text)}</div><div class="cmeta" data-i="${i}">${esc(puzzleLabel(c.p.quote_id))} · ${esc(c.e.device_type || "")} · ${esc(ago(c.e.event_ts))}</div></div>`;
+    }).join("");
+  $("comments").querySelectorAll(".cmeta").forEach(el => tipOn(el, quoteText(cms[+el.dataset.i].p.quote_id)));
+}
+
+
 /* live feed */
 const FRIENDLY = {
   session_start:"Session started", session_end:"Session ended", heartbeat:"Heartbeat",
@@ -687,7 +797,7 @@ const FRIENDLY = {
   level_fail:"Out of mistakes", game_complete:"Puzzle solved", game_quit:"Run abandoned",
   share:"Shared result", error:"Error",
   "verbatim:placement":"Word placed", "verbatim:swap":"Words swapped", "verbatim:scramble_swap":"Letters swapped",
-  "verbatim:guess":"Mystery guess", "verbatim:retry":"Retry", "verbatim:heart":"Loved the quote",
+  "verbatim:guess":"Mystery guess", "verbatim:retry":"Retry", "verbatim:heart":"Loved the quote", "verbatim:rate":"Rated puzzle", "verbatim:comment":"Left a comment",
   "verbatim:pbs_link_tap":"Tapped PBS link", "verbatim:nav":"Navigated", "verbatim:settings":"Settings changed",
   "verbatim:passport":"Passport pitch", "verbatim:resume":"Resumed run"
 };
@@ -702,6 +812,9 @@ function evDetail(e){
   if(n === "verbatim:nav") return "to " + (p.to||"") + (p.pack_id ? ":" + p.pack_id : "");
   if(n === "verbatim:settings") return p.mode ? "mode: "+p.mode : (p.muted!=null ? (p.muted?"muted":"unmuted") : (p.wipe?"wiped progress":""));
   if(n === "verbatim:passport") return p.step || "";
+  if(n === "verbatim:rate") return (p.rating ? RLABEL[p.rating] : "cleared rating") + " · " + puzzleLabel(p.quote_id);
+  if(n === "verbatim:comment") return "“" + String(p.text||"").slice(0,70) + (String(p.text||"").length>70?"…":"") + "”";
+  if(n === "verbatim:heart") return (p.on ? "on" : "off") + " · " + puzzleLabel(p.quote_id);
   if(e.event_name === "session_start") return (p.entry_source||"") + (p.is_first_session ? " · new player" : "");
   return "";
 }
@@ -721,7 +834,7 @@ function renderAll(){
   dirty = false;
   const S = summarize();
   renderTiles(S); renderDaily(S); renderFunnel(S); renderSolving(S);
-  renderDevices(S); renderPuzzles(S); renderRetention(S); renderTrios();
+  renderDevices(S); renderPuzzles(S); renderRetention(S); renderTrios(); renderRatings();
   $("meta").textContent = ENV === "dev" ? "Showing dev/test rows (excluded from all playtest reporting)." : "";
   $("fetchMeta").textContent = ` ${rows.length.toLocaleString()} events loaded · updated ${new Date().toLocaleTimeString()}.`;
 }

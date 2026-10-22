@@ -527,6 +527,31 @@
   }
   .mystery-line{ font-size:.8rem; color:var(--ink-soft); margin-top:8px; }
 
+  /* v0.6f ratings: love / thumbs up / thumbs down, then an optional comment */
+  .rate-wrap{ display:flex; flex-direction:column; align-items:center; margin:16px 0 20px; }
+  .rate-q{ font-family:var(--ui); font-size:.72rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft); margin:0 0 8px; }
+  .rate-row{ display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
+  .rate-row .heart-wrap{ margin:0; }
+  .rate-btn .rate-svg{ width:17px; height:17px; display:block; fill:none; stroke:#B5BACD; stroke-width:2; stroke-linejoin:round; stroke-linecap:round; transition:stroke .15s ease, fill .15s ease; }
+  .rate-btn.up:hover{ border-color:var(--pbs-blue); }
+  .rate-btn.down:hover{ border-color:#6B7090; }
+  .rate-btn.up.on{ border-color:var(--pbs-blue); color:var(--pbs-blue); box-shadow:0 3px 12px rgba(38,56,196,.16); }
+  .rate-btn.up.on .rate-svg{ stroke:var(--pbs-blue); fill:rgba(38,56,196,.14); }
+  .rate-btn.down.on{ border-color:#6B7090; color:#4A4F6A; box-shadow:0 3px 12px rgba(40,44,70,.14); }
+  .rate-btn.down.on .rate-svg{ stroke:#4A4F6A; fill:rgba(40,44,70,.10); }
+  .rate-btn.wobble .rate-svg{ animation:heartWobble .6s cubic-bezier(.2,.7,.2,1); }
+  .rate-comment{ width:100%; max-width:420px; margin-top:12px; text-align:left; }
+  .rate-comment label{ display:block; font-family:var(--ui); font-size:.78rem; font-weight:700; color:var(--navy); margin-bottom:6px; }
+  .rate-comment textarea{ width:100%; box-sizing:border-box; resize:vertical; min-height:58px; padding:10px 12px; border-radius:12px;
+    border:1px solid var(--paper-edge); background:#fff; color:var(--ink); font-family:var(--ui); font-size:16px; line-height:1.4; }
+  .rate-comment textarea:focus{ outline:3px solid var(--pbs-blue); outline-offset:1px; border-color:transparent; }
+  .rate-cfoot{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:6px; }
+  .rate-priv{ font-size:.7rem; color:var(--ink-soft); line-height:1.3; }
+  .rate-send{ flex:none; padding:8px 16px; border-radius:999px; border:0; background:var(--pbs-blue); color:#fff; font-family:var(--ui); font-weight:700; font-size:.8rem; cursor:pointer; }
+  .rate-send:disabled{ opacity:.45; cursor:default; }
+  .rate-thanks{ margin:10px 0 0; font-size:.8rem; color:var(--ink-soft); }
+  @media (prefers-reduced-motion:reduce){ .rate-btn.wobble .rate-svg{ animation:none; } }
+
   /* PBS content links at the bottom of the reveal (mirrors Animystery) */
   .pbs-links{ margin-top:22px; text-align:left; }
   .pbs-links h4{
@@ -1116,11 +1141,31 @@
       <div class="time-line" id="timeLine"></div>
       <div class="score-line" id="scoreLine"></div>
       <div class="mystery-line" id="mysteryLine"></div>
-      <div class="heart-wrap">
-        <button class="heart-btn" id="heartBtn" type="button" aria-pressed="false" aria-label="Love this quote">
-          <span class="heart-ico" aria-hidden="true">&#9829;</span>
-          <span class="heart-label">Love this quote</span>
-        </button>
+      <div class="rate-wrap" id="rateWrap">
+        <p class="rate-q" id="rateQ">Rate this quote</p>
+        <div class="rate-row" role="group" aria-label="Rate this puzzle">
+          <div class="heart-wrap">
+            <button class="heart-btn rate-btn love" id="heartBtn" data-r="love" type="button" aria-pressed="false" aria-label="Love it">
+              <span class="heart-ico" aria-hidden="true">&#9829;</span>
+              <span class="heart-label">Love it</span>
+            </button>
+          </div>
+          <button class="heart-btn rate-btn up" id="rateUp" data-r="up" type="button" aria-pressed="false" aria-label="Thumbs up">
+            <svg class="rate-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10v11H3.5V10H7zm0 0l4-7.5c1.6 0 2.6 1.2 2.3 2.8L12.6 9H19c1.3 0 2.2 1.2 1.9 2.4l-1.8 7.4c-.2.9-1 1.5-1.9 1.5H7"/></svg><span>Like</span>
+          </button>
+          <button class="heart-btn rate-btn down" id="rateDown" data-r="down" type="button" aria-pressed="false" aria-label="Thumbs down">
+            <svg class="rate-svg" viewBox="0 0 24 24" aria-hidden="true" style="transform:rotate(180deg)"><path d="M7 10v11H3.5V10H7zm0 0l4-7.5c1.6 0 2.6 1.2 2.3 2.8L12.6 9H19c1.3 0 2.2 1.2 1.9 2.4l-1.8 7.4c-.2.9-1 1.5-1.9 1.5H7"/></svg><span>Not for me</span>
+          </button>
+        </div>
+        <div class="rate-comment" id="rateComment" hidden>
+          <label for="rateText" id="rateTextLab">Want to tell us why? (optional)</label>
+          <textarea id="rateText" maxlength="500" rows="2" placeholder="A sentence or two helps us pick better puzzles"></textarea>
+          <div class="rate-cfoot">
+            <span class="rate-priv">Anonymous. Please don't include your name or contact info.</span>
+            <button class="rate-send" id="rateSend" type="button" disabled>Send</button>
+          </div>
+        </div>
+        <p class="rate-thanks" id="rateThanks" hidden>Thanks! The PBS Games team reads every note.</p>
       </div>
       <div class="controls">
         <button class="btn btn-primary" id="nextBtn" type="button" hidden>Next puzzle</button>
@@ -1572,7 +1617,7 @@ QUOTES.push(
   {id:"pt30", label:"Antoine de Saint-Exupéry", text:"If you want to build a ship, do not drum up people to collect wood, but rather teach them to long for the endless immensity of the sea.", author:"Antoine de Saint-Exupéry", src:"attributed"}
 );
 
-/* ---- Daily sets: three linked puzzles a day, Sept 27 – Oct 31, 2026 (v0.6a) ----
+/* ---- Daily sets: three linked puzzles a day, Sept 27 – Nov 30, 2026 (v0.6a; all-quote dailies from Oct 23, v0.6f) ----
    Tier 1: short warm-up, pure assembly (no mystery word). Its `b` word is the blank on the share card.
    Tier 2: mystery word returns (`m`).  Tier 3: longest, fewest anchors, mystery word + definition clue (`c`).
    Every quote was checked against a primary text (Project Gutenberg / MIT Shakespeare) or the sourced
@@ -1760,12 +1805,12 @@ const DAILY_SETS = [
     {k:"fact", a:"Science", s:"Andr\u00E9-Jacques Garnerin", t:"His silk parachute was the first to fly without a rigid frame.", m:"rigid"},
     {k:"fact", a:"Science", s:"Andr\u00E9-Jacques Garnerin", t:"The parachute swung violently on the way down and scraped along the ground when he landed, but Garnerin walked away uninjured.", m:"scraped", c:"Rubbed roughly against a surface"}
  ]},
- { d:"2026-10-23", shape:"facts", theme:"Happy Mole Day",
-   note:"Mole Day runs from 6:02 a.m. to 6:02 p.m. on October 23, a nod to Avogadro's number, about 6.02 \u00D7 10\u00B2\u00B3.",
+ { d:"2026-10-23", shape:"one", theme:"Michael Faraday lights a candle",
+   note:"October 23 is Mole Day, a chemistry holiday named for Avogadro's number, about 6.02 × 10²³. Michael Faraday gave these lectures to young people at London's Royal Institution, and they were published as a book in 1861.",
    items:[
-    {k:"fact", a:"Science", s:"Mole Day", t:"Chemists celebrate Mole Day on October 23.", b:"Mole"},
-    {k:"fact", a:"Science", s:"Mole (unit)", t:"A mole is a unit for counting atoms or molecules, like a dozen but vastly larger.", m:"counting"},
-    {k:"fact", a:"Science", s:"Mole Day", t:"One mole holds about 602 sextillion particles, which is why the holiday runs from 6:02 in the morning to 6:02 at night.", m:"holiday", c:"A special day of celebration"}
+    {k:"quote", a:"Michael Faraday", s:"The Chemical History of a Candle (1861)", t:"All, however, that is fine and beautiful is not useful.", b:"beautiful"},
+    {k:"quote", a:"Michael Faraday", s:"The Chemical History of a Candle (1861)", t:"Water is the same everywhere, whether produced from the ocean or from the flame of the candle.", m:"ocean"},
+    {k:"quote", a:"Michael Faraday", s:"The Chemical History of a Candle (1861)", t:"There is no better, there is no more open door by which you can enter into the study of natural philosophy, than by considering the physical phenomena of a candle.", m:"phenomena", c:"Things that can be observed happening"}
  ]},
  { d:"2026-10-24", shape:"voices", theme:"Three voices for United Nations Day",
    note:"The UN Charter came into force on October 24, 1945. Ralph Bunche and Dag Hammarskj\u00F6ld both served the UN; Bunche won the 1950 Nobel Peace Prize.",
@@ -1781,39 +1826,39 @@ const DAILY_SETS = [
     {k:"quote", a:"William Shakespeare", s:"Henry V, Act 4, Scene 3", t:"We few, we happy few, we band of brothers; For he to-day that sheds his blood with me Shall be my brother;", m:"brothers"},
     {k:"quote", a:"William Shakespeare", s:"Henry V, Act 4, Scene 3", t:"This day is called the feast of Crispian: He that outlives this day, and comes safe home, Will stand a tip-toe when the day is named,", m:"outlives", c:"Lives longer than; survives"}
  ]},
- { d:"2026-10-26", shape:"facts", theme:"The Erie Canal opens",
-   note:"The Erie Canal was completed on October 26, 1825, and the opening was marked by a statewide Grand Celebration.",
+ { d:"2026-10-26", shape:"voices", theme:"Three voices on rivers",
+   note:"The Erie Canal opened on October 26, 1825, linking the Hudson River to Lake Erie. Langston Hughes first published “The Negro Speaks of Rivers” in 1921, when he was still a teenager.",
    items:[
-    {k:"fact", a:"History", s:"Erie Canal", t:"The Erie Canal opened on October 26, 1825.", b:"Canal"},
-    {k:"fact", a:"History", s:"Erie Canal", t:"It ran 363 miles across New York, from Albany on the Hudson to Buffalo on Lake Erie.", m:"Albany"},
-    {k:"fact", a:"History", s:"Erie Canal", t:"Critics had mocked the project as Clinton's Big Ditch, but its tolls repaid the state's construction debt within the first year.", m:"mocked", c:"Made fun of"}
+    {k:"quote", a:"Henry David Thoreau", s:"A Week on the Concord and Merrimack Rivers (1849)", t:"A man's life should be constantly as fresh as this river.", b:"fresh"},
+    {k:"quote", a:"Norman Maclean", s:"A River Runs Through It (1976)", t:"Eventually, all things merge into one, and a river runs through it.", m:"merge"},
+    {k:"quote", a:"Langston Hughes", s:"“The Negro Speaks of Rivers” (1921)", t:"I've known rivers: I've known rivers ancient as the world and older than the flow of human blood in human veins. My soul has grown deep like the rivers.", m:"ancient", c:"Very, very old"}
  ]},
- { d:"2026-10-27", shape:"facts", theme:"New York goes underground",
-   note:"The first line of the Interborough Rapid Transit subway opened on October 27, 1904.",
+ { d:"2026-10-27", shape:"one", theme:"Theodore Roosevelt on work worth doing",
+   note:"Theodore Roosevelt was born in New York City on October 27, 1858. As president he protected about 230 million acres of public land.",
    items:[
-    {k:"fact", a:"History", s:"Interborough Rapid Transit", t:"New York City's first subway line opened on October 27, 1904.", b:"subway"},
-    {k:"fact", a:"History", s:"Interborough Rapid Transit", t:"The first line ran from City Hall in lower Manhattan to 145th Street at Broadway.", m:"lower"},
-    {k:"fact", a:"History", s:"Interborough Rapid Transit", t:"It opened after more than twenty years of public debate over how the city should build its first subway.", m:"debate", c:"A formal argument between sides"}
+    {k:"quote", a:"Theodore Roosevelt", s:"Speech at the Progressive Party convention, Chicago (1912)", t:"There can be no greater issue than that of conservation in this country.", b:"conservation"},
+    {k:"quote", a:"Theodore Roosevelt", s:"Labor Day address, Syracuse (1903)", t:"Far and away the best prize that life offers is the chance to work hard at work worth doing", m:"prize"},
+    {k:"quote", a:"Theodore Roosevelt", s:"Labor Day address, Syracuse (1903)", t:"From the greatest to the smallest, happiness and usefulness are largely found in the same soul, and the joy of life is won in its deepest and truest sense only by those who have not shirked life's burdens.", m:"shirked", c:"Avoided a duty"}
  ]},
- { d:"2026-10-28", shape:"mixed", theme:"Liberty, in metal and in verse",
-   note:"The Statue of Liberty was dedicated on October 28, 1886. Emma Lazarus's sonnet \u201CThe New Colossus\u201D was added on a plaque in 1903.",
+ { d:"2026-10-28", shape:"voices", theme:"Liberty, in metal and in verse",
+   note:"The Statue of Liberty was dedicated on October 28, 1886. Emma Lazarus wrote “The New Colossus” in 1883 to help raise money for the statue's pedestal.",
    items:[
-    {k:"fact", a:"History", s:"Statue of Liberty", t:"The Statue of Liberty was dedicated on October 28, 1886.", b:"Liberty"},
-    {k:"fact", a:"History", s:"Statue of Liberty", t:"It was designed by Fr\u00E9d\u00E9ric Auguste Bartholdi, with a metal framework built by Gustave Eiffel.", m:"designed"},
-    {k:"quote", a:"Emma Lazarus", s:"\u201CThe New Colossus\u201D (1883)", t:"Give me your tired, your poor, Your huddled masses yearning to breathe free, The wretched refuse of your teeming shore.", m:"huddled", c:"Crowded close together"}
+    {k:"quote", a:"Emma Lazarus", s:"“The New Colossus” (1883)", t:"Not like the brazen giant of Greek fame,", b:"giant"},
+    {k:"quote", a:"Grover Cleveland", s:"Statue of Liberty dedication (1886)", t:"We will not forget that Liberty has here made her home, nor shall her chosen altar be neglected.", m:"altar"},
+    {k:"quote", a:"Emma Lazarus", s:"“The New Colossus” (1883)", t:"Give me your tired, your poor, Your huddled masses yearning to breathe free, The wretched refuse of your teeming shore.", m:"huddled", c:"Crowded close together"}
  ]},
- { d:"2026-10-29", shape:"facts", theme:"The internet's first word",
+ { d:"2026-10-29", shape:"voices", theme:"Machines that connect us",
    note:"On October 29, 1969, UCLA student programmer Charley Kline sent the first message over ARPANET, the network that grew into the internet.",
    items:[
-    {k:"fact", a:"Technology", s:"ARPANET", t:"ARPANET sent its first message on October 29, 1969.", b:"message"},
-    {k:"fact", a:"Technology", s:"ARPANET", t:"A student at UCLA tried to log in to a computer at the Stanford Research Institute.", m:"student"},
-    {k:"fact", a:"Technology", s:"ARPANET", t:"He meant to type LOGIN, but the system crashed after two letters, so the first message was simply LO.", m:"crashed", c:"Suddenly stopped working"}
+    {k:"quote", a:"Tim Berners-Lee", s:"Speech to the Knight Foundation (2008)", t:"The Web does not just connect machines, it connects people.", b:"machines"},
+    {k:"quote", a:"Alan Turing", s:"Computing Machinery and Intelligence (1950)", t:"We can only see a short distance ahead, but we can see plenty there that needs to be done.", m:"distance"},
+    {k:"quote", a:"Ada Lovelace", s:"Notes on the Analytical Engine (1843)", t:"We may say most aptly that the Analytical Engine weaves algebraical patterns just as the Jacquard-loom weaves flowers and leaves.", m:"patterns", c:"Designs that repeat"}
  ]},
- { d:"2026-10-30", shape:"mixed", theme:"The War of the Worlds",
+ { d:"2026-10-30", shape:"one", theme:"H. G. Wells, on minds great and small",
    note:"The Mercury Theatre broadcast The War of the Worlds on October 30, 1938. Historians now say reports of a nationwide panic were greatly exaggerated by newspapers.",
    items:[
-    {k:"fact", a:"History", s:"The War of the Worlds (1938 radio drama)", t:"Orson Welles broadcast The War of the Worlds on October 30, 1938.", b:"broadcast"},
-    {k:"fact", a:"History", s:"The War of the Worlds (1938 radio drama)", t:"The radio play, staged as news bulletins, was based on the 1898 novel by H. G. Wells.", m:"staged"},
+    {k:"quote", a:"H. G. Wells", s:"The Time Machine (1895)", t:"There is no intelligence where there is no change and no need of change.", b:"intelligence"},
+    {k:"quote", a:"H. G. Wells", s:"The Time Machine (1895)", t:"It is a law of nature we overlook, that intellectual versatility is the compensation for change, danger, and trouble.", m:"danger"},
     {k:"quote", a:"H. G. Wells", s:"The War of the Worlds (1898)", t:"No one would have believed in the last years of the nineteenth century that this world was being watched keenly and closely by intelligences greater than man's", m:"watched", c:"Observed closely"}
  ]},
  { d:"2026-10-31", shape:"voices", theme:"Three classic frights for Halloween",
@@ -1822,6 +1867,216 @@ const DAILY_SETS = [
     {k:"quote", a:"Mary Shelley", s:"Frankenstein (1818)", t:"Beware, for I am fearless and therefore powerful.", b:"fearless"},
     {k:"quote", a:"Washington Irving", s:"The Legend of Sleepy Hollow (1820)", t:"The whole neighborhood abounds with local tales, haunted spots, and twilight superstitions;", m:"haunted"},
     {k:"quote", a:"Edgar Allan Poe", s:"The Raven (1845)", t:"Deep into that darkness peering, long I stood there wondering, fearing, Doubting, dreaming dreams no mortals ever dared to dream before;", m:"mortals", c:"Beings who must someday die"}
+ ]},
+ { d:"2026-11-01", shape:"one", theme:"Elizabeth Blackwell, the first woman doctor",
+   note:"The Boston Female Medical School, the first medical school for women, opened on November 1, 1848. A few months later, on January 23, 1849, Elizabeth Blackwell became the first woman to earn a medical degree in the United States.",
+   items:[
+    {k:"quote", a:"Elizabeth Blackwell", s:"Letter (1850), in Pioneer Work in Opening the Medical Profession to Women (1895)", t:"A hundred years hence women will not be what they are now.", b:"hundred"},
+    {k:"quote", a:"Elizabeth Blackwell", s:"Pioneer Work in Opening the Medical Profession to Women (1895)", t:"If an idea, I reasoned, were really a valuable one, there must be some way of realising it.", m:"valuable"},
+    {k:"quote", a:"Elizabeth Blackwell", s:"Pioneer Work in Opening the Medical Profession to Women (1895)", t:"The idea of winning a doctor's degree gradually assumed the aspect of a great moral struggle, and the moral fight possessed immense attraction for me.", m:"struggle", c:"A long, hard fight"}
+ ]},
+ { d:"2026-11-02", shape:"one", theme:"John Adams blesses the White House",
+   note:"John Adams became the first president to live in the White House on November 1, 1800. He wrote this blessing to Abigail the next day, and Franklin Roosevelt later had it carved into the State Dining Room mantel.",
+   items:[
+    {k:"quote", a:"John Adams", s:"A Dissertation on the Canon and Feudal Law (1765)", t:"Liberty cannot be preserved without a general knowledge among the people,", b:"knowledge"},
+    {k:"quote", a:"John Adams", s:"Letter to Abigail Adams (1780)", t:"I must study Politicks and War that my sons may have liberty to study Mathematicks and Philosophy.", m:"liberty"},
+    {k:"quote", a:"John Adams", s:"Letter to Abigail Adams, November 2, 1800", t:"I pray Heaven to bestow the best of Blessings on this House and all that shall hereafter inhabit it. May none but honest and wise Men ever rule under this roof.", m:"honest", c:"Truthful and fair"}
+ ]},
+ { d:"2026-11-03", shape:"one", theme:"William Cullen Bryant, poet of nature",
+   note:"William Cullen Bryant was born in Massachusetts on November 3, 1794. Besides his poetry, he spent decades as editor of the New-York Evening Post.",
+   items:[
+    {k:"quote", a:"William Cullen Bryant", s:"“A Forest Hymn” (1825)", t:"The groves were God's first temples.", b:"temples"},
+    {k:"quote", a:"William Cullen Bryant", s:"“Thanatopsis” (1817)", t:"To him who in the love of Nature holds Communion with her visible forms, she speaks A various language;", m:"language"},
+    {k:"quote", a:"William Cullen Bryant", s:"“The Battle-Field” (1837)", t:"Truth, crushed to earth, shall rise again; The eternal years of God are hers; But Error, wounded, writhes with pain, And dies among his worshippers.", m:"crushed", c:"Pressed down hard"}
+ ]},
+ { d:"2026-11-04", shape:"one", theme:"T. H. Huxley and the first issue of Nature",
+   note:"The science journal Nature published its first issue on November 4, 1869, and biologist Thomas Henry Huxley wrote for it. Huxley was famous as a fierce public defender of Darwin's ideas.",
+   items:[
+    {k:"quote", a:"Thomas Henry Huxley", s:"On the Advisableness of Improving Natural Knowledge (1866)", t:"We, in later times, have learned somewhat of Nature, and partly obey her.", b:"Nature"},
+    {k:"quote", a:"Thomas Henry Huxley", s:"A Liberal Education; and Where to Find It (1868)", t:"The chess-board is the world, the pieces are the phenomena of the universe, the rules of the game are what we call the laws of Nature.", m:"universe"},
+    {k:"quote", a:"Thomas Henry Huxley", s:"Letter to Charles Kingsley (1860)", t:"Sit down before fact as a little child, be prepared to give up every preconceived notion, follow humbly wherever and to whatever abysses nature leads, or you shall learn nothing.", m:"humbly", c:"Without pride"}
+ ]},
+ { d:"2026-11-05", shape:"one", theme:"Susan B. Anthony casts her ballot",
+   note:"Susan B. Anthony voted in Rochester, New York, on November 5, 1872, when women were barred from voting. She was arrested, convicted and fined $100, and she refused to pay.",
+   items:[
+    {k:"quote", a:"Susan B. Anthony", s:"Remarks at her trial (1873)", t:"I shall never pay a dollar of your unjust penalty.", b:"penalty"},
+    {k:"quote", a:"Susan B. Anthony", s:"Speech before her trial (1873)", t:"I stand before you to-night, under indictment for the alleged crime of having voted at the last Presidential election", m:"alleged"},
+    {k:"quote", a:"Susan B. Anthony", s:"Speech before her trial (1873)", t:"It was we, the people, not we, the white male citizens, nor yet we, the male citizens; but we, the whole people, who formed this Union.", m:"whole", c:"Complete, with no part left out"}
+ ]},
+ { d:"2026-11-06", shape:"voices", theme:"Voices for the forest",
+   note:"The Charter of the Forest was sealed in London on November 6, 1217. It restored ordinary people's rights to use the royal forests, and many of its provisions stayed in force for centuries.",
+   items:[
+    {k:"quote", a:"John Muir", s:"Our National Parks (1901)", t:"Nature's peace will flow into you as sunshine flows into trees.", b:"sunshine"},
+    {k:"quote", a:"Aldo Leopold", s:"A Sand County Almanac (1949)", t:"To plant a pine, for example, one need be neither god nor poet; one need only own a shovel.", m:"shovel"},
+    {k:"quote", a:"Aldo Leopold", s:"A Sand County Almanac (1949)", t:"He who owns a veteran bur oak owns more than a tree. He owns a historical library, and a reserved seat in the theater of evolution.", m:"evolution", c:"Slow change in living things over many generations"}
+ ]},
+ { d:"2026-11-07", shape:"one", theme:"Marie Curie's world of science",
+   note:"Marie Curie was born in Warsaw on November 7, 1867. She remains the only person to win Nobel Prizes in two different sciences, physics in 1903 and chemistry in 1911.",
+   items:[
+    {k:"quote", a:"Marie Curie", s:"Autobiographical Notes (1923)", t:"You cannot hope to build a better world without improving the individuals.", b:"better"},
+    {k:"quote", a:"Marie Curie", s:"Autobiographical Notes (1923)", t:"All my life through, the new sights of Nature made me rejoice like a child.", m:"rejoice"},
+    {k:"quote", a:"Marie Curie", s:"Autobiographical Notes (1923)", t:"It was like a new world opened to me, the world of science, which I was at last permitted to know in all liberty.", m:"liberty", c:"Freedom to think and act"}
+ ]},
+ { d:"2026-11-08", shape:"one", theme:"Röntgen sees the invisible",
+   note:"On November 8, 1895, Wilhelm Röntgen noticed a screen glowing beside a covered tube in his lab and discovered X-rays. A few months later he described the moment to a reporter from McClure's Magazine.",
+   items:[
+    {k:"quote", a:"Wilhelm Röntgen", s:"Interview in McClure's Magazine (1896)", t:"I did not think; I investigated.", b:"investigated"},
+    {k:"quote", a:"Wilhelm Röntgen", s:"Interview in McClure's Magazine (1896)", t:"It seemed at first a new kind of invisible light. It was clearly something new, something unrecorded.", m:"invisible"},
+    {k:"quote", a:"Wilhelm Röntgen", s:"Interview in McClure's Magazine (1896)", t:"I am not a prophet, and I am opposed to prophesying. I am pursuing my investigations, and as fast as my results are verified I shall make them public.", m:"verified", c:"confirmed as true"}
+ ]},
+ { d:"2026-11-09", shape:"one", theme:"Carl Sagan's pale blue dot",
+   note:"Carl Sagan was born on November 9, 1934. In 1990 Voyager 1 photographed Earth from billions of miles away as a single pale dot, the image that inspired his book Pale Blue Dot.",
+   items:[
+    {k:"quote", a:"Carl Sagan", s:"Pale Blue Dot (1994)", t:"Consider again that dot. That's here. That's home. That's us.", b:"home"},
+    {k:"quote", a:"Carl Sagan", s:"Cosmos (1980)", t:"We make our world significant by the courage of our questions and by the depth of our answers.", m:"courage"},
+    {k:"quote", a:"Carl Sagan", s:"Pale Blue Dot (1994)", t:"To me, it underscores our responsibility to deal more kindly with one another, and to preserve and cherish the pale blue dot, the only home we've ever known.", m:"cherish", c:"hold dear and protect"}
+ ]},
+ { d:"2026-11-10", shape:"voices", theme:"Learning with laughter and care",
+   note:"Sesame Street premiered on public television on November 10, 1969. That same year Fred Rogers went before the U.S. Senate to make the case for funding public television.",
+   items:[
+    {k:"quote", a:"Jim Henson", s:"Interview, The Boston Globe (1989)", t:"Laughter helps you put everything into perspective.", b:"Laughter"},
+    {k:"quote", a:"Maria Montessori", s:"The Montessori Method (1912)", t:"From the child itself he will learn how to perfect himself as an educator.", m:"educator"},
+    {k:"quote", a:"Fred Rogers", s:"U.S. Senate testimony (1969)", t:"I give an expression of care every day to each child, to help him realize that he is unique.", m:"unique", c:"unlike anyone else"}
+ ]},
+ { d:"2026-11-11", shape:"voices", theme:"Remembrance, service and peace",
+   note:"Fighting in World War I stopped at the eleventh hour of the eleventh day of the eleventh month of 1918. In 1954 Armistice Day became Veterans Day, honoring American veterans of all wars. Poet Wilfred Owen was killed on November 4, 1918, one week before the Armistice.",
+   items:[
+    {k:"quote", a:"John McCrae", s:"In Flanders Fields (1915)", t:"In Flanders fields the poppies blow Between the crosses, row on row", b:"poppies"},
+    {k:"quote", a:"Wilfred Owen", s:"Preface to Poems (1920)", t:"The subject of it is War, and the pity of War. The Poetry is in the pity.", m:"Poetry"},
+    {k:"quote", a:"Dwight D. Eisenhower", s:"The Chance for Peace speech (1953)", t:"Every gun that is made, every warship launched, every rocket fired signifies, in the final sense, a theft from those who hunger and are not fed, those who are cold and are not clothed.", m:"theft", c:"taking what belongs to others"}
+ ]},
+ { d:"2026-11-12", shape:"one", theme:"Elizabeth Cady Stanton's equal truths",
+   note:"Elizabeth Cady Stanton was born on November 12, 1815. She was the main author of the 1848 Declaration of Sentiments at Seneca Falls, which recast the Declaration of Independence to include women.",
+   items:[
+    {k:"quote", a:"Elizabeth Cady Stanton", s:"The Woman's Bible (1895)", t:"I would fain teach women that self-development is a higher duty than self-sacrifice.", b:"duty"},
+    {k:"quote", a:"Elizabeth Cady Stanton", s:"The Woman's Bible (1895)", t:"Come, come, my conservative friend, wipe the dew off your spectacles, and see that the world is moving.", m:"spectacles"},
+    {k:"quote", a:"Elizabeth Cady Stanton", s:"Declaration of Sentiments (1848)", t:"We hold these truths to be self-evident; that all men and women are created equal; that they are endowed by their Creator with certain inalienable rights", m:"inalienable", c:"impossible to take away"}
+ ]},
+ { d:"2026-11-13", shape:"one", theme:"Stevenson on the open road",
+   note:"Robert Louis Stevenson, author of Treasure Island, was born on November 13, 1850. Before the famous novels he wrote travel books about crossing the Cévennes with a donkey and honeymooning in an abandoned California mining camp.",
+   items:[
+    {k:"quote", a:"Robert Louis Stevenson", s:"Travels with a Donkey in the Cévennes (1879)", t:"For my part, I travel not to go anywhere, but to go.", b:"travel"},
+    {k:"quote", a:"Robert Louis Stevenson", s:"The Silverado Squatters (1883)", t:"There is no foreign land; it is the traveller only that is foreign", m:"traveller"},
+    {k:"quote", a:"Robert Louis Stevenson", s:"Aes Triplex (1878)", t:"Every heart that has beat strong and cheerfully has left a hopeful impulse behind it in the world, and bettered the tradition of mankind.", m:"impulse", c:"an inner push to act"}
+ ]},
+ { d:"2026-11-14", shape:"voices", theme:"A clean start for every child",
+   note:"On November 14, 1960, six-year-old Ruby Bridges walked into William Frantz Elementary School in New Orleans, escorted by federal marshals, and became the first Black child to attend the formerly all-white school.",
+   items:[
+    {k:"quote", a:"Earl Warren", s:"Brown v. Board of Education opinion (1954)", t:"Separate educational facilities are inherently unequal.", b:"unequal"},
+    {k:"quote", a:"Horace Mann", s:"Twelfth Annual Report to the Massachusetts Board of Education (1848)", t:"Education, then, beyond all other devices of human origin, is the great equalizer of the conditions of men", m:"equalizer"},
+    {k:"quote", a:"Ruby Bridges", s:"Talk at Harvard's Memorial Church (2002)", t:"It's time to get past our racial differences. We owe it to our children to help them keep their clean start.", m:"differences", c:"ways we are not alike"}
+ ]},
+ { d:"2026-11-15", shape:"voices", theme:"Color, music and seeing clearly",
+   note:"Georgia O'Keeffe was born on November 15, 1887. As a young art teacher she was urged to read Kandinsky's Concerning the Spiritual in Art, a book about how color speaks to the soul.",
+   items:[
+    {k:"quote", a:"Wassily Kandinsky", s:"Concerning the Spiritual in Art (1911)", t:"Generally speaking, colour is a power which directly influences the soul.", b:"soul"},
+    {k:"quote", a:"Georgia O'Keeffe", s:"Interview in Time magazine (1947)", t:"Singing has always seemed to me the most perfect means of expression. Since I cannot sing, I paint.", m:"expression"},
+    {k:"quote", a:"John Ruskin", s:"Modern Painters, Vol. III (1856)", t:"Hundreds of people can talk for one who can think, but thousands can think for one who can see. To see clearly is poetry, prophecy, and religion,—all in one.", m:"prophecy", c:"a foretelling of things to come"}
+ ]},
+ { d:"2026-11-16", shape:"voices", theme:"Building peace in the mind",
+   note:"UNESCO's constitution was adopted in London on November 16, 1945, pledging to build peace through education, science and culture. Nigerian novelist Chinua Achebe was born on November 16, 1930.",
+   items:[
+    {k:"quote", a:"Chinua Achebe", s:"Things Fall Apart (1958)", t:"Let the kite perch and let the egret perch too.", b:"egret"},
+    {k:"quote", a:"Ralph Bunche", s:"Nobel Peace Prize lecture (1950)", t:"It is only by patient, persistent, undismayed effort, by trial and error, that peace can be won.", m:"patient"},
+    {k:"quote", a:"UNESCO Constitution", s:"Preamble (1945)", t:"That since wars begin in the minds of men, it is in the minds of men that the defences of peace must be constructed", m:"defences", c:"protections against attack"}
+ ]},
+ { d:"2026-11-17", shape:"voices", theme:"Wonder at the falling stars",
+   note:"The Leonid meteor shower peaks in mid-November; in 2026 its maximum falls overnight on November 17. In November 1833 a Leonid storm lit up American skies, and a teenage Frederick Douglass, then enslaved in Maryland, watched it at daybreak.",
+   items:[
+    {k:"quote", a:"Maria Mitchell", s:"Life, Letters, and Journals (1896)", t:"We especially need imagination in science.", b:"imagination"},
+    {k:"quote", a:"Ralph Waldo Emerson", s:"Nature (1836)", t:"But every night come out these envoys of beauty, and light the universe with their admonishing smile.", m:"envoys"},
+    {k:"quote", a:"Frederick Douglass", s:"My Bondage and My Freedom (1855)", t:"I witnessed this gorgeous spectacle, and was awe-struck. The air seemed filled with bright, descending messengers from the sky. It was about daybreak when I saw this sublime scene.", m:"spectacle", c:"a striking sight to behold"}
+ ]},
+ { d:"2026-11-18", shape:"one", theme:"Wilma Mankiller's good mind",
+   note:"Wilma Mankiller was born on November 18, 1945. She became the first woman elected Principal Chief of the Cherokee Nation and focused on rural development and Cherokee self-governance.",
+   items:[
+    {k:"quote", a:"Wilma Mankiller", s:"Mankiller: A Chief and Her People (1993)", t:"My feeling is that the Cherokee people, by and large, are incredibly tenacious.", b:"tenacious"},
+    {k:"quote", a:"Wilma Mankiller", s:"1984 remarks, quoted in Mankiller: A Chief and Her People (1993)", t:"Women can help turn the world right side up. We bring a more collaborative approach to government.", m:"collaborative"},
+    {k:"quote", a:"Wilma Mankiller", s:"Mankiller: A Chief and Her People (1993)", t:"They say it is \"being of good mind.\" That means one has to think positively, to take what is handed out and turn it into a better path.", m:"positively", c:"with a hopeful outlook"}
+ ]},
+ { d:"2026-11-19", shape:"one", theme:"Lincoln at Gettysburg",
+   note:"On November 19, 1863, Abraham Lincoln spoke at the dedication of the soldiers' cemetery at Gettysburg, Pennsylvania, months after the battle there. His short address became one of the best-known speeches in American history.",
+   items:[
+    {k:"quote", a:"Abraham Lincoln", s:"First Inaugural Address (1861)", t:"We are not enemies, but friends. We must not be enemies.", b:"friends"},
+    {k:"quote", a:"Abraham Lincoln", s:"Gettysburg Address (1863)", t:"The world will little note, nor long remember what we say here, but it can never forget what they did here.", m:"remember"},
+    {k:"quote", a:"Abraham Lincoln", s:"Gettysburg Address (1863)", t:"It is for us the living, rather, to be dedicated here to the unfinished work which they who fought here have thus far so nobly advanced.", m:"unfinished", c:"not yet completed"}
+ ]},
+ { d:"2026-11-20", shape:"one", theme:"Hubble's Receding Horizons",
+   note:"Astronomer Edwin Hubble was born on November 20, 1889. He showed that the Andromeda \"nebula\" is a separate galaxy far beyond the Milky Way, a discovery first reported in The New York Times on November 23, 1924.",
+   items:[
+    {k:"quote", a:"Edwin Hubble", s:"The Realm of the Nebulae (1936)", t:"The history of astronomy is a history of receding horizons.", b:"horizons"},
+    {k:"quote", a:"Edwin Hubble", s:"The Realm of the Nebulae (1936)", t:"The acquisition and systemization of positive knowledge is the only human activity that is truly cumulative and progressive.", m:"cumulative"},
+    {k:"quote", a:"Edwin Hubble", s:"The Realm of the Nebulae (1936)", t:"There, we measure shadows, and we search among ghostly errors of measurement for landmarks that are scarcely more substantial. The search will continue.", m:"ghostly", c:"faint and phantom-like"}
+ ]},
+ { d:"2026-11-21", shape:"one", theme:"Voltaire Visits England",
+   note:"Voltaire was born in Paris on November 21, 1694. His Letters on England (1733), written after he lived there in the 1720s, praised English religious tolerance and Isaac Newton's science.",
+   items:[
+    {k:"quote", a:"Voltaire", s:"Letters on England (1733)", t:"This is attraction, the great spring by which all Nature is moved.", b:"attraction"},
+    {k:"quote", a:"Voltaire", s:"Letters on England (1733)", t:"An Englishman, as one to whom liberty is natural, may go to heaven his own way.", m:"liberty"},
+    {k:"quote", a:"Voltaire", s:"Letters on England (1733)", t:"There the Jew, the Mahometan, and the Christian transact together, as though they all professed the same religion, and give the name of infidel to none but bankrupts.", m:"bankrupts", c:"people unable to pay their debts"}
+ ]},
+ { d:"2026-11-22", shape:"one", theme:"George Eliot's Quiet Heroes",
+   note:"George Eliot, the pen name of Mary Ann Evans, was born on November 22, 1819. Her novel Middlemarch (1871-72) ends by honoring the ordinary people whose good deeds never make the history books.",
+   items:[
+    {k:"quote", a:"George Eliot", s:"Middlemarch (1871-72)", t:"As it is, the quickest of us walk about well wadded with stupidity.", b:"stupidity"},
+    {k:"quote", a:"George Eliot", s:"Middlemarch (1871-72)", t:"What do we live for, if it is not to make life less difficult to each other?", m:"difficult"},
+    {k:"quote", a:"George Eliot", s:"Middlemarch (1871-72)", t:"But the effect of her being on those around her was incalculably diffusive: for the growing good of the world is partly dependent on unhistoric acts;", m:"unhistoric", c:"never written down in the chronicles"}
+ ]},
+ { d:"2026-11-23", shape:"voices", theme:"Freedom to Think and Speak",
+   note:"John Milton's Areopagitica, a pamphlet arguing against government licensing of printed books, was published on November 23, 1644. It remains one of the great defenses of a free press.",
+   items:[
+    {k:"quote", a:"Benjamin Franklin", s:"Silence Dogood, No. 8 (1722)", t:"Without Freedom of Thought, there can be no such Thing as Wisdom;", b:"Wisdom"},
+    {k:"quote", a:"Frederick Douglass", s:"A Plea for Free Speech in Boston (1860)", t:"Liberty is meaningless where the right to utter one's thoughts and opinions has ceased to exist.", m:"opinions"},
+    {k:"quote", a:"John Milton", s:"Areopagitica (1644)", t:"Many a man lives a burden to the earth; but a good book is the precious life-blood of a master spirit, embalmed and treasured up on purpose to a life beyond life.", m:"embalmed", c:"preserved like a mummy"}
+ ]},
+ { d:"2026-11-24", shape:"one", theme:"Darwin's Grand View of Life",
+   note:"Charles Darwin's On the Origin of Species was published in London by John Murray on November 24, 1859.",
+   items:[
+    {k:"quote", a:"Charles Darwin", s:"On the Origin of Species (1859)", t:"Light will be thrown on the origin of man and his history.", b:"origin"},
+    {k:"quote", a:"Charles Darwin", s:"On the Origin of Species (1859)", t:"In the distant future I see open fields for far more important researches.", m:"distant"},
+    {k:"quote", a:"Charles Darwin", s:"On the Origin of Species (1859)", t:"There is grandeur in this view of life, with its several powers, having been originally breathed into a few forms or into one;", m:"grandeur", c:"awe-inspiring magnificence"}
+ ]},
+ { d:"2026-11-25", shape:"voices", theme:"The Gift of a Library",
+   note:"Andrew Carnegie was born in Dunfermline, Scotland, on November 25, 1835. As a poor messenger boy in Pittsburgh he borrowed books from a private library opened to working boys, and he later paid for thousands of public libraries.",
+   items:[
+    {k:"quote", a:"Andrew Carnegie", s:"Autobiography of Andrew Carnegie (1920)", t:"The fundamental advantage of a library is that it gives nothing for nothing.", b:"library"},
+    {k:"quote", a:"Helen Keller", s:"The Story of My Life (1903)", t:"No barrier of the senses shuts me out from the sweet, gracious discourse of my book-friends.", m:"barrier"},
+    {k:"quote", a:"Frederick Douglass", s:"Narrative of the Life of Frederick Douglass (1845)", t:"Though conscious of the difficulty of learning without a teacher, I set out with high hope, and a fixed purpose, at whatever cost of trouble, to learn how to read.", m:"purpose", c:"a firm goal or aim"}
+ ]},
+ { d:"2026-11-26", shape:"voices", theme:"A Day for Giving Thanks",
+   note:"Happy Thanksgiving! In October 1863 Abraham Lincoln proclaimed the last Thursday of November a national day of Thanksgiving and Praise, setting the precedent for today's holiday.",
+   items:[
+    {k:"quote", a:"Robin Wall Kimmerer", s:"Braiding Sweetgrass (2013)", t:"Gratitude plants the seed for abundance.", b:"seed"},
+    {k:"quote", a:"William Shakespeare", s:"Henry VI, Part 2 (c. 1591)", t:"O Lord, that lends me life, Lend me a heart replete with thankfulness!", m:"replete"},
+    {k:"quote", a:"Abraham Lincoln", s:"Thanksgiving Proclamation (1863)", t:"It has seemed to me fit and proper that they should be solemnly, reverently and gratefully acknowledged as with one heart and one voice by the whole American People.", m:"reverently", c:"with deep, worshipful respect"}
+ ]},
+ { d:"2026-11-27", shape:"voices", theme:"Native Voices on Land and Story",
+   note:"The day after Thanksgiving is Native American Heritage Day, first designated by Congress in the Native American Heritage Day Act of 2008. Today's three voices are Lakota and Dakota writers of the early 1900s.",
+   items:[
+    {k:"quote", a:"Luther Standing Bear", s:"Land of the Spotted Eagle (1933)", t:"We are of the soil and the soil is of us.", b:"soil"},
+    {k:"quote", a:"Zitkala-Ša", s:"American Indian Stories (1921)", t:"Here, in a fleeting quiet, I am awakened by the fluttering robe of the Great Spirit.", m:"fleeting"},
+    {k:"quote", a:"Charles Eastman (Ohiyesa)", s:"The Soul of the Indian (1911)", t:"This Bible of ours was our whole literature, a living Book, sowed as precious seed by our wisest sages, and springing anew in the wondering eyes and upon the innocent lips of little children.", m:"sages", c:"wise elders"}
+ ]},
+ { d:"2026-11-28", shape:"one", theme:"Blake's Doors of Perception",
+   note:"Poet, painter and printmaker William Blake was born in London on November 28, 1757. These lines come from his illuminated book The Marriage of Heaven and Hell.",
+   items:[
+    {k:"quote", a:"William Blake", s:"The Marriage of Heaven and Hell (c. 1790)", t:"No bird soars too high if he soars with his own wings.", b:"wings"},
+    {k:"quote", a:"William Blake", s:"The Marriage of Heaven and Hell (c. 1790)", t:"The hours of folly are measured by the clock, but of wisdom no clock can measure.", m:"wisdom"},
+    {k:"quote", a:"William Blake", s:"The Marriage of Heaven and Hell (c. 1790)", t:"If the doors of perception were cleansed everything would appear to man as it is, infinite. For man has closed himself up, till he sees all things through narrow chinks of his cavern.", m:"infinite", c:"without any end or limit"}
+ ]},
+ { d:"2026-11-29", shape:"one", theme:"Jo March Dreams Big",
+   note:"Louisa May Alcott was born on November 29, 1832. Jo March, the restless would-be writer of Little Women (1868-69), was modeled in part on Alcott herself.",
+   items:[
+    {k:"quote", a:"Louisa May Alcott", s:"Little Women (1868)", t:"I like good strong words that mean something.", b:"strong"},
+    {k:"quote", a:"Louisa May Alcott", s:"Little Women (1868)", t:"I think I shall write books, and get rich and famous, that would suit me, so that is my favorite dream.", m:"famous"},
+    {k:"quote", a:"Louisa May Alcott", s:"Little Women (1868)", t:"I want to do something splendid before I go into my castle, something heroic or wonderful that won't be forgotten after I'm dead.", m:"splendid", c:"magnificent and dazzling"}
+ ]},
+ { d:"2026-11-30", shape:"voices", theme:"Born November 30: Wit and Wonder",
+   note:"Three beloved writers share a November 30 birthday: Mark Twain (1835), L. M. Montgomery (1874) and Winston Churchill (1874), who also painted for pleasure.",
+   items:[
+    {k:"quote", a:"Mark Twain", s:"Pudd'nhead Wilson (1894)", t:"As to the Adjective: when in doubt, strike it out.", b:"doubt"},
+    {k:"quote", a:"L. M. Montgomery", s:"Anne of Green Gables (1908)", t:"It wouldn't be half so interesting if we knew all about everything, would it?", m:"interesting"},
+    {k:"quote", a:"Winston Churchill", s:"Painting as a Pastime (1921-22)", t:"You know you will never get to the end of the journey. But this, so far from discouraging, only adds to the joy and the glory of the climb.", m:"journey", c:"a long trip somewhere"}
  ]}
 ];
 
@@ -1830,8 +2085,8 @@ const DAILY_SETS = [
 const SOMBER_RE = /\b(war|wars|warfare|holocaust|genocide|slavery|massacre|grief|mourning|sorrow|tormentor|oppressor|cruelty|hatred|tragedy)\b/i;
 function isSomberText(t){ return SOMBER_RE.test(t || ""); }
 // hand-picked sets whose subject is dark (war, plague, oppression, disaster) or eerie
-const SOMBER_DATES = ["2026-09-30","2026-10-07","2026-10-08","2026-10-19","2026-10-24","2026-10-25","2026-10-30","2026-10-31"];
-const SOMBER_PACK_SETS = { world:["The Black Death","Crossing the Rubicon","The Fall of Constantinople","The French Revolution","The Haitian Revolution","The Peace of Westphalia","Independence and Partition","South Africa Votes"], science:[] };
+const SOMBER_DATES = ["2026-09-30","2026-10-07","2026-10-08","2026-10-19","2026-10-24","2026-10-25","2026-10-30","2026-10-31","2026-11-11"];
+const SOMBER_PACK_SETS = { world:["The Haitian Revolution","Vesuvius Erupts","Olaudah Equiano"], science:[] };
 const SET_START = QUOTES.length;
 const SET_BY_DATE = {};
 DAILY_SETS.forEach(ds=>{
@@ -1849,106 +2104,106 @@ DAILY_SETS.forEach(ds=>{
    All tiers are Thursday length or longer (12+ words), and sets get longer through each pack. */
 const SET_PACKS = {
  world: [
-  { label:"The Rosetta Stone", note:"The stone has been on display at the British Museum since 1802.", items:[
-    {t:"French soldiers found the Rosetta Stone in Egypt in 1799, during Napoleon's campaign.", b:"soldiers"},
-    {t:"The stone carries the same decree written three ways: in hieroglyphs, Demotic script, and Greek.", m:"decree"},
-    {t:"Because scholars could already read the Greek text, Jean-Fran\u00E7ois Champollion used it to help crack Egyptian hieroglyphs in 1822.", m:"scholars", c:"Learned experts who study a subject"}]},
-  { label:"The Great Wall", note:"The walls stretch across northern China and were built and rebuilt over roughly two thousand years.", items:[
-    {t:"The Great Wall of China is not a single wall but many walls built over centuries.", b:"centuries"},
-    {t:"Much of the wall that tourists visit today was built during the Ming dynasty.", m:"tourists"},
-    {t:"Despite a popular myth, the Great Wall is generally not visible to the naked eye from low Earth orbit.", m:"visible", c:"Able to be seen"}]},
-  { label:"Gutenberg's Press", note:"Gutenberg worked in Mainz, Germany. His press made books far cheaper to produce.", items:[
-    {t:"Johannes Gutenberg developed a printing press with movable metal type in Mainz around 1450.", b:"printing"},
-    {t:"His most famous work, the Gutenberg Bible, was printed in the 1450s, and fewer than fifty copies survive.", m:"printed"},
-    {t:"Movable type had been invented centuries earlier in China, but Gutenberg's system spread rapidly across Europe and helped fuel the Reformation.", m:"rapidly", c:"Very quickly"}]},
-  { label:"Magna Carta", note:"Four copies of the 1215 charter survive: two at the British Library and one each at Lincoln and Salisbury cathedrals.", items:[
-    {t:"King John of England agreed to the Magna Carta at Runnymede, beside the River Thames, in 1215.", b:"England"},
-    {t:"The charter limited the king's power, but Pope Innocent III annulled it within ten weeks.", m:"limited"},
-    {t:"Only three of its clauses remain law in England and Wales, including a promise not to sell, deny, or delay justice to anyone.", m:"justice", c:"Fair treatment under the law"}]},
-  { label:"The Great Pyramid", note:"The Great Pyramid is the oldest of the Seven Wonders of the Ancient World and the only one still standing.", items:[
-    {t:"The Great Pyramid of Giza was built for the pharaoh Khufu about 4,500 years ago.", b:"pharaoh"},
-    {t:"For more than 3,700 years it was the tallest structure ever made by human hands.", m:"tallest"},
-    {t:"Evidence from nearby workers' villages suggests the pyramids were built by paid laborers, not by enslaved people as long believed.", m:"laborers", c:"Workers who do physical jobs"}]},
-  { label:"The Silk Road", note:"Many routes ran overland across Central Asia; others went by sea through the Indian Ocean.", items:[
-    {t:"The Silk Road was a network of trade routes linking China with the Mediterranean world.", b:"Silk"},
-    {t:"Besides silk, merchants carried spices, paper, glass, and ideas, including religions such as Buddhism.", m:"spices"},
-    {t:"The name Silk Road was coined in 1877 by the German geographer Ferdinand von Richthofen, long after the routes had faded.", m:"coined", c:"Invented a new word or phrase"}]},
-  { label:"The Black Death", note:"Recurring outbreaks of plague struck Europe for centuries after the first wave.", items:[
-    {t:"The Black Death swept through Europe between 1347 and 1351, killing millions of people.", b:"Europe"},
-    {t:"It was most likely bubonic plague, spread by fleas that lived on rats and other rodents.", m:"fleas"},
-    {t:"Historians estimate the plague killed between a third and a half of Europe's people, and labor shortages later pushed wages higher.", m:"wages", c:"Pay for work"}]},
-  { label:"Crossing the Rubicon", note:"\u201CCrossing the Rubicon\u201D still means passing a point of no return.", items:[
-    {t:"Julius Caesar led his army across the Rubicon River in 49 BCE, starting a civil war.", b:"Rubicon"},
-    {t:"He was assassinated on the Ides of March, 44 BCE, by senators who feared his growing power.", m:"senators"},
-    {t:"His adopted heir Octavian later defeated his rivals and became Augustus, the first Roman emperor, ending the Roman Republic.", m:"adopted", c:"Legally taken in as one's own child"}]},
-  { label:"The Mongol Empire", note:"At its height in the late 1200s, the empire stretched from Korea to Eastern Europe.", items:[
-    {t:"Under Genghis Khan and his heirs, the Mongol Empire became the largest contiguous land empire in history.", b:"largest"},
-    {t:"Mongol messengers used a relay system of horse stations to carry news across the vast empire.", m:"relay"},
-    {t:"His grandson Kublai Khan founded China's Yuan dynasty, and the Venetian traveler Marco Polo described his court at length.", m:"traveler", c:"Someone on a journey"}]},
-  { label:"The Fall of Constantinople", note:"Constantinople had been the capital of the Byzantine, or Eastern Roman, Empire.", items:[
-    {t:"Ottoman forces captured Constantinople in 1453, ending more than a thousand years of Byzantine rule.", b:"Ottoman"},
-    {t:"Sultan Mehmed II used enormous cannons to batter the city's ancient walls during the long siege.", m:"cannons"},
-    {t:"The city became the Ottoman capital and is now Istanbul, Turkey's largest city, which straddles the boundary between Europe and Asia.", m:"capital", c:"A seat of government"}]},
-  { label:"Around the World", note:"About 18 of the roughly 270 men who set out returned on the Victoria.", items:[
-    {t:"Ferdinand Magellan led the first expedition to sail all the way around the world, departing Spain in 1519.", b:"sail"},
-    {t:"Magellan himself was killed in the Philippines in 1521, before the voyage was complete.", m:"killed"},
-    {t:"Only one of the original five ships, the Victoria, returned to Spain in 1522 under the command of Juan Sebasti\u00E1n Elcano.", m:"command", c:"Authority to lead"}]},
-  { label:"The Terracotta Army", note:"The site, near Xi'an, is estimated to hold thousands of soldiers, and much of it is still unexcavated.", items:[
-    {t:"Farmers digging a well in northwest China in 1974 discovered the buried Terracotta Army.", b:"well"},
-    {t:"The clay soldiers were made to guard the tomb of Qin Shi Huang, China's first emperor.", m:"guard"},
-    {t:"Each life-size figure was assembled from molded parts and then finished by hand, giving many of the soldiers individual faces.", m:"molded", c:"Shaped in a form"}]},
-  { label:"Mansa Musa", note:"Mali's wealth came largely from gold and the trans-Saharan trade.", items:[
-    {t:"Mansa Musa ruled the Mali Empire in West Africa during the fourteenth century.", b:"Africa"},
-    {t:"His pilgrimage to Mecca in 1324 was so lavish that his gifts of gold disrupted prices in Cairo.", m:"lavish"},
-    {t:"Under his rule, the city of Timbuktu grew into a famous center of learning, with mosques and libraries drawing scholars from far away.", m:"mosques", c:"Muslim houses of worship"}]},
-  { label:"The French Revolution", note:"July 14, Bastille Day, is France's national holiday.", items:[
-    {t:"The French Revolution began in 1789, and crowds stormed the Bastille prison in Paris on July 14.", b:"Bastille"},
-    {t:"That August, the National Assembly adopted the Declaration of the Rights of Man and of the Citizen.", m:"Assembly"},
-    {t:"King Louis XVI was executed by guillotine in 1793, and a period of mass executions known as the Reign of Terror soon followed.", m:"period", c:"A span of time"}]},
-  { label:"Machu Picchu", note:"Machu Picchu sits nearly 8,000 feet above sea level and is a UNESCO World Heritage Site.", items:[
-    {t:"The Inca built Machu Picchu high in the Andes mountains of Peru in the fifteenth century.", b:"Andes"},
-    {t:"Many of its stone walls fit together so tightly without mortar that a knife blade cannot slip between the blocks.", m:"mortar"},
-    {t:"The site was little known to the outside world until 1911, when the American explorer Hiram Bingham brought it international attention.", m:"explorer", c:"One who travels to discover new places"}]},
-  { label:"The Meiji Restoration", note:"Meiji means \u201Center\u201D rule; the period is named for Emperor Meiji.", items:[
-    {t:"In 1868 the Meiji Restoration returned power in Japan from the shoguns to the emperor.", b:"emperor"},
-    {t:"Over the next few decades, Japan built railways, factories, and a modern army at remarkable speed.", m:"railways"},
-    {t:"The new government dismantled the samurai class, and in 1876 samurai were even banned from carrying swords in public.", m:"swords", c:"Long bladed weapons"}]},
-  { label:"The Haitian Revolution", note:"Toussaint Louverture died in a French prison in 1803, months before Haiti's independence.", items:[
-    {t:"The Haitian Revolution began in 1791 as an uprising of enslaved people in the French colony of Saint-Domingue.", b:"uprising"},
-    {t:"Toussaint Louverture, a formerly enslaved man, rose to become the revolution's most famous leader.", m:"famous"},
-    {t:"In 1804 Haiti declared its independence, becoming the first nation founded after a successful revolt by enslaved people.", m:"declared", c:"Formally announced"}]},
-  { label:"The Suez Canal", note:"The canal is about 120 miles long and has no locks.", items:[
-    {t:"The Suez Canal opened in Egypt in 1869, linking the Mediterranean Sea to the Red Sea.", b:"linking"},
-    {t:"Ships no longer had to sail around Africa, cutting thousands of miles from voyages between Europe and Asia.", m:"voyages"},
-    {t:"Egyptian President Gamal Abdel Nasser nationalized the canal in 1956, setting off an international crisis involving Britain, France, and Israel.", m:"crisis", c:"A time of intense danger"}]},
-  { label:"The Code of Hammurabi", note:"The stele was found in 1901 at Susa, in present-day Iran.", items:[
-    {t:"King Hammurabi of Babylon issued one of the oldest known written law codes in the 1700s BCE.", b:"Babylon"},
-    {t:"Its 282 laws were carved on a tall basalt stele, which is now displayed at the Louvre in Paris.", m:"carved"},
-    {t:"The code set punishments that often depended on social class, and many of its laws followed the principle of an eye for an eye.", m:"social", c:"Relating to society and rank"}]},
-  { label:"James Watt's Engine", note:"Watt worked with the manufacturer Matthew Boulton to build and sell his engines.", items:[
-    {t:"James Watt did not invent the steam engine, but he greatly improved it in the 1760s and 1770s.", b:"invent"},
-    {t:"His separate condenser saved fuel by keeping the main cylinder hot, making engines far more efficient.", m:"cylinder"},
-    {t:"Steam power drove factories, ships, and railways during the Industrial Revolution, and the unit of power called the watt honors his name.", m:"honors", c:"Shows respect for"}]},
-  { label:"The Peace of Westphalia", note:"The Thirty Years' War lasted from 1618 to 1648 and devastated much of central Europe.", items:[
-    {t:"The Peace of Westphalia in 1648 ended the Thirty Years' War, one of Europe's deadliest conflicts.", b:"deadliest"},
-    {t:"The treaties were negotiated in two German cities, Osnabr\u00FCck and M\u00FCnster, over several years of talks.", m:"treaties"},
-    {t:"Many historians see the settlement as an early foundation of the modern system of sovereign states, though scholars still debate that claim.", m:"debate", c:"Argue about"}]},
-  { label:"Cuneiform", note:"Cuneiform was used for more than three thousand years and for more than a dozen languages.", items:[
-    {t:"The Sumerians of ancient Mesopotamia developed cuneiform, one of the world's earliest writing systems, more than five thousand years ago.", b:"writing"},
-    {t:"Scribes pressed a cut reed into soft clay tablets, leaving wedge-shaped marks that gave the script its name.", m:"tablets"},
-    {t:"Many of the earliest tablets were simple records of grain and livestock, suggesting that writing began as a tool for keeping accounts.", m:"records", c:"Written accounts of facts"}]},
-  { label:"The Berlin Airlift", note:"Over about fifteen months, Allied planes flew more than 270,000 flights into West Berlin.", items:[
-    {t:"In June 1948 the Soviet Union blocked all road, rail, and canal access to West Berlin.", b:"blocked"},
-    {t:"The United States and Britain responded with the Berlin Airlift, flying food and coal into the city.", m:"Airlift"},
-    {t:"At the height of the airlift, a plane landed in West Berlin every few minutes, and the Soviets lifted the blockade in May 1949.", m:"landed", c:"Came down onto the ground"}]},
-  { label:"Independence and Partition", note:"August 15 is Independence Day in India; August 14 is Independence Day in Pakistan.", items:[
-    {t:"India became independent from Britain at midnight on August 15, 1947, after a long freedom movement.", b:"midnight"},
-    {t:"A day earlier, Pakistan became independent, as British India was partitioned into two countries.", m:"earlier"},
-    {t:"The partition uprooted roughly fifteen million people, one of the largest mass migrations in history, amid widespread violence.", m:"uprooted", c:"Forced away from home"}]},
-  { label:"South Africa Votes", note:"April 27, the date of the 1994 election, is now Freedom Day in South Africa.", items:[
-    {t:"In 1994 South Africa held its first elections in which citizens of all races could vote.", b:"races"},
-    {t:"Nelson Mandela, who had spent twenty-seven years in prison, was elected the country's first Black president.", m:"prison"},
-    {t:"Apartheid, a system of racial segregation enforced by law since 1948, was dismantled in the early 1990s through negotiations between the government and its opponents.", m:"enforced", c:"Made people obey"}]}
+  { label:"The Analects", note:"Confucius taught in China in the 500s and 400s BCE; after his death his students gathered his sayings into the Analects. James Legge's 1861 translation helped bring them to English readers.", items:[
+    {a:"Confucius", s:"The Analects, trans. James Legge (1861)", t:"When I walk along with two others, they may serve me as my teachers.", b:"teachers"},
+    {a:"Confucius", s:"The Analects, trans. James Legge (1861)", t:"Is virtue a thing remote? I wish to be virtuous, and lo! virtue is at hand.", m:"remote"},
+    {a:"Confucius", s:"The Analects, trans. James Legge (1861)", t:"Is not reciprocity such a word? What you do not want done to yourself, do not do to others.", m:"reciprocity", c:"Mutual give-and-take"}]},
+  { label:"Human Rights for All", note:"The UN General Assembly adopted the Universal Declaration of Human Rights in Paris on December 10, 1948. Eleanor Roosevelt chaired the commission that drafted it.", items:[
+    {a:"Universal Declaration of Human Rights (1948)", s:"Article 1", t:"All human beings are born free and equal in dignity and rights.", b:"dignity"},
+    {a:"Eleanor Roosevelt", s:"Address to the UN General Assembly (1948)", t:"This Universal Declaration of Human Rights may well become the international Magna Carta of all men everywhere.", m:"everywhere"},
+    {a:"Universal Declaration of Human Rights (1948)", s:"Article 27", t:"Everyone has the right freely to participate in the cultural life of the community, to enjoy the arts and to share in scientific advancement and its benefits.", m:"advancement", c:"Forward progress"}]},
+  { label:"The Code of Hammurabi", note:"King Hammurabi of Babylon had nearly 300 laws carved on a basalt stele around 1750 BCE, framed by a prologue and epilogue in his own voice. The stele, found at Susa in 1901, is now in the Louvre.", items:[
+    {a:"Code of Hammurabi", s:"Epilogue, trans. L. W. King (c. 1750 BCE)", t:"I expounded all great difficulties, I made the light shine upon them.", b:"light"},
+    {a:"Code of Hammurabi", s:"Epilogue, trans. L. W. King (c. 1750 BCE)", t:"Let the oppressed, who has a case at law, come and stand before this my image as king of righteousness.", m:"oppressed"},
+    {a:"Code of Hammurabi", s:"Prologue, trans. L. W. King (c. 1750 BCE)", t:"To bring about the rule of righteousness in the land, to destroy the wicked and the evil-doers; so that the strong should not harm the weak.", m:"wicked", c:"Evil; morally bad"}]},
+  { label:"The French Revolution", note:"France's National Assembly adopted the Declaration of the Rights of Man and of the Citizen in August 1789. In 1791 the playwright Olympe de Gouges answered it with a Declaration of the Rights of Woman; she was guillotined in 1793.", items:[
+    {a:"Declaration of the Rights of Man (1789)", s:"Article 1", t:"Men are born and remain free and equal in rights. Social distinctions may be founded only upon the general good.", b:"equal"},
+    {a:"Declaration of the Rights of Man (1789)", s:"Article 11", t:"The free communication of ideas and opinions is one of the most precious of the rights of man.", m:"precious"},
+    {a:"Olympe de Gouges", s:"Declaration of the Rights of Woman (1791)", t:"Woman is born free and remains equal to man in rights. Social distinctions may be based only on common utility.", m:"utility", c:"Usefulness to everyone"}]},
+  { label:"The Green Belt Movement", note:"Wangari Maathai founded Kenya's Green Belt Movement in 1977, mobilizing women to plant tens of millions of trees. In 2004 she became the first African woman to win the Nobel Peace Prize.", items:[
+    {a:"Wangari Maathai", s:"Nobel lecture (2004)", t:"Using trees as a symbol of peace is in keeping with a widespread African tradition.", b:"tradition"},
+    {a:"Wangari Maathai", s:"Nobel lecture (2004)", t:"Playing among the arrowroot leaves I tried in vain to pick up the strands of frogs' eggs, believing they were beads.", m:"strands"},
+    {a:"Wangari Maathai", s:"Nobel lecture (2004)", t:"The challenge is to restore the home of the tadpoles and give back to our children a world of beauty and wonder.", m:"tadpoles", c:"Baby frogs with tails"}]},
+  { label:"Around the World", note:"Ferdinand Magellan's fleet left Spain in 1519 with about 270 men; Magellan was killed in the Philippines in 1521. In 1522, 18 survivors aboard the Victoria completed the first voyage around the world, and Antonio Pigafetta kept its journal.", items:[
+    {a:"Antonio Pigafetta", s:"Journal of Magellan's voyage, trans. J. A. Robertson (1519-22)", t:"In truth it is very pacific, for during that time we did not suffer any storm.", b:"storm"},
+    {a:"Antonio Pigafetta", s:"Journal of Magellan's voyage, trans. J. A. Robertson (1519-22)", t:"We were three months and twenty days without getting any kind of fresh food.", m:"fresh"},
+    {a:"Antonio Pigafetta", s:"Journal of Magellan's voyage, trans. J. A. Robertson (1519-22)", t:"We ate biscuit, which was no longer biscuit, but powder of biscuits swarming with worms, for they had eaten the good. It stank strongly of the urine of rats.", m:"swarming", c:"Teeming in huge numbers"}]},
+  { label:"The Haitian Revolution", note:"Enslaved people in the French colony of Saint-Domingue rose up in 1791. Led first by Toussaint Louverture and then Jean-Jacques Dessalines, they defeated Napoleon's army and declared Haiti independent on January 1, 1804.", items:[
+    {a:"Toussaint Louverture", s:"Reply to Bonaparte, trans. Mitch Abidor (c. 1800)", t:"It is not a circumstantial freedom conceded to ourselves alone that we want.", b:"freedom"},
+    {a:"Toussaint Louverture", s:"Reply to Bonaparte, trans. Mitch Abidor (c. 1800)", t:"It is the absolute adoption of the principle that any man born red, black or white cannot be the property of his like.", m:"property"},
+    {a:"Jean-Jacques Dessalines", s:"Haitian Declaration of Independence, trans. Dubois and Garrigus (1804)", t:"Therefore vow before me to live free and independent, and to prefer death to anything that will try to place you back in chains.", m:"independent", c:"Self-governing; nobody's subject"}]},
+  { label:"Votes for Women", note:"Emmeline Pankhurst led Britain's militant suffragettes and gave this \"Freedom or Death\" speech in Hartford, Connecticut, on November 13, 1913. British women won the vote on equal terms with men in 1928, weeks after her death.", items:[
+    {a:"Emmeline Pankhurst", s:"\"Freedom or Death\" speech, Hartford (1913)", t:"We were called militant, and we were quite willing to accept the name.", b:"militant"},
+    {a:"Emmeline Pankhurst", s:"\"Freedom or Death\" speech, Hartford (1913)", t:"Well, we are showing them that government does not rest upon force at all: it rests upon consent.", m:"consent"},
+    {a:"Emmeline Pankhurst", s:"\"Freedom or Death\" speech, Hartford (1913)", t:"Women are very slow to rouse, but once they are aroused, once they are determined, nothing on earth and nothing in heaven will make women give way; it is impossible.", m:"determined", c:"Firmly set on a goal"}]},
+  { label:"King in Oslo", note:"Martin Luther King Jr. accepted the Nobel Peace Prize in Oslo on December 10, 1964. At 35, he was then the youngest person to receive it.", items:[
+    {a:"Martin Luther King Jr.", s:"Nobel Peace Prize acceptance speech (1964)", t:"I refuse to accept despair as the final response to the ambiguities of history.", b:"despair"},
+    {a:"Martin Luther King Jr.", s:"Nobel Peace Prize acceptance speech (1964)", t:"I believe that unarmed truth and unconditional love will have the final word in reality.", m:"unarmed"},
+    {a:"Martin Luther King Jr.", s:"Nobel Peace Prize acceptance speech (1964)", t:"I have the audacity to believe that peoples everywhere can have three meals a day for their bodies, education and culture for their minds, and dignity, equality and freedom for their spirits.", m:"audacity", c:"Bold, daring nerve"}]},
+  { label:"Vesuvius Erupts", note:"In 79 CE, the teenage Pliny the Younger watched Vesuvius erupt from Misenum, across the Bay of Naples, while his uncle Pliny the Elder died trying to rescue people by ship. His two letters to the historian Tacitus are the fullest eyewitness account to survive.", items:[
+    {a:"Pliny the Younger", s:"Letter to Tacitus, trans. William Melmoth (c. 106 CE)", t:"It was now day everywhere else, but there a deeper darkness prevailed than in the thickest night.", b:"darkness"},
+    {a:"Pliny the Younger", s:"Letter to Tacitus, trans. William Melmoth (c. 106 CE)", t:"You might hear the shrieks of women, the screams of children, and the shouts of men.", m:"shrieks"},
+    {a:"Pliny the Younger", s:"Letter to Tacitus, trans. William Melmoth (c. 106 CE)", t:"But the greater part convinced that there were now no gods at all, and that the final endless night of which we have heard had come upon the world.", m:"endless", c:"Going on forever"}]},
+  { label:"The Moon Landing", note:"Apollo 11 landed on the Moon on July 20, 1969. Software built by Margaret Hamilton's team at MIT kept the guidance computer working through alarms during the descent, and the crew left a plaque on one of the lander's legs.", items:[
+    {a:"Margaret Hamilton", s:"Letter to Datamation (1971)", t:"Actually, the computer was programmed to do more than recognize error conditions.", b:"programmed"},
+    {a:"Apollo 11 plaque", s:"Plaque left on the Moon (1969)", t:"Here men from the planet Earth first set foot upon the Moon July 1969, A.D. We came in peace for all mankind.", m:"peace"},
+    {a:"Neil Armstrong", s:"As quoted in The People's Almanac (1975)", t:"I put up my thumb and shut one eye, and my thumb blotted out the planet Earth. I didn't feel like a giant. I felt very, very small.", m:"blotted", c:"Hid from view"}]},
+  { label:"The Berlin Wall", note:"The Berlin Wall split the city from 1961 to 1989. John F. Kennedy spoke in West Berlin in June 1963, Ronald Reagan at the Brandenburg Gate in June 1987, and the wall opened on November 9, 1989.", items:[
+    {a:"John F. Kennedy", s:"\"Ich bin ein Berliner\" speech (1963)", t:"Freedom is indivisible, and when one man is enslaved, all are not free.", b:"indivisible"},
+    {a:"Ronald Reagan", s:"Speech at the Brandenburg Gate (1987)", t:"Yes, across Europe, this wall will fall. For it cannot withstand faith; it cannot withstand truth. The wall cannot withstand freedom.", m:"faith"},
+    {a:"John F. Kennedy", s:"\"Ich bin ein Berliner\" speech (1963)", t:"Freedom has many difficulties and democracy is not perfect, but we have never had to put a wall up to keep our people in, to prevent them from leaving us.", m:"democracy", c:"Government by the people"}]},
+  { label:"The Meiji Restoration", note:"In April 1868, Japan's new government had the teenage Emperor Meiji proclaim the five-article Charter Oath. It launched decades of rapid modernization as Japan studied the industrial nations of the West.", items:[
+    {a:"Charter Oath (1868)", s:"Article 1, trans. W. W. McLaren", t:"Deliberative assemblies shall be widely established and all matters decided by open discussion.", b:"discussion"},
+    {a:"Charter Oath (1868)", s:"Article 2, trans. W. W. McLaren", t:"All classes, high and low, shall be united in vigorously carrying out the administration of affairs of state.", m:"united"},
+    {a:"Charter Oath (1868)", s:"Articles 4 and 5, trans. W. W. McLaren", t:"Evil customs of the past shall be broken off and everything based upon the just laws of Nature. Knowledge shall be sought throughout the world so as to strengthen the foundation of imperial rule.", m:"sought", c:"Searched for"}]},
+  { label:"The Edicts of Ashoka", note:"Horrified by the slaughter of his conquest of Kalinga around 260 BCE, the Indian emperor Ashoka embraced Buddhist ethics and had his edicts carved on rocks and pillars across his empire. They are among the oldest deciphered texts from India.", items:[
+    {a:"Edicts of Ashoka", s:"Rock Edict 2, trans. S. Dhammika (3rd century BCE)", t:"Along roads I have had wells dug and trees planted for the benefit of humans and animals.", b:"wells"},
+    {a:"Edicts of Ashoka", s:"Rock Edict 2, trans. S. Dhammika (3rd century BCE)", t:"Wherever medical herbs suitable for humans or animals are not available, I have had them imported and grown.", m:"herbs"},
+    {a:"Edicts of Ashoka", s:"Kalinga Rock Edict 1, trans. S. Dhammika (3rd century BCE)", t:"All men are my children. What I desire for my own children, and I desire their welfare and happiness both in this world and the next, that I desire for all men.", m:"welfare", c:"Health and happiness"}]},
+  { label:"South Africa Votes", note:"Nelson Mandela was sentenced to life in prison at the 1964 Rivonia Trial and spent 27 years behind bars. On May 10, 1994, after South Africa's first election open to all races, he was inaugurated as president.", items:[
+    {a:"Nelson Mandela", s:"Inaugural address (1994)", t:"Let there be justice for all. Let there be peace for all.", b:"peace"},
+    {a:"Nelson Mandela", s:"Statement at the Rivonia Trial (1964)", t:"I have cherished the ideal of a democratic and free society in which all persons live together in harmony and with equal opportunities.", m:"harmony"},
+    {a:"Nelson Mandela", s:"Inaugural address (1994)", t:"Never, never and never again shall it be that this beautiful land will again experience the oppression of one by another and suffer the indignity of being the skunk of the world.", m:"oppression", c:"Cruel, unjust rule over others"}]},
+  { label:"Malala's Classroom", note:"In 2012, gunmen shot 15-year-old Malala Yousafzai on her school bus in Pakistan's Swat Valley for speaking up for girls' education. Two years later, at 17, she became the youngest Nobel Peace Prize laureate.", items:[
+    {a:"Malala Yousafzai", s:"Nobel lecture (2014)", t:"Why is it that giving guns is so easy but giving books is so hard?", b:"books"},
+    {a:"Malala Yousafzai", s:"Nobel lecture (2014)", t:"We had a thirst for education, we had a thirst for education because our future was right there in that classroom.", m:"classroom"},
+    {a:"Malala Yousafzai", s:"Nobel lecture (2014)", t:"The terrorists tried to stop us and attacked me and my friends who are here today, on our school bus in 2012, but neither their ideas nor their bullets could win.", m:"bullets", c:"What a gun fires"}]},
+  { label:"Ibn Battuta", note:"Ibn Battuta left Tangier in 1325, aged 21, and traveled for nearly 30 years, from West Africa to China. The first two lines describe the people of the Mali Empire, which he visited in 1352-53.", items:[
+    {a:"Ibn Battuta", s:"Travels in Asia and Africa, trans. H. A. R. Gibb (1929)", t:"They are seldom unjust, and have a greater abhorrence of injustice than any other people.", b:"unjust"},
+    {a:"Ibn Battuta", s:"Travels in Asia and Africa, trans. H. A. R. Gibb (1929)", t:"There is complete security in their country. Neither traveller nor inhabitant in it has anything to fear from robbers or men of violence.", m:"security"},
+    {a:"Ibn Battuta", s:"Travels in Asia and Africa, trans. H. A. R. Gibb (1929)", t:"Swayed by an over-mastering impulse within me, and a long-cherished desire to visit those glorious sanctuaries, I resolved to quit all my friends and tear myself away from my home.", m:"impulse", c:"A sudden strong urge"}]},
+  { label:"Sojourner Truth", note:"Sojourner Truth, who freed herself from slavery in New York, spoke at the 1851 Women's Rights Convention in Akron, Ohio. This is Marius Robinson's report, printed weeks later; the famous \"Ain't I a Woman?\" version was written by Frances Gage in 1863.", items:[
+    {a:"Sojourner Truth", s:"Speech at Akron, as reported in the Anti-Slavery Bugle (1851)", t:"I have as much muscle as any man, and can do as much work as any man.", b:"muscle"},
+    {a:"Sojourner Truth", s:"Speech at Akron, as reported in the Anti-Slavery Bugle (1851)", t:"I have plowed and reaped and husked and chopped and mowed, and can any man do more than that?", m:"reaped"},
+    {a:"Sojourner Truth", s:"Speech at Akron, as reported in the Anti-Slavery Bugle (1851)", t:"I have heard the bible and have learned that Eve caused man to sin. Well if woman upset the world, do give her a chance to set it right side up again.", m:"upset", c:"Knocked over; overturned"}]},
+  { label:"Marco Polo in Cathay", note:"The Venetian Marco Polo spent about 17 years in the service of Kublai Khan, the Mongol ruler of China. His book, written down in a Genoese prison around 1298, told Europeans about paper money and coal, both new to most of them.", items:[
+    {a:"Marco Polo", s:"The Travels of Marco Polo, trans. Henry Yule (c. 1298)", t:"For, tell it how I might, you never would be satisfied that I was keeping within truth and reason!", b:"truth"},
+    {a:"Marco Polo", s:"The Travels of Marco Polo, trans. Henry Yule (c. 1298)", t:"And all the while they are so light that ten bezants' worth does not weigh one golden bezant.", m:"weigh"},
+    {a:"Marco Polo", s:"The Travels of Marco Polo, trans. Henry Yule (c. 1298)", t:"It is a fact that all over the country of Cathay there is a kind of black stones existing in beds in the mountains, which they dig out and burn like firewood.", m:"firewood", c:"Logs cut for burning"}]},
+  { label:"Gutenberg's Press", note:"Johannes Gutenberg began printing with movable metal type in Mainz around 1450 and finished his famous Bible about 1455. Centuries later, Francis Bacon and Victor Hugo still ranked printing among history's great turning points.", items:[
+    {a:"Victor Hugo", s:"Notre-Dame de Paris, trans. Isabel F. Hapgood (1831)", t:"The invention of printing is the greatest event in history. It is the mother of revolution.", b:"revolution"},
+    {a:"Victor Hugo", s:"Notre-Dame de Paris, trans. Isabel F. Hapgood (1831)", t:"In its printed form, thought is more imperishable than ever; it is volatile, irresistible, indestructible. It is mingled with the air.", m:"volatile"},
+    {a:"Francis Bacon", s:"Novum Organum, ed. Joseph Devey (1620)", t:"Again, we should notice the force, effect, and consequences of inventions, which are nowhere more conspicuous than in those three which were unknown to the ancients; namely, printing, gunpowder, and the compass.", m:"compass", c:"Needle that points north"}]},
+  { label:"India's Tryst with Destiny", note:"Jawaharlal Nehru, India's first prime minister, spoke to the Constituent Assembly near midnight on August 14, 1947, as British rule ended. The same moment brought the partition of India and Pakistan, which uprooted millions of people.", items:[
+    {a:"Jawaharlal Nehru", s:"\"Tryst with Destiny\" speech (1947)", t:"At the stroke of the midnight hour, when the world sleeps, India will awake to life and freedom.", b:"midnight"},
+    {a:"Jawaharlal Nehru", s:"\"Tryst with Destiny\" speech (1947)", t:"Are we brave enough and wise enough to grasp this opportunity and accept the challenge of the future?", m:"challenge"},
+    {a:"Jawaharlal Nehru", s:"\"Tryst with Destiny\" speech (1947)", t:"A moment comes, which comes but rarely in history, when we step out from the old to the new, when an age ends, and when the soul of a nation, long suppressed, finds utterance.", m:"utterance", c:"Expression in words"}]},
+  { label:"Crossing the Rubicon", note:"In January 49 BCE, Julius Caesar led his army across the Rubicon, the stream marking the edge of his province, defying the Senate and starting a civil war. Suetonius and Plutarch wrote these accounts about 150 years later.", items:[
+    {a:"Suetonius", s:"Life of Julius Caesar, trans. J. C. Rolfe (c. 121 CE)", t:"Even yet we may draw back; but once cross yon little bridge, and the whole issue is with the sword.", b:"bridge"},
+    {a:"Suetonius", s:"Life of Julius Caesar, trans. J. C. Rolfe (c. 121 CE)", t:"Take we the course which the signs of the gods and the false dealing of our foes point out. The die is cast.", m:"course"},
+    {a:"Plutarch", s:"Life of Caesar, trans. Bernadotte Perrin (c. 100 CE)", t:"Then, halting in his course, he communed with himself a long time in silence as his resolution wavered back and forth, and his purpose then suffered change after change.", m:"resolution", c:"Firm determination"}]},
+  { label:"Magna Carta", note:"England's King John sealed Magna Carta at Runnymede in June 1215 to make peace with rebel barons. The pope annulled it within weeks, but reissued versions became a cornerstone of the idea that rulers are bound by law.", items:[
+    {a:"Magna Carta (1215)", s:"Clause 40", t:"To no one will we sell, to no one will we refuse or delay, right or justice.", b:"justice"},
+    {a:"Magna Carta (1215)", s:"Clause 45", t:"We will appoint as justices, constables, sheriffs, or bailiffs only such as know the law of the realm and mean to observe it well.", m:"observe"},
+    {a:"Magna Carta (1215)", s:"Clause 63", t:"An oath, moreover, has been taken, as well on our part as on the part of the barons, that all these conditions aforesaid shall be kept in good faith and without evil intent.", m:"barons", c:"Nobles who held land from the king"}]},
+  { label:"Olaudah Equiano", note:"Olaudah Equiano wrote that he was kidnapped as a child in West Africa and sold into slavery. He bought his own freedom in 1766, and his 1789 autobiography became a bestseller that fueled Britain's campaign against the slave trade.", items:[
+    {a:"Olaudah Equiano", s:"The Interesting Narrative (1789)", t:"These filled me with astonishment, which was soon converted into terror when I was carried on board.", b:"terror"},
+    {a:"Olaudah Equiano", s:"The Interesting Narrative (1789)", t:"This gave me new life and spirits; and my heart burned within me, while I thought the time long till I obtained my freedom.", m:"spirits"},
+    {a:"Olaudah Equiano", s:"The Interesting Narrative (1789)", t:"Accordingly he signed the manumission that day, so that, before night, I who had been a slave in the morning, trembling at the will of another, was become my own master, and completely free.", m:"manumission", c:"Formal release from slavery"}]},
+  { label:"The Velvet Revolution", note:"Playwright and former political prisoner Václav Havel became Czechoslovakia's president in December 1989, after the peaceful protests of the Velvet Revolution ended four decades of Communist rule. He gave this address on New Year's Day 1990.", items:[
+    {a:"Václav Havel", s:"New Year's Address to the Nation (1990)", t:"I assume you did not propose me for this office so that I, too, would lie to you.", b:"office"},
+    {a:"Václav Havel", s:"New Year's Address to the Nation (1990)", t:"Let us not be mistaken: the best government in the world, the best parliament and the best president, cannot achieve much on their own.", m:"parliament"},
+    {a:"Václav Havel", s:"New Year's Address to the Nation (1990)", t:"Whenever someone categorically claimed that we were this or that, I always objected that society is a very mysterious creature and that it is unwise to trust only the face it presents to you.", m:"mysterious", c:"Puzzling; hard to explain"}]}
  ],
  science: [
   { label:"The Speed of Light", note:"Light from the next-nearest star, Proxima Centauri, takes over four years to reach us.", items:[
@@ -2035,16 +2290,17 @@ const SET_PACKS = {
 };
 
 const SET_PACK_DATA = {};
-const SET_PACK_PREFIX = { world:"wh", science:"sc" };
+const SET_PACK_PREFIX = { world:"hq", science:"sc" };   // v0.6f: World History became quotes, so new ids (old fact ids were wh..)
 const SET_PACK_AUTHOR = { world:"World History", science:"NOVA Science" };
 Object.keys(SET_PACKS).forEach(pid=>{
   SET_PACK_DATA[pid] = SET_PACKS[pid].map((st, si)=>{
-    const entry = { label:st.label, theme:st.label, note:st.note, shape:"facts", idx:[], items:[] };
+    const isQ = !!(st.items[0] && st.items[0].a);
+    const entry = { label:st.label, theme:st.label, note:st.note, shape: isQ ? "voices" : "facts", idx:[], items:[] };
     st.items.forEach((it, ti)=>{
       entry.idx.push(QUOTES.length);
-      entry.items.push({ k:"fact", t:it.t, a:SET_PACK_AUTHOR[pid], s:st.label });
+      entry.items.push({ k: it.a ? "quote" : "fact", t:it.t, a: it.a || SET_PACK_AUTHOR[pid], s: it.s || st.label });
       QUOTES.push({ id: SET_PACK_PREFIX[pid] + String(si+1).padStart(2,"0") + "abc"[ti], label: st.label, text: it.t,
-                    author: SET_PACK_AUTHOR[pid], src: st.label, kind:"fact", tier: ti+1, packSet:true, packId: pid, packSetIdx: si,
+                    author: it.a || SET_PACK_AUTHOR[pid], src: it.s || st.label, kind: it.a ? "quote" : "fact", tier: ti+1, packSet:true, packId: pid, packSetIdx: si,
                     mystery: it.m || null, clue: it.c || null, blank: it.b || null });
     });
     entry.idx.forEach(qi=> QUOTES[qi].mood = (SOMBER_PACK_SETS[pid]||[]).includes(st.label) ? "somber" : "bright");
@@ -2275,7 +2531,7 @@ if(typeof module !== "undefined" && module.exports){
     url: "https://jpasgxttyiaorhksybez.supabase.co",
     key: "sb_publishable_XEBCZFTnhakXn5G14MO9cg_tiwLrTpB", // publishable; RLS = insert+read only
     gameId: "verbatim",
-    gameVersion: "0.6e",
+    gameVersion: "0.6f",
     logVersion: 1,
     flushMs: 4000,          // standing flush cadence
     maxBatch: 40,           // events per POST (keepalive-safe size)
@@ -2502,7 +2758,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.6e";
+  const VERSION = "0.6f";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "easy" | "normal" — Normal (formerly Hard) is the default
   try{
@@ -2754,7 +3010,7 @@ if(typeof module !== "undefined" && module.exports){
     { id:"science", title:"Science",       sub:"Three-step science sets",  kind:"facts", presenter:"nova", presenterName:"NOVA", sets:true, count:SET_PACKS.science.length },
     { id:"voices",  title:"DC & Virginia Voices", sub:"Local legends, in their words", kind:"quotes", special:true, presenter:"weta", presenterName:"WETA", start:PACK_START+40, count:40 },
     { id:"tough",   title:"Tough Puzzles", sub:"Longer quotes, bigger bite", kind:"quotes", start:PACK_START+80, count:30 },
-    { id:"world",   title:"World History", sub:"Empires, inventions & turning points", kind:"facts", sets:true, count:SET_PACKS.world.length },
+    { id:"world",   title:"World History", sub:"Turning points, in the words of those who were there", kind:"quotes", sets:true, count:SET_PACKS.world.length },
     { id:"us",      title:"US History",    sub:"Coming soon", soon:true },
     { id:"geo",     title:"Geography",     sub:"Coming soon", soon:true }
   ];
@@ -2894,9 +3150,7 @@ if(typeof module !== "undefined" && module.exports){
     const isFacts = pz.quote.kind ? pz.quote.kind === "fact" : pkKind === "facts";
     promptEl.textContent = "Place the words to set the " + (isFacts ? "fact" : "quotation");
     $("shareBtn").textContent = isFacts ? "Share this fact" : "Share this quote";
-    const hb = $("heartBtn");
-    hb.setAttribute("aria-label", isFacts ? "Love this fact" : "Love this quote");
-    hb.querySelector(".heart-label").textContent = isFacts ? "Love this fact" : "Love this quote";
+    $("rateQ").textContent = isFacts ? "Rate this fact" : "Rate this quote";
     $("tomorrowLine").textContent = (state.tier && !state.pack) ? "A new set of three arrives each morning."
       : !state.pack ? "A new quotation arrives each morning."
       : (isFacts ? "More facts await in this pack." : "More quotes await in this pack.");
@@ -4139,7 +4393,7 @@ if(typeof module !== "undefined" && module.exports){
       ? "Mystery word: " + state.secretWord + " — " + state.secretGuesses + (state.secretGuesses===1?" guess":" guesses")
       : "";
     // reset the love/heart control for this quote
-    if(typeof heartBtn !== "undefined" && heartBtn){ heartBtn.classList.remove("loved"); heartBtn.setAttribute("aria-pressed","false"); }
+    resetRating();
     const link = pbsLinkFor(state.quote);
     const box = $("pbsBox");
     if(link){
@@ -4310,13 +4564,47 @@ if(typeof module !== "undefined" && module.exports){
     wrap.appendChild(burst);
     setTimeout(()=> burst.remove(), 950);
   }
-  heartBtn.addEventListener("click", ()=>{
-    const loved = !heartBtn.classList.contains("loved");
-    heartBtn.classList.toggle("loved", loved);
-    heartBtn.setAttribute("aria-pressed", loved ? "true" : "false");
-    heartBtn.classList.remove("wobble"); void heartBtn.offsetWidth; heartBtn.classList.add("wobble");
-    if(loved){ spawnHeartBurst(); haptic(22); }
-    try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:heart", { on: loved, quote_id: state.quote.id }); }catch(e){}
+  /* v0.6f ratings. One rating per puzzle (love | up | down), tap again to clear.
+     Remembered per quote on this device so revisits show the same state and don't double count.
+     Events: verbatim:rate {rating, prev, quote_id, set_key, tier, pack_id}
+             verbatim:comment {rating, quote_id, set_key, tier, pack_id, text} (text capped at 500 chars) */
+  const RATE_KEY = "verbatim_ratings";
+  const rateBtns = [heartBtn, $("rateUp"), $("rateDown")];
+  let ratingSent = false;
+  function ratingsMap(){ try{ return JSON.parse(localStorage.getItem(RATE_KEY) || "{}"); }catch(e){ return {}; } }
+  function saveRating(id, r){ try{ const m = ratingsMap(); if(r) m[id] = r; else delete m[id]; localStorage.setItem(RATE_KEY, JSON.stringify(m)); }catch(e){} }
+  function rateCtx(){ return { quote_id: state.quote.id, set_key: state.setKey || null, tier: state.tier || null, pack_id: state.pack || null }; }
+  function paintRating(r){
+    rateBtns.forEach(b=>{
+      const on = b.dataset.r === r;
+      b.classList.toggle(b.dataset.r === "love" ? "loved" : "on", on);
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+  }
+  function resetRating(){
+    if(!state || !state.quote) return;
+    paintRating(ratingsMap()[state.quote.id] || null);
+    ratingSent = false;
+    $("rateText").value = ""; $("rateSend").disabled = true; $("rateSend").textContent = "Send";
+    $("rateComment").hidden = true; $("rateThanks").hidden = true;
+  }
+  function onRate(btn){
+    const id = state.quote.id, prev = ratingsMap()[id] || null;
+    const r = prev === btn.dataset.r ? null : btn.dataset.r;
+    paintRating(r); saveRating(id, r);
+    btn.classList.remove("wobble"); void btn.offsetWidth; btn.classList.add("wobble");
+    if(r === "love"){ spawnHeartBurst(); haptic(22); } else if(r){ haptic(12); }
+    $("rateComment").hidden = !r || ratingSent;
+    if(r && !ratingSent) $("rateTextLab").textContent = r === "down" ? "What didn't work for you? (optional)" : "What did you like about it? (optional)";
+    try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:rate", Object.assign({ rating: r, prev: prev }, rateCtx())); }catch(e){}
+  }
+  rateBtns.forEach(b=> b.addEventListener("click", ()=> onRate(b)));
+  $("rateText").addEventListener("input", ()=>{ $("rateSend").disabled = !$("rateText").value.trim(); });
+  $("rateSend").addEventListener("click", ()=>{
+    const text = $("rateText").value.trim().slice(0, 500); if(!text) return;
+    const r = ratingsMap()[state.quote.id] || null;
+    try{ if(window.PBSTelemetry){ PBSTelemetry.game("verbatim:comment", Object.assign({ rating: r, text: text }, rateCtx())); if(PBSTelemetry.flushNow) PBSTelemetry.flushNow(); } }catch(e){}
+    ratingSent = true; $("rateComment").hidden = true; $("rateThanks").hidden = false; $("rateText").blur();
   });
 
   $("newBtn").addEventListener("click", ()=> initGame(Math.floor(Math.random()*100000)));
