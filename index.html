@@ -900,8 +900,8 @@
     80%{ opacity:1; transform:translate(-50%,0) scale(1); }
     100%{ opacity:0; transform:translate(-50%,-8px) scale(.96); }
   }
-  .go-sub{ margin:6px auto 0; max-width:320px; font-size:.86rem; line-height:1.4; color:var(--ink-soft); }
-  .go-sub b{ color:#B58900; }
+  .go-tip{ display:block; margin:8px auto 2px; max-width:300px; text-align:center; font-family:var(--ui); font-size:.8rem; font-weight:700; letter-spacing:.02em; line-height:1.45; color:var(--ink-soft); }
+  .go-tip b{ color:#B58900; }
   @media (prefers-reduced-motion:reduce){
     .tok.cp-hit, .cp-pip.pop{ animation:none; }
     .cp-burst{ display:none; }
@@ -1166,7 +1166,7 @@
     <!-- Afterglow: appears in place once solved -->
     <div class="gameover" id="gameover">
       <div class="go-title">Out of mistakes</div>
-      <p class="go-sub" id="goSub" hidden></p>
+      <p class="go-tip" id="goSub" hidden></p>
       <div class="go-mode">
         <span class="go-mode-lab">Difficulty for your next try</span>
         <div class="mode-tog" role="group" aria-label="Difficulty for your next try">
@@ -2590,7 +2590,7 @@ if(typeof module !== "undefined" && module.exports){
     url: "https://jpasgxttyiaorhksybez.supabase.co",
     key: "sb_publishable_XEBCZFTnhakXn5G14MO9cg_tiwLrTpB", // publishable; RLS = insert+read only
     gameId: "verbatim",
-    gameVersion: "0.6i",
+    gameVersion: "0.6j",
     logVersion: 1,
     flushMs: 4000,          // standing flush cadence
     maxBatch: 40,           // events per POST (keepalive-safe size)
@@ -2817,7 +2817,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.6i";
+  const VERSION = "0.6j";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "easy" | "normal" — Normal (formerly Hard) is the default
   try{
@@ -3209,6 +3209,7 @@ if(typeof module !== "undefined" && module.exports){
         + (state.hard && state.hard.word ? 2 : 0);
       budget = Math.max(1, Math.floor(budget * 0.75));
       if(mode === "easy") budget = Math.floor(budget * 1.5);   // 50% more turns on Easy
+      budget = Math.max(1, Math.round(budget * 1.25));          // v0.6j: 25% more mistakes in every mode
       state.errorBudget = budget;
       state.errorsLeft = budget;
     }
