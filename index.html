@@ -1237,7 +1237,7 @@
     <p>Each day brings three linked puzzles, from a quick warm-up to a longer finale. Solve all three to reveal what ties them together.</p>
     <p>You're shown who said each line (or what a fact is about). A word or two is already in place. Tap words from the bank to drop them into the blanks, in the order you think the line goes.</p>
     <p>Puzzles two and three hide a <b>mystery word</b> to uncover at the end; the finale adds a clue. Longer mystery words start with a letter or more filled in.</p>
-    <p><b>Scoring:</b> each puzzle in a set is worth more than the last, then multiplied by your speed (seconds per word, with no limit: the faster you go, the higher it climbs) and your accuracy (a perfect solve earns a bonus; each slip trims it). Your set score adds up your best run of each puzzle, so replay to beat it. The clock only runs while you're playing. Solve an early puzzle without a slip to earn a hint for later.</p>
+    <p><b>Scoring:</b> each puzzle in a set is worth more than the last, then multiplied by your speed (seconds per word, with no limit: the faster you go, the higher it climbs) and your accuracy (a perfect solve earns a bonus; each slip trims it). Your set score adds up your best run of each puzzle, so replay to beat it. The clock only runs while you're playing. Every puzzle comes with one free hint, and solving an early puzzle on your first try without a slip earns an extra hint for later in the set.</p>
     <p>Tap <b>Set the line</b> to check. Words in the right spot lock in; the rest come back to the bank. There's no limit on tries — but the fewer moves it takes, the higher you'll place.</p>
     <p>Solve it, and the line sets into print to share.</p>
   </div>
@@ -2463,8 +2463,21 @@ function buildPuzzle(seed, forceIdx){
                                  : Math.max(1, Math.floor(words.length / 4)))   // daily warm-up: generous footholds
     : q.tier === 2 ? 1                                              // one interior anchor
     : (words.length >= 24 ? 1 : 0);                                 // finale: first word only (one more on very long lines)
+  // v0.6h: long lines get extra footholds, about one more given word for every
+  // three words past 12, spread evenly along the line so no stretch is bare
+  const lenTarget = words.length >= 14 ? Math.round((words.length - 12) / 3) : 0;
+  const target = Math.max(interiorTarget, lenTarget);
+  const interior = words.length - 2;                       // positions 1 .. length-2
+  if(lenTarget > interiorTarget && interior > 0){
+    for(let k = 0; k < target; k++){
+      const lo = 1 + Math.floor(k * interior / target), hi = Math.max(lo, Math.floor((k + 1) * interior / target));
+      let cand = lo + Math.floor(rng() * (hi - lo + 1));
+      for(let tries = 0; tries <= hi - lo && (cand === secretIndex || anchors.has(cand)); tries++) cand = cand + 1 > hi ? lo : cand + 1;
+      if(cand !== secretIndex && cand >= 1 && cand <= words.length - 2) anchors.add(cand);
+    }
+  }
   let guard = 0;
-  while(anchors.size - 1 < interiorTarget && words.length > 2 && guard++ < 80){
+  while(anchors.size - 1 < target && words.length > 2 && guard++ < 120){
     const cand = 1 + Math.floor(rng()*(words.length-2));  // interior positions only
     if(cand !== secretIndex) anchors.add(cand);
   }
@@ -2576,7 +2589,7 @@ if(typeof module !== "undefined" && module.exports){
     url: "https://jpasgxttyiaorhksybez.supabase.co",
     key: "sb_publishable_XEBCZFTnhakXn5G14MO9cg_tiwLrTpB", // publishable; RLS = insert+read only
     gameId: "verbatim",
-    gameVersion: "0.6g",
+    gameVersion: "0.6h",
     logVersion: 1,
     flushMs: 4000,          // standing flush cadence
     maxBatch: 40,           // events per POST (keepalive-safe size)
@@ -2803,7 +2816,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.6g";
+  const VERSION = "0.6h";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "easy" | "normal" — Normal (formerly Hard) is the default
   try{
@@ -2900,25 +2913,41 @@ if(typeof module !== "undefined" && module.exports){
   function loadSetRec(sk){ try{ return JSON.parse(localStorage.getItem(setRecKey(sk)) || "{}"); }catch(e){ return {}; } }
   function saveSetRec(sk, r){ try{ localStorage.setItem(setRecKey(sk), JSON.stringify(r)); }catch(e){} }
   // hint tokens (test): a clean solve of puzzle 1 or 2 earns one token, spendable later in the same set
-  function hintTokens(){ if(!state || !state.tier || !state.setKey) return 0; const r = loadSetRec(state.setKey); return Math.max(0, (r.earned||0) - (r.spent||0)); }
+  /* v0.6h hints: every puzzle comes with ONE free hint (stays spent across retries of
+     that puzzle), plus any hints banked by clean solves of earlier puzzles in the set. */
+  const FREE_HINT_KEY = "verbatim_free_hints";
+  function puzzleRef(){ return !state ? "" : state.setKey ? state.setKey + ":t" + state.tier : "s:" + state.seed; }
+  function freeHintUsed(){ try{ return !!JSON.parse(localStorage.getItem(FREE_HINT_KEY) || "{}")[puzzleRef()]; }catch(e){ return !!(state && state._freeHintUsed); } }
+  function spendFreeHint(){
+    if(state) state._freeHintUsed = true;
+    try{ const m = JSON.parse(localStorage.getItem(FREE_HINT_KEY) || "{}"); m[puzzleRef()] = 1;
+      const ks = Object.keys(m); if(ks.length > 400) ks.slice(0, ks.length - 400).forEach(k=> delete m[k]);
+      localStorage.setItem(FREE_HINT_KEY, JSON.stringify(m)); }catch(e){}
+  }
+  function earnedHints(){ if(!state || !state.tier || !state.setKey) return 0; const r = loadSetRec(state.setKey); return Math.max(0, (r.earned||0) - (r.spent||0)); }
+  function hintTokens(){ if(!state) return 0; return (freeHintUsed() ? 0 : 1) + earnedHints(); }
   function updateHintUI(){
     const b = $("hintBtn"); if(!b) return;
     const n = hintTokens();
-    const show = !!(state && state.tier && state.tier > 1 && state.phase === "assemble" && n > 0);
+    const show = !!(state && state.phase === "assemble" && n > 0 && state.slots.some(x=> !x.fixed && !x.locked));
     b.hidden = !show;
     if(show) b.textContent = "Use a hint (" + n + ")";
   }
   function useHint(){
     if(!state || state.phase !== "assemble" || hintTokens() < 1) return;
-    const slotIdx = state.slots.findIndex(s=> !s.fixed && !s.locked && !s._bouncing);
+    // reveal the first open word, skipping the mystery word (that one stays a mystery)
+    let slotIdx = state.slots.findIndex((s,i)=> !s.fixed && !s.locked && !s._bouncing && i !== state.secretIndex);
+    if(slotIdx < 0) slotIdx = state.slots.findIndex(s=> !s.fixed && !s.locked && !s._bouncing);
     if(slotIdx < 0) return;
     const want = state.slots[slotIdx].correct;
     if(state.slots[slotIdx].word !== null) returnWord(slotIdx);
     const item = state.bank.find(b=> b.word === want);
     if(!item) return;
-    const r = loadSetRec(state.setKey); r.spent = (r.spent||0) + 1; saveSetRec(state.setKey, r);
+    const kind = freeHintUsed() ? "earned" : "free";
+    if(kind === "free") spendFreeHint();
+    else { const r = loadSetRec(state.setKey); r.spent = (r.spent||0) + 1; saveSetRec(state.setKey, r); state.earnedHintsUsed = (state.earnedHintsUsed||0) + 1; }
     state.hintsUsed++;
-    try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:hint", { tier: state.tier, tokens_left: hintTokens() }); }catch(e){}
+    try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:hint", { tier: state.tier, kind: kind, tokens_left: hintTokens() }); }catch(e){}
     bankToSlot(item.key, slotIdx);
     afterChange();
     updateHintUI();
@@ -2986,10 +3015,14 @@ if(typeof module !== "undefined" && module.exports){
     sv.slots.forEach((ss,i)=>{
       if(!ss) return;
       const slot = state.slots[i];
+      if(slot && slot.fixed) return;   // a later build may give this word outright
       if(ss.w != null){
-        const bi = state.bank.findIndex(b=> b.key === ss.k);
-        if(bi >= 0) state.bank.splice(bi,1);
-        slot.word = ss.w; slot._fromKey = ss.k; slot._wi = ss.wi; slot.locked = ss.l; slot._placedAt = ss.p;
+        // match the saved tile by its word position (tile keys can shift between builds)
+        let bi = ss.wi != null ? state.bank.findIndex(b=> b.wi === ss.wi) : -1;
+        if(bi < 0) bi = state.bank.findIndex(b=> b.key === ss.k && b.word === ss.w);
+        if(bi < 0) return;   // that word is now given outright, or no longer in the bank
+        const it = state.bank.splice(bi,1)[0];
+        slot.word = it.word; slot._fromKey = it.key; slot._wi = it.wi; slot.locked = ss.l && it.word === slot.correct; slot._placedAt = ss.p;
         slot.justLocked = false;
       }
     });
@@ -3013,7 +3046,7 @@ if(typeof module !== "undefined" && module.exports){
     state.secretSolved = !!sv.secretSolved;
     state.cpN = sv.cpN || 0; state.cpSlots = sv.cpSlots || [];
     if(state.cpN) cpCarry = { seed: state.seed, n: state.cpN, slots: state.cpSlots.slice() };
-    if(sv.scramble && state.hard && state.hard.word){
+    if(sv.scramble && state.hard && state.hard.word && sv.scramble.order && sv.scramble.order.length === state.hard.word.order.length){
       state.hard.word.order = sv.scramble.order;
       state.hard.word.solved = sv.scramble.solved;
     }
@@ -4474,7 +4507,7 @@ if(typeof module !== "undefined" && module.exports){
     //    off the critical path — Safari can take these after the gold begins
     if(state.tier && state.setKey){
       const r = loadSetRec(state.setKey);
-      const clean = (state.attemptNum || 1) === 1 && state.errorsLeft === state.errorBudget && !state.hintsUsed;
+      const clean = (state.attemptNum || 1) === 1 && state.errorsLeft === state.errorBudget && !state.earnedHintsUsed;
       r["t" + state.tier] = { ms: state.elapsedMs, attempts: state.attemptNum || 1, clean: clean, guesses: state.secretGuesses || 0 };
       if(clean && state.tier < 3 && !r["earned_t" + state.tier]){ r.earned = (r.earned||0) + 1; r["earned_t" + state.tier] = 1; state.earnedHint = true; }
       else state.earnedHint = false;
