@@ -1836,12 +1836,12 @@ const DAILY_SETS = [
     {k:"fact", a:"Architecture", s:"Sydney Opera House", t:"Its design was chosen in a 1957 competition won by the Danish architect J\u00F8rn Utzon.", m:"Danish"},
     {k:"fact", a:"Architecture", s:"Sydney Opera House", t:"Utzon resigned during construction in 1966 and never returned to see his finished building.", m:"resigned", c:"Formally quit a job"}
  ]},
- { d:"2026-10-21", shape:"one", theme:"Ursula K. Le Guin, from other worlds",
-   note:"Ursula K. Le Guin was born on October 21, 1929. These lines come from A Wizard of Earthsea and The Left Hand of Darkness.",
+ { d:"2026-10-21", idd:"2026-10-23", shape:"one", theme:"Michael Faraday lights a candle",
+   note:"Michael Faraday gave these lectures to young people at London's Royal Institution, and they were published as a book in 1861. They are still a classic way into chemistry.",
    items:[
-    {k:"quote", a:"Ursula K. Le Guin", s:"A Wizard of Earthsea (1968)", t:"Have you never thought how danger must surround power as shadow does light?", b:"shadow"},
-    {k:"quote", a:"Ursula K. Le Guin", s:"The Left Hand of Darkness (1969)", t:"The only thing that makes life possible is permanent, intolerable uncertainty: not knowing what comes next.", m:"possible"},
-    {k:"quote", a:"Ursula K. Le Guin", s:"A Wizard of Earthsea (1968)", t:"You must not change one thing, one pebble, one grain of sand, until you know what good and evil will follow on that act.", m:"pebble", c:"A small, smooth stone"}
+    {k:"quote", a:"Michael Faraday", s:"The Chemical History of a Candle (1861)", t:"All, however, that is fine and beautiful is not useful.", b:"beautiful"},
+    {k:"quote", a:"Michael Faraday", s:"The Chemical History of a Candle (1861)", t:"Water is the same everywhere, whether produced from the ocean or from the flame of the candle.", m:"ocean"},
+    {k:"quote", a:"Michael Faraday", s:"The Chemical History of a Candle (1861)", t:"There is no better, there is no more open door by which you can enter into the study of natural philosophy, than by considering the physical phenomena of a candle.", m:"phenomena", c:"Things that can be observed happening"}
  ]},
  { d:"2026-10-22", shape:"facts", theme:"The first parachute",
    note:"Andr\u00E9-Jacques Garnerin made the first frameless parachute descent at Parc Monceau in Paris on October 22, 1797.",
@@ -1850,12 +1850,12 @@ const DAILY_SETS = [
     {k:"fact", a:"Science", s:"Andr\u00E9-Jacques Garnerin", t:"His silk parachute was the first to fly without a rigid frame.", m:"rigid"},
     {k:"fact", a:"Science", s:"Andr\u00E9-Jacques Garnerin", t:"The parachute swung violently on the way down and scraped along the ground when he landed, but Garnerin walked away uninjured.", m:"scraped", c:"Rubbed roughly against a surface"}
  ]},
- { d:"2026-10-23", shape:"one", theme:"Michael Faraday lights a candle",
-   note:"October 23 is Mole Day, a chemistry holiday named for Avogadro's number, about 6.02 × 10²³. Michael Faraday gave these lectures to young people at London's Royal Institution, and they were published as a book in 1861.",
+ { d:"2026-10-23", idd:"2026-10-21", shape:"one", theme:"Ursula K. Le Guin, from other worlds",
+   note:"Ursula K. Le Guin was born this week, on October 21, 1929. These lines come from A Wizard of Earthsea and The Left Hand of Darkness.",
    items:[
-    {k:"quote", a:"Michael Faraday", s:"The Chemical History of a Candle (1861)", t:"All, however, that is fine and beautiful is not useful.", b:"beautiful"},
-    {k:"quote", a:"Michael Faraday", s:"The Chemical History of a Candle (1861)", t:"Water is the same everywhere, whether produced from the ocean or from the flame of the candle.", m:"ocean"},
-    {k:"quote", a:"Michael Faraday", s:"The Chemical History of a Candle (1861)", t:"There is no better, there is no more open door by which you can enter into the study of natural philosophy, than by considering the physical phenomena of a candle.", m:"phenomena", c:"Things that can be observed happening"}
+    {k:"quote", a:"Ursula K. Le Guin", s:"A Wizard of Earthsea (1968)", t:"Have you never thought how danger must surround power as shadow does light?", b:"shadow"},
+    {k:"quote", a:"Ursula K. Le Guin", s:"The Left Hand of Darkness (1969)", t:"The only thing that makes life possible is permanent, intolerable uncertainty: not knowing what comes next.", m:"possible"},
+    {k:"quote", a:"Ursula K. Le Guin", s:"A Wizard of Earthsea (1968)", t:"You must not change one thing, one pebble, one grain of sand, until you know what good and evil will follow on that act.", m:"pebble", c:"A small, smooth stone"}
  ]},
  { d:"2026-10-24", shape:"voices", theme:"Three voices for United Nations Day",
    note:"The UN Charter came into force on October 24, 1945. Ralph Bunche and Dag Hammarskj\u00F6ld both served the UN; Bunche won the 1950 Nobel Peace Prize.",
@@ -2138,7 +2138,8 @@ DAILY_SETS.forEach(ds=>{
   ds.idx = [];
   ds.items.forEach((it,i)=>{
     ds.idx.push(QUOTES.length);
-    QUOTES.push({ id:"s" + ds.d.slice(5).replace("-","") + "abc"[i], text:it.t, author:it.a, src:it.s,
+    QUOTES.push({ id:"s" + (ds.idd || ds.d).slice(5).replace("-","") + "abc"[i],   // idd: a set moved to a new date keeps its ids
+                   text:it.t, author:it.a, src:it.s,
                   kind:it.k, tier:i+1, setDate:ds.d, mystery:it.m||null, clue:it.c||null, blank:it.b||null });
   });
   SET_BY_DATE[ds.d] = ds;
@@ -2589,7 +2590,7 @@ if(typeof module !== "undefined" && module.exports){
     url: "https://jpasgxttyiaorhksybez.supabase.co",
     key: "sb_publishable_XEBCZFTnhakXn5G14MO9cg_tiwLrTpB", // publishable; RLS = insert+read only
     gameId: "verbatim",
-    gameVersion: "0.6h",
+    gameVersion: "0.6i",
     logVersion: 1,
     flushMs: 4000,          // standing flush cadence
     maxBatch: 40,           // events per POST (keepalive-safe size)
@@ -2816,7 +2817,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.6h";
+  const VERSION = "0.6i";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "easy" | "normal" — Normal (formerly Hard) is the default
   try{
@@ -3011,6 +3012,8 @@ if(typeof module !== "undefined" && module.exports){
     gameStarted = true;
     _resuming = true;
     try{ initGame(sv.seed, opts); } finally { _resuming = false; }
+    // a save from a puzzle whose words changed under it (e.g. a swapped day) starts fresh
+    if((sv.slots||[]).some(ss=> ss && ss.w != null && ss.l && ss.wi != null && state.words[ss.wi] !== ss.w)){ clearProgress(); return true; }
     // rebuild progress on top of the fresh init
     sv.slots.forEach((ss,i)=>{
       if(!ss) return;
