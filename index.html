@@ -1899,12 +1899,12 @@ const DAILY_SETS = [
     {k:"quote", a:"Alan Turing", s:"Computing Machinery and Intelligence (1950)", t:"We can only see a short distance ahead, but we can see plenty there that needs to be done.", m:"distance"},
     {k:"quote", a:"Ada Lovelace", s:"Notes on the Analytical Engine (1843)", t:"We may say most aptly that the Analytical Engine weaves algebraical patterns just as the Jacquard-loom weaves flowers and leaves.", m:"patterns", c:"Designs that repeat"}
  ]},
- { d:"2026-10-30", shape:"one", theme:"H. G. Wells, on minds great and small",
-   note:"The Mercury Theatre broadcast The War of the Worlds on October 30, 1938. Historians now say reports of a nationwide panic were greatly exaggerated by newspapers.",
+ { d:"2026-10-30", shape:"voices", card:"In memory of Patrick Stewart", theme:"Remembering Patrick Stewart",
+   note:"Sir Patrick Stewart died this week at 86. He spent 14 years with the Royal Shakespeare Company before becoming Captain Jean-Luc Picard on Star Trek: The Next Generation and Professor Charles Xavier in the X-Men films.",
    items:[
-    {k:"quote", a:"H. G. Wells", s:"The Time Machine (1895)", t:"There is no intelligence where there is no change and no need of change.", b:"intelligence"},
-    {k:"quote", a:"H. G. Wells", s:"The Time Machine (1895)", t:"It is a law of nature we overlook, that intellectual versatility is the compensation for change, danger, and trouble.", m:"danger"},
-    {k:"quote", a:"H. G. Wells", s:"The War of the Worlds (1898)", t:"No one would have believed in the last years of the nineteenth century that this world was being watched keenly and closely by intelligences greater than man's", m:"watched", c:"Observed closely"}
+    {k:"quote", a:"Jean-Luc Picard", s:"Patrick Stewart in Star Trek Generations (1994)", t:"What we leave behind is not as important as how we lived.", b:"behind"},
+    {k:"quote", a:"Patrick Stewart", s:"Interview with NPR (2023)", t:"To stand in the middle of an empty stage in an empty theater and feel that I was at home was everything", m:"theater"},
+    {k:"quote", a:"Jean-Luc Picard", s:"Patrick Stewart in Star Trek Generations (1994)", t:"I rather believe that time is a companion who goes with us on the journey, and reminds us to cherish every moment, because they'll never come again.", m:"companion", c:"A friend who travels with you"}
  ]},
  { d:"2026-10-31", shape:"voices", theme:"Three classic frights for Halloween",
    note:"Happy Halloween. Mary Shelley, Washington Irving, and Edgar Allan Poe all wrote before 1929, so their words are in the public domain.",
@@ -2122,6 +2122,13 @@ const DAILY_SETS = [
     {k:"quote", a:"Mark Twain", s:"Pudd'nhead Wilson (1894)", t:"As to the Adjective: when in doubt, strike it out.", b:"doubt"},
     {k:"quote", a:"L. M. Montgomery", s:"Anne of Green Gables (1908)", t:"It wouldn't be half so interesting if we knew all about everything, would it?", m:"interesting"},
     {k:"quote", a:"Winston Churchill", s:"Painting as a Pastime (1921-22)", t:"You know you will never get to the end of the journey. But this, so far from discouraging, only adds to the joy and the glory of the climb.", m:"journey", c:"a long trip somewhere"}
+ ]},
+ { d:"2026-12-01", shape:"one", theme:"H. G. Wells, on minds great and small",
+   note:"The Mercury Theatre broadcast The War of the Worlds on October 30, 1938. Historians now say reports of a nationwide panic were greatly exaggerated by newspapers.",
+   items:[
+    {k:"quote", a:"H. G. Wells", s:"The Time Machine (1895)", t:"There is no intelligence where there is no change and no need of change.", b:"intelligence"},
+    {k:"quote", a:"H. G. Wells", s:"The Time Machine (1895)", t:"It is a law of nature we overlook, that intellectual versatility is the compensation for change, danger, and trouble.", m:"danger"},
+    {k:"quote", a:"H. G. Wells", s:"The War of the Worlds (1898)", t:"No one would have believed in the last years of the nineteenth century that this world was being watched keenly and closely by intelligences greater than man's", m:"watched", c:"Observed closely"}
  ]}
 ];
 
@@ -2130,7 +2137,7 @@ const DAILY_SETS = [
 const SOMBER_RE = /\b(war|wars|warfare|holocaust|genocide|slavery|massacre|grief|mourning|sorrow|tormentor|oppressor|cruelty|hatred|tragedy)\b/i;
 function isSomberText(t){ return SOMBER_RE.test(t || ""); }
 // hand-picked sets whose subject is dark (war, plague, oppression, disaster) or eerie
-const SOMBER_DATES = ["2026-09-30","2026-10-07","2026-10-08","2026-10-19","2026-10-24","2026-10-25","2026-10-30","2026-10-31","2026-11-11"];
+const SOMBER_DATES = ["2026-09-30","2026-10-07","2026-10-08","2026-10-19","2026-10-24","2026-10-25","2026-10-31","2026-12-01","2026-11-11"];
 const SOMBER_PACK_SETS = { world:["The Haitian Revolution","Vesuvius Erupts","Olaudah Equiano"], science:[] };
 const SET_START = QUOTES.length;
 const SET_BY_DATE = {};
@@ -2590,7 +2597,7 @@ if(typeof module !== "undefined" && module.exports){
     url: "https://jpasgxttyiaorhksybez.supabase.co",
     key: "sb_publishable_XEBCZFTnhakXn5G14MO9cg_tiwLrTpB", // publishable; RLS = insert+read only
     gameId: "verbatim",
-    gameVersion: "0.6j",
+    gameVersion: "0.6k",
     logVersion: 1,
     flushMs: 4000,          // standing flush cadence
     maxBatch: 40,           // events per POST (keepalive-safe size)
@@ -2817,7 +2824,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.6j";
+  const VERSION = "0.6k";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "easy" | "normal" — Normal (formerly Hard) is the default
   try{
@@ -4915,7 +4922,8 @@ if(typeof module !== "undefined" && module.exports){
     renderPacks();
   }
   function cardLabel(d){
-    const ds = setFor(d); const a = ds.items[0].a;
+    const ds = setFor(d); if(ds.card) return ds.card;   // a set can name its own card (e.g. a tribute)
+    const a = ds.items[0].a;
     return ds.items[0].k === "fact" ? a + " \u00B7 3 facts" : a + (ds.shape === "one" ? " \u00B7 3 quotes" : " & more");
   }
   function renderPacks(){
