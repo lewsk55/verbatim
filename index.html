@@ -601,6 +601,23 @@
     main{ max-width:720px; }
     .archive-body{ max-width:760px; }
   }
+  /* v0.6l: touch tablets (iPad): everything about 25% larger */
+  @media (min-width:744px) and (hover:none) and (pointer:coarse){
+    html{ font-size:20px; }
+    main, .wrap{ max-width:880px; }
+    .home-inner, .pack-body, .archive-body{ max-width:780px; }
+    .prompt{ max-width:700px; }
+    details.how{ max-width:800px; }
+    #board{ --tok-pad:9px 15px; --chip-pad:11px 17px; --slot-min:82px; --slot-h:58px; --gap-y:11px; --gap-x:12px; }
+    #board.len-l   { --tok-pad:8px 13px; --chip-pad:10px 15px; --slot-min:70px; --slot-h:50px; --gap-y:10px; --gap-x:10px; }
+    #board.len-xl  { --tok-pad:6px 11px; --chip-pad:9px 13px;  --slot-min:60px; --slot-h:45px; --gap-y:9px;  --gap-x:9px; }
+    #board.len-xxl { --tok-pad:5px 9px;  --chip-pad:8px 11px;  --slot-min:50px; --slot-h:41px; --gap-y:8px;  --gap-x:8px; }
+    .wkey{ min-width:54px; height:72px; font-size:1.25rem; }
+    .wkey.wide{ min-width:104px; }
+    .dragclone{ font-size:1.4rem; }
+    .cal-cell{ max-width:96px; }
+    .rate-comment, .pbs-links a{ max-width:520px; }
+  }
   @media (max-width:430px){
     .gamename{font-size:1.35rem}
     #board{ --fs:1.18rem; --chip-fs:1.16rem; --solved-fs:1.3rem; }
@@ -984,7 +1001,7 @@
 
   /* wrong mystery-word guess shakes "no" before filing below */
   .wrow.shakeno{ animation:rowShake .45s ease; }
-  .tok.headshake{ animation:tokShake .5s ease; }
+  .tok.headshake{ animation:tokShake .26s ease; }
   @keyframes tokShake{
     12%{ transform:translateX(-14px) rotate(-4deg); } 30%{ transform:translateX(12px) rotate(4deg); }
     48%{ transform:translateX(-8px) rotate(-2deg); } 66%{ transform:translateX(6px) rotate(1deg); }
@@ -2597,7 +2614,7 @@ if(typeof module !== "undefined" && module.exports){
     url: "https://jpasgxttyiaorhksybez.supabase.co",
     key: "sb_publishable_XEBCZFTnhakXn5G14MO9cg_tiwLrTpB", // publishable; RLS = insert+read only
     gameId: "verbatim",
-    gameVersion: "0.6k",
+    gameVersion: "0.6l",
     logVersion: 1,
     flushMs: 4000,          // standing flush cadence
     maxBatch: 40,           // events per POST (keepalive-safe size)
@@ -2824,7 +2841,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.6k";
+  const VERSION = "0.6l";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "easy" | "normal" — Normal (formerly Hard) is the default
   try{
@@ -3347,6 +3364,9 @@ if(typeof module !== "undefined" && module.exports){
       const t = Math.round(placeable * i / (k + 1));
       if(t > 0 && t < placeable && out[out.length-1] !== t) out.push(t);
     }
+    // v0.6l: every puzzle also checkpoints at the final word (everything but one word placed)
+    const fin = placeable - 1;
+    if(fin >= 2 && (!out.length || out[out.length-1] < fin)) out.push(fin);
     return out;
   }
   function renderCpPips(popIdx){
@@ -3408,7 +3428,8 @@ if(typeof module !== "undefined" && module.exports){
       setTimeout(()=> burst.remove(), 1100);
     }
     const b = $("cpBanner");
-    b.innerHTML = '<span class="cp-star" aria-hidden="true">&#10022;</span>Checkpoint reached' + (of > 1 ? ' <small>' + n + ' of ' + of + '</small>' : '');
+    const isFinal = n === of;
+    b.innerHTML = '<span class="cp-star" aria-hidden="true">&#10022;</span>' + (isFinal ? 'Final word checkpoint' : 'Checkpoint reached') + (of > 1 && !isFinal ? ' <small>' + n + ' of ' + of + '</small>' : '');
     b.classList.remove("show"); void b.offsetWidth; b.classList.add("show");
     clearTimeout(checkpointJuice._t); checkpointJuice._t = setTimeout(()=> b.classList.remove("show"), 2400);
     renderCpPips(n - 1);
@@ -3510,8 +3531,10 @@ if(typeof module !== "undefined" && module.exports){
       const hasCp = cpCarry.seed === state.seed && cpCarry.n > 0;
       $("retryBtn").textContent = hasCp ? "Resume from Checkpoint" : "Try again";
       if(hasCp){
-        sub.innerHTML = "You reached <b>checkpoint " + cpCarry.n + (T.length > 1 ? " of " + T.length : "") + "</b>. Pick up right there with "
-          + cpCarry.slots.length + " words already in place and a fresh set of mistakes.";
+        sub.innerHTML = (cpCarry.n === T.length
+          ? "You made it to <b>the final word</b>. Pick up right there with " + cpCarry.slots.length + " words already in place"
+          : "You reached <b>checkpoint " + cpCarry.n + (T.length > 1 ? " of " + T.length : "") + "</b>. Pick up right there with " + cpCarry.slots.length + " words already in place")
+          + " and a fresh set of mistakes.";
         sub.hidden = false;
       } else if(T.length){
         sub.textContent = "Tip: get " + T[0] + " words in place to reach a checkpoint you can resume from.";
@@ -3537,6 +3560,7 @@ if(typeof module !== "undefined" && module.exports){
   }
   // mystery words of 6+ letters start with some letters filled in: one for 6, two for 7, three for 8 ...
   function givenPositions(seed, L){
+    return new Set();   // v0.6l: players type every letter of the mystery word themselves
     const n = Math.max(0, L - 5), set = new Set();
     if(!n) return set;
     const rng = mulberry32(xfnv1a("given:" + seed));
@@ -3653,6 +3677,7 @@ if(typeof module !== "undefined" && module.exports){
      from where they were, squash-stretch on landing, and jostle their neighbors. */
   function reduceMotion(){ return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches; }
   const JUICE_SEL = "#line .tok[data-fid], #line .placed[data-fid], #bank .chip[data-fid], #scrow .scell[data-fid]";
+  const fastIds = new Set();   // tiles that should snap home quickly (a rejected word)
   const Spring={
     m:new Map(), raf:0,
     S(id){ let s=this.m.get(id); if(!s){ s={dx:0,dy:0,rot:0,sx:1,sy:1,vx:0,vy:0,vr:0,vsx:0,vsy:0}; this.m.set(id,s);} return s; },
@@ -3661,8 +3686,9 @@ if(typeof module !== "undefined" && module.exports){
     bump(id,o){ const s=this.S(id); s.vx+=o.vx||0; s.vy+=o.vy||0; s.vr+=o.vr||0; this.run(); },
     run(){ if(!this.raf) this.raf=requestAnimationFrame(()=>this.tick()); },
     tick(){
-      const K=0.20,D=0.74,KR=0.20,KS=0.24; let active=false;
+      const KR=0.20,KS=0.24; let active=false;
       this.m.forEach((s,id)=>{
+        const fast = fastIds.has(id), K = fast ? 0.42 : 0.20, D = fast ? 0.60 : 0.74;
         s.vx+=-K*s.dx; s.vx*=D; s.dx+=s.vx;
         s.vy+=-K*s.dy; s.vy*=D; s.dy+=s.vy;
         s.vr+=-KR*s.rot; s.vr*=D; s.rot+=s.vr;
@@ -3679,7 +3705,7 @@ if(typeof module !== "undefined" && module.exports){
             el.style.transform="translate("+s.dx.toFixed(2)+"px,"+s.dy.toFixed(2)+"px) rotate("+s.rot.toFixed(2)+"deg) scale("+s.sx.toFixed(3)+","+s.sy.toFixed(3)+")";
           }
         }
-        if(rest){ s.dx=s.dy=s.rot=0; s.sx=s.sy=1; s.vx=s.vy=s.vr=s.vsx=s.vsy=0; if(!el) this.m.delete(id); }
+        if(rest){ s.dx=s.dy=s.rot=0; s.sx=s.sy=1; s.vx=s.vy=s.vr=s.vsx=s.vsy=0; fastIds.delete(id); if(!el) this.m.delete(id); }
         else active=true;
       });
       this.raf = active ? requestAnimationFrame(()=>this.tick()) : 0;
@@ -3966,10 +3992,12 @@ if(typeof module !== "undefined" && module.exports){
      word always lands on the root, so quote and chord resolve together.
      Returns the ignition schedule (ms per word) for the gold sweep. */
   const REVEAL_SETS = [ [0,4,7,9], [0,2,4,7], [0,4,7,11] ];   // 6/9 · add9 · maj7 color
+  const REVEAL_SETS_MINOR = [ [0,3,7,10], [0,2,3,7], [0,3,7,8] ];   // m7 · m(add9) · minor with a b6 shadow
   function playRevealRoll(wordCount){
     const M = state && state.music; if(!M || wordCount < 1) return null;
     const r = M.key.root;
-    const set = REVEAL_SETS[Math.floor(M.rng() * REVEAL_SETS.length)];
+    const pool = M.key.mood === "somber" ? REVEAL_SETS_MINOR : REVEAL_SETS;   // v0.6l: spooky/somber sets resolve in minor
+    const set = pool[Math.floor(M.rng() * pool.length)];
     // available ascending chord-tone positions from an octave below the root
     const positions = [];
     for(let oct = 0; positions.length < 40; oct++){
@@ -4023,7 +4051,11 @@ if(typeof module !== "undefined" && module.exports){
   function tapAction(payload){
     if(state.phase !== "assemble") return;
     if(payload.srcType === "bank"){
-      const slot = firstEmptySlot(); if(slot<0) return;
+      // a word still bouncing out of a slot gives that slot to the next tap
+      const bIdx = state.slots.findIndex(x=> x._bouncing);
+      const empty = firstEmptySlot();
+      const slot = (bIdx >= 0 && (empty < 0 || bIdx < empty)) ? bIdx : empty;
+      if(slot<0) return;
       bankToSlot(payload.key, slot);
     } else { state._movedKey = state.slots[payload.fromIdx]._fromKey; returnWord(payload.fromIdx); }
     afterChange();
@@ -4093,7 +4125,18 @@ if(typeof module !== "undefined" && module.exports){
       s.locked = true; s.justLocked = true;
     }
   }
+  // finish a rejected word's trip home right now (a quick follow-up tap wants that slot)
+  function settleBounce(i){
+    const slot = state.slots[i]; if(!slot || !slot._bouncing) return;
+    slot._bouncing = false;
+    if(slot.word !== null){
+      fastIds.add(slot._fromKey);
+      state.bank.push({ key: slot._fromKey, word: slot.word, wi: slot._wi });
+      slot.word = null; slot._fromKey = null; slot._wi = null; slot._placedAt = 0;
+    }
+  }
   function bankToSlot(key, slotIdx){
+    if(state.slots[slotIdx] && state.slots[slotIdx]._bouncing) settleBounce(slotIdx);
     const s = state.slots[slotIdx]; if(!s || s.fixed || s.locked || s._bouncing) return;
     const bi = state.bank.findIndex(x=>x.key===key); if(bi<0) return;
     if(s.word !== null){ state.bank.push({key:s._fromKey || rkey(), word:s.word, wi:s._wi}); }
@@ -4121,10 +4164,11 @@ if(typeof module !== "undefined" && module.exports){
       if(!slot || !slot._bouncing){ return; }
       slot._bouncing = false;
       if(state.phase !== "assemble" || slot.word === null) return;
+      fastIds.add(slot._fromKey);
       state.bank.push({ key: slot._fromKey, word: slot.word, wi: slot._wi });  // END of the bank
       slot.word = null; slot._fromKey = null; slot._wi = null; slot._placedAt = 0;
-      afterChange();   // FLIP springs carry it from the slot back to the bank
-    }, 980);   // ~0.5s shake + ~0.5s beat
+      afterChange();   // FLIP springs carry it from the slot back to the bank (stiff spring: fast)
+    }, 300);   // v0.6l: quick shake, then straight back to the bank
   }
   function slotMove(fromIdx, toIdx){
     if(fromIdx === toIdx) return;
