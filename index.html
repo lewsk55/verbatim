@@ -2619,7 +2619,7 @@ if(typeof module !== "undefined" && module.exports){
     url: "https://jpasgxttyiaorhksybez.supabase.co",
     key: "sb_publishable_XEBCZFTnhakXn5G14MO9cg_tiwLrTpB", // publishable; RLS = insert+read only
     gameId: "verbatim",
-    gameVersion: "0.6m",
+    gameVersion: "0.6n",
     logVersion: 1,
     flushMs: 4000,          // standing flush cadence
     maxBatch: 40,           // events per POST (keepalive-safe size)
@@ -2846,7 +2846,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.6m";
+  const VERSION = "0.6n";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "easy" | "normal" — Normal (formerly Hard) is the default
   try{
@@ -5126,7 +5126,8 @@ if(typeof module !== "undefined" && module.exports){
       btn.addEventListener("click", ()=>{ (isLockedDate(dd) && !passportOk()) ? openPassport(dd) : playDate(dd); });
       cellWrap.appendChild(btn);
       const nm = document.createElement("span"); nm.className = "cal-name";
-      nm.textContent = QUOTES[quoteIdxForDate(d)].author;
+      const dset = setFor(d);   // v0.6n: daily-set days show the set's first voice, not the old single-quote pick
+      nm.textContent = dset ? dset.items[0].a : QUOTES[quoteIdxForDate(d)].author;
       cellWrap.appendChild(nm);
       grid.appendChild(cellWrap);
     }
