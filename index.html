@@ -1680,7 +1680,7 @@ QUOTES.push(
 );
 
 /* ---- Daily sets: three linked puzzles a day, Sept 27 – Nov 30, 2026 (v0.6a; all-quote dailies from Oct 23, v0.6f) ----
-   Tier 1: short warm-up, pure assembly (no mystery word). Its `b` word is the blank on the share card.
+   Tier 1: short warm-up, pure assembly (no mystery word unless the item sets m1:1). Its `b` word is the blank on the share card.
    Tier 2: mystery word returns (`m`).  Tier 3: longest, fewest anchors, mystery word + definition clue (`c`).
    Every quote was checked against a primary text (Project Gutenberg / MIT Shakespeare) or the sourced
    section of its Wikiquote page; facts were checked against Wikipedia. See the v0.6a research log. */
@@ -1713,12 +1713,13 @@ const DAILY_SETS = [
     {k:"quote", a:"Elie Wiesel", s:"Nobel Peace Prize acceptance speech (1986)", t:"I swore never to be silent whenever and wherever human beings endure suffering and humiliation.", m:"silent"},
     {k:"quote", a:"Elie Wiesel", s:"Nobel Peace Prize acceptance speech (1986)", t:"We must always take sides. Neutrality helps the oppressor, never the victim. Silence encourages the tormentor, never the tormented.", m:"Silence", c:"The absence of any sound or speech"}
  ]},
- { d:"2026-10-01", shape:"voices", theme:"Three voices on wild places",
-   note:"Yosemite National Park was created on October 1, 1890, after John Muir and Robert Underwood Johnson lobbied Congress.",
+ { d:"2026-10-01", idd:"2026-10-01r", shape:"one", theme:"Mister Rogers, in his own words",
+   note:"Fred Rogers made Mister Rogers' Neighborhood for public television from 1968 to 2001. In 1969 he went before the U.S. Senate to make the case for funding public broadcasting.",
    items:[
-    {k:"quote", a:"John Muir", s:"Letter to his sister Sarah (1873)", t:"The mountains are calling and I must go.", b:"mountains"},
-    {k:"quote", a:"Aldo Leopold", s:"A Sand County Almanac (1949)", t:"There are some who can live without wild things, and some who cannot.", m:"without"},
-    {k:"quote", a:"Wallace Stegner", s:"Wilderness Letter (1960)", t:"We simply need that wild country available to us, even if we never do more than drive to its edge and look in.", m:"country", c:"Open land away from towns and cities"}
+    /* v0.6m: SMT demo puzzle. m1 = puzzle 1 gets a mystery word (and, like every puzzle 1, no scrambled word in any mode) */
+    {k:"quote", a:"Fred Rogers", s:"Daytime Emmy Lifetime Achievement speech (1997)", t:"All of us have special ones who have loved us into being.", b:"special", m:"special", m1:1},
+    {k:"quote", a:"Fred Rogers", s:"Dartmouth College commencement address (2002)", t:"You don't ever have to do anything sensational for people to love you.", m:"sensational"},
+    {k:"quote", a:"Fred Rogers", s:"Dartmouth College commencement address (2002)", t:"We are intimately related. May we never even pretend that we are not.", m:"related", c:"Connected, like members of one family"}
  ]},
  { d:"2026-10-02", shape:"one", theme:"Gandhi on nonviolence",
    note:"Mohandas Gandhi was born on October 2, 1869. The United Nations marks the date as the International Day of Non-Violence.",
@@ -2164,7 +2165,7 @@ DAILY_SETS.forEach(ds=>{
     ds.idx.push(QUOTES.length);
     QUOTES.push({ id:"s" + (ds.idd || ds.d).slice(5).replace("-","") + "abc"[i],   // idd: a set moved to a new date keeps its ids
                    text:it.t, author:it.a, src:it.s,
-                  kind:it.k, tier:i+1, setDate:ds.d, mystery:it.m||null, clue:it.c||null, blank:it.b||null });
+                  kind:it.k, tier:i+1, setDate:ds.d, mystery:it.m||null, mystery1:!!it.m1, clue:it.c||null, blank:it.b||null });
   });
   SET_BY_DATE[ds.d] = ds;
   ds.idx.forEach(qi=> QUOTES[qi].mood = SOMBER_DATES.includes(ds.d) ? "somber" : "bright");
@@ -2473,7 +2474,7 @@ function buildPuzzle(seed, forceIdx){
   // v0.6a daily sets: the constructor picks the mystery word; tier 1 has none
   if(q.tier){
     secretIndex = -1;
-    if(q.tier > 1 && q.mystery){
+    if((q.tier > 1 || q.mystery1) && q.mystery){   // v0.6m: a puzzle 1 can opt in with m1
       const mi = words.findIndex((w,i)=> i!==0 && i!==lastIdx && norm(w)===q.mystery.toLowerCase());
       if(mi >= 0) secretIndex = mi;
     }
@@ -2574,6 +2575,10 @@ const PBS_LINKS = {
 const PBS_LINKS_BY_ID = {
   "q012": { label:"Watch on PBS", text:"The French Chef with Julia Child: French Onion Soup",
             url:"https://www.pbs.org/video/the-french-chef-french-onion-soup-dv2ts5/" },
+  // v0.6m: Oct 1 Mister Rogers set (SMT demo) -> the 50th-anniversary special
+  "s1001ra": { label:"Watch on PBS", text:"Mister Rogers: It's You I Like", url:"https://www.pbs.org/show/mister-rogers-its-you-i-like/" },
+  "s1001rb": { label:"Watch on PBS", text:"Mister Rogers: It's You I Like", url:"https://www.pbs.org/show/mister-rogers-its-you-i-like/" },
+  "s1001rc": { label:"Watch on PBS", text:"Mister Rogers: It's You I Like", url:"https://www.pbs.org/show/mister-rogers-its-you-i-like/" },
 };
 function pbsLinkFor(quote){
   if(!quote) return null;
@@ -2614,7 +2619,7 @@ if(typeof module !== "undefined" && module.exports){
     url: "https://jpasgxttyiaorhksybez.supabase.co",
     key: "sb_publishable_XEBCZFTnhakXn5G14MO9cg_tiwLrTpB", // publishable; RLS = insert+read only
     gameId: "verbatim",
-    gameVersion: "0.6l",
+    gameVersion: "0.6m",
     logVersion: 1,
     flushMs: 4000,          // standing flush cadence
     maxBatch: 40,           // events per POST (keepalive-safe size)
@@ -2841,7 +2846,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.6l";
+  const VERSION = "0.6m";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "easy" | "normal" — Normal (formerly Hard) is the default
   try{
