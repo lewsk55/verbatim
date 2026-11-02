@@ -1716,10 +1716,9 @@ const DAILY_SETS = [
  { d:"2026-10-01", idd:"2026-10-01r", shape:"one", theme:"Mister Rogers, in his own words",
    note:"Fred Rogers made Mister Rogers' Neighborhood for public television from 1968 to 2001. In 1969 he went before the U.S. Senate to make the case for funding public broadcasting.",
    items:[
-    /* v0.6m: SMT demo puzzle. m1 = puzzle 1 gets a mystery word (and, like every puzzle 1, no scrambled word in any mode) */
-    {k:"quote", a:"Fred Rogers", s:"Daytime Emmy Lifetime Achievement speech (1997)", t:"All of us have special ones who have loved us into being.", b:"special", m:"special", m1:1},
-    {k:"quote", a:"Fred Rogers", s:"Dartmouth College commencement address (2002)", t:"You don't ever have to do anything sensational for people to love you.", m:"sensational"},
-    {k:"quote", a:"Fred Rogers", s:"Dartmouth College commencement address (2002)", t:"We are intimately related. May we never even pretend that we are not.", m:"related", c:"Connected, like members of one family"}
+    /* SMT demo (v0.6m/v0.6o): a single puzzle. m1 = puzzle 1 gets a mystery word (and, like every puzzle 1,
+       no scrambled word in any mode); g = given letters at the start of the mystery word */
+    {k:"quote", a:"Fred Rogers", s:"Daytime Emmy Lifetime Achievement speech (1997)", t:"All of us have special ones who have loved us into being.", b:"special", m:"special", m1:1, g:"SP"}
  ]},
  { d:"2026-10-02", shape:"one", theme:"Gandhi on nonviolence",
    note:"Mohandas Gandhi was born on October 2, 1869. The United Nations marks the date as the International Day of Non-Violence.",
@@ -2165,7 +2164,7 @@ DAILY_SETS.forEach(ds=>{
     ds.idx.push(QUOTES.length);
     QUOTES.push({ id:"s" + (ds.idd || ds.d).slice(5).replace("-","") + "abc"[i],   // idd: a set moved to a new date keeps its ids
                    text:it.t, author:it.a, src:it.s,
-                  kind:it.k, tier:i+1, setDate:ds.d, mystery:it.m||null, mystery1:!!it.m1, clue:it.c||null, blank:it.b||null });
+                  kind:it.k, tier:i+1, setDate:ds.d, mystery:it.m||null, mystery1:!!it.m1, givenPrefix:it.g||null, clue:it.c||null, blank:it.b||null });
   });
   SET_BY_DATE[ds.d] = ds;
   ds.idx.forEach(qi=> QUOTES[qi].mood = SOMBER_DATES.includes(ds.d) ? "somber" : "bright");
@@ -2577,8 +2576,6 @@ const PBS_LINKS_BY_ID = {
             url:"https://www.pbs.org/video/the-french-chef-french-onion-soup-dv2ts5/" },
   // v0.6m: Oct 1 Mister Rogers set (SMT demo) -> the 50th-anniversary special
   "s1001ra": { label:"Watch on PBS", text:"Mister Rogers: It's You I Like", url:"https://www.pbs.org/show/mister-rogers-its-you-i-like/" },
-  "s1001rb": { label:"Watch on PBS", text:"Mister Rogers: It's You I Like", url:"https://www.pbs.org/show/mister-rogers-its-you-i-like/" },
-  "s1001rc": { label:"Watch on PBS", text:"Mister Rogers: It's You I Like", url:"https://www.pbs.org/show/mister-rogers-its-you-i-like/" },
 };
 function pbsLinkFor(quote){
   if(!quote) return null;
@@ -2619,7 +2616,7 @@ if(typeof module !== "undefined" && module.exports){
     url: "https://jpasgxttyiaorhksybez.supabase.co",
     key: "sb_publishable_XEBCZFTnhakXn5G14MO9cg_tiwLrTpB", // publishable; RLS = insert+read only
     gameId: "verbatim",
-    gameVersion: "0.6n",
+    gameVersion: "0.6o",
     logVersion: 1,
     flushMs: 4000,          // standing flush cadence
     maxBatch: 40,           // events per POST (keepalive-safe size)
@@ -2846,7 +2843,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.6n";
+  const VERSION = "0.6o";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "easy" | "normal" — Normal (formerly Hard) is the default
   try{
@@ -2920,7 +2917,7 @@ if(typeof module !== "undefined" && module.exports){
             : state.pack ? ("p:" + state.pack + ":" + state.packIdx)
             : state.date ? "d:" + dateKey(state.date) : "s:" + state.seed;
     try{ const m = doneMap(); m[k] = 1;
-      if(state.setKey && state.tier === 3) m[state.setKey] = 1;   // the set counts as solved after the finale
+      if(state.setKey && state.tier >= skN(state.setKey)) m[state.setKey] = 1;   // the set counts as solved after the finale
       localStorage.setItem("verbatim_done", JSON.stringify(m)); }catch(e){}
   }
   function isDoneDate(d){ return !!doneMap()["d:" + dateKey(d)]; }
@@ -2933,8 +2930,9 @@ if(typeof module !== "undefined" && module.exports){
     const parts = sk.split(":"); return (SET_PACK_DATA[parts[1]] || [])[+parts[2]] || null;
   }
   function skDone(sk, t){ return !!doneMap()[sk + ":t" + t]; }
-  function skTiersDone(sk){ let n=0; for(let t=1;t<=3;t++) if(skDone(sk,t)) n++; return n; }
-  function skNextTier(sk){ for(let t=1;t<=3;t++) if(!skDone(sk,t)) return t; return 1; }
+  function skN(sk){ const ds = setData(sk); return (ds && ds.items && ds.items.length) || 3; }   // v0.6o: puzzles in a set (Oct 1 demo has 1)
+  function skTiersDone(sk){ let n=0; for(let t=1;t<=skN(sk);t++) if(skDone(sk,t)) n++; return n; }
+  function skNextTier(sk){ for(let t=1;t<=skN(sk);t++) if(!skDone(sk,t)) return t; return 1; }
   function isDoneTier(d, t){ return skDone("d:" + dateKey(d), t); }
   function tiersDone(d){ return skTiersDone("d:" + dateKey(d)); }
   function nextTierFor(d){ return skNextTier("d:" + dateKey(d)); }
@@ -2985,14 +2983,16 @@ if(typeof module !== "undefined" && module.exports){
   function renderSetDots(){
     const el = $("setDots"); if(!el) return;
     if(!state || !state.tier || !state.setKey){ el.hidden = true; el.innerHTML = ""; return; }
+    const N = skN(state.setKey);
+    if(N < 2){ el.hidden = true; el.innerHTML = ""; return; }
     el.hidden = false;
     let h = "";
-    for(let t=1;t<=3;t++){
+    for(let t=1;t<=N;t++){
       const cls = skDone(state.setKey, t) ? "done" : (t === state.tier ? "cur" : "");
       h += '<span class="sd ' + cls + '" aria-hidden="true"></span>';
     }
     el.innerHTML = h;
-    el.setAttribute("aria-label", "Puzzle " + state.tier + " of 3");
+    el.setAttribute("aria-label", "Puzzle " + state.tier + " of " + N);
   }
   /* -------- resume: persist the in-progress puzzle -------- */
   const SAVE_KEY = "verbatim_progress";
@@ -3027,7 +3027,7 @@ if(typeof module !== "undefined" && module.exports){
   function progressLabel(sv){
     if(sv.pack){ const pk = packById(sv.pack); return (pk?pk.title:"Pack") + " · " + (sv.packOrd || (sv.packIdx+1)) + " of " + (pk?pk.count:"?"); }
     if(sv.date){ const d = parseDateKey(sv.date); const q = QUOTES[sv.quoteIdx];
-      return "Daily · " + (d ? fmtShort(d) : sv.date) + (q && q.tier ? " · " + q.tier + " of 3" : ""); }
+      return "Daily · " + (d ? fmtShort(d) : sv.date) + (q && q.tier && q.setDate && skN("d:" + q.setDate) > 1 ? " · " + q.tier + " of " + skN("d:" + q.setDate) : ""); }
     return "Puzzle № " + sv.seed;
   }
   function resumeProgress(){
@@ -3204,6 +3204,10 @@ if(typeof module !== "undefined" && module.exports){
       packOrd: (opts && opts.packOrd) || null
     };
     state.given = givenPositions(seed, secretLen);
+    // v0.6o: a puzzle can name its given letters as a prefix (g:"SP" -> the first two letters)
+    if(pz.quote.givenPrefix && secretLen > 0 && state.secretWord.toUpperCase().startsWith(pz.quote.givenPrefix.toUpperCase())){
+      state.given = new Set(); for(let i=0;i<pz.quote.givenPrefix.length;i++) state.given.add(i);
+    }
     // one major key + one bright progression per puzzle, chosen from the seed
     // (GGW picks these per hole; here the seed makes every chord in a puzzle agree)
     {
@@ -3565,7 +3569,7 @@ if(typeof module !== "undefined" && module.exports){
   }
   // mystery words of 6+ letters start with some letters filled in: one for 6, two for 7, three for 8 ...
   function givenPositions(seed, L){
-    return new Set();   // v0.6l: players type every letter of the mystery word themselves
+    // v0.6o: given letters are back: 6 letters -> 1 given, 7 -> 2, and so on (5 or fewer -> none)
     const n = Math.max(0, L - 5), set = new Set();
     if(!n) return set;
     const rng = mulberry32(xfnv1a("given:" + seed));
@@ -4569,7 +4573,7 @@ if(typeof module !== "undefined" && module.exports){
       const r = loadSetRec(state.setKey);
       const clean = (state.attemptNum || 1) === 1 && state.errorsLeft === state.errorBudget && !state.earnedHintsUsed;
       r["t" + state.tier] = { ms: state.elapsedMs, attempts: state.attemptNum || 1, clean: clean, guesses: state.secretGuesses || 0 };
-      if(clean && state.tier < 3 && !r["earned_t" + state.tier]){ r.earned = (r.earned||0) + 1; r["earned_t" + state.tier] = 1; state.earnedHint = true; }
+      if(clean && state.tier < skN(state.setKey) && !r["earned_t" + state.tier]){ r.earned = (r.earned||0) + 1; r["earned_t" + state.tier] = 1; state.earnedHint = true; }
       else state.earnedHint = false;
       saveSetRec(state.setKey, r);
     }
@@ -4661,9 +4665,10 @@ if(typeof module !== "undefined" && module.exports){
     if(state.tier && state.setKey){   // cumulative: the set score is the sum of its solved steps (best of each)
       const r = loadSetRec(state.setKey), k = "t" + state.tier;
       if(r[k]){ r[k].score = Math.max(r[k].score || 0, score); saveSetRec(state.setKey, r); }
-      let tot = 0, n = 0; for(let t=1;t<=3;t++) if(r["t"+t] && r["t"+t].score){ tot += r["t"+t].score; n++; }
+      const N = skN(state.setKey);
+      let tot = 0, n = 0; for(let t=1;t<=N;t++) if(r["t"+t] && r["t"+t].score){ tot += r["t"+t].score; n++; }
       state.setTotal = tot;
-      scoreTxt += "\nSet score: " + tot.toLocaleString() + " (" + n + " of 3 solved)";
+      if(N > 1) scoreTxt += "\nSet score: " + tot.toLocaleString() + " (" + n + " of " + N + " solved)";
     }
     $("scoreLine").textContent = scoreTxt;
     $("mysteryLine").textContent = state.secretIndex>=0
@@ -4703,28 +4708,28 @@ if(typeof module !== "undefined" && module.exports){
     shareB.hidden = false; newB.hidden = false;
     if(!state.tier || !state.setKey) return;
     newB.hidden = true;
-    const ds = setData(state.setKey);
-    if(state.tier < 3){
+    const ds = setData(state.setKey), N = skN(state.setKey);
+    if(state.tier < N){
       shareB.hidden = true;
       nextB.hidden = false;
-      nextB.textContent = "Next: puzzle " + (state.tier + 1) + " of 3";
+      nextB.textContent = "Next: puzzle " + (state.tier + 1) + " of " + N;
       $("tomorrowLine").textContent = state.tier === 1 ? "Two more to go. Each one is a little harder."
         : (state.pack ? "One more to go to finish this set." : "One more to go, and then today's theme.");
       if(state.earnedHint){ earn.hidden = false; earn.textContent = "Clean solve! You earned a hint for later today."; }
       return;
     }
     // finale: reveal the theme with all three lines together
-    shareB.textContent = "Share today's set";
+    shareB.textContent = N > 1 ? "Share today's set" : "Share today's puzzle";
     const rec = loadSetRec(state.setKey);
-    let total = 0; for(let t=1;t<=3;t++) if(rec["t"+t]) total += rec["t"+t].ms || 0;
+    let total = 0; for(let t=1;t<=N;t++) if(rec["t"+t]) total += rec["t"+t].ms || 0;
     let h = '<p class="sr-kicker">' + (state.pack ? "Set complete" : "Today\'s theme") + '</p><h3 class="sr-theme">' + escapeHtml(ds.theme) + '</h3><ol class="sr-lines">';
     ds.items.forEach(it=>{
       h += '<li><span class="sr-q">' + (it.k === "quote" ? "\u201C" + escapeHtml(it.t) + "\u201D" : escapeHtml(it.t)) + '</span>'
          + '<span class="sr-by">' + (it.k === "quote" ? "\u2014 " + escapeHtml(it.a) : escapeHtml(it.s)) + '</span></li>';
     });
     h += '</ol><p class="sr-note">' + escapeHtml(ds.note) + '</p>';
-    let pts = 0; for(let t=1;t<=3;t++) if(rec["t"+t]) pts += rec["t"+t].score || 0;
-    if(total) h += '<p class="sr-total">All three set in ' + fmtTime(Math.round(total/1000)) + (pts ? ' \u00B7 ' + pts.toLocaleString() + ' points' : '') + '</p>';
+    let pts = 0; for(let t=1;t<=N;t++) if(rec["t"+t]) pts += rec["t"+t].score || 0;
+    if(total) h += '<p class="sr-total">' + (N > 1 ? "All three set in " : "Solved in ") + fmtTime(Math.round(total/1000)) + (pts ? ' \u00B7 ' + pts.toLocaleString() + ' points' : '') + '</p>';
     rev.innerHTML = h; rev.hidden = false;
     $("tomorrowLine").textContent = state.pack ? "" : "A new set of three arrives each morning.";
     const nxt = state.pack ? nextPackSet() : null;
@@ -4737,7 +4742,7 @@ if(typeof module !== "undefined" && module.exports){
       const nxt = nextPackSet(); if(!nxt) return;
       track("next_set"); playPackSetTier(state.pack, nxt.i, nxt.ord, skNextTier("p:" + state.pack + ":" + nxt.i)); return;
     }
-    if(state.tier >= 3 || !state.date) return;
+    if(state.tier >= skN(state.setKey) || !state.date) return;
     track("next_tier");
     playSetTier(state.date, state.tier + 1);
     function track(to){ try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:nav", { to: to, tier: state.tier + 1 }); }catch(e){} }
@@ -4770,11 +4775,12 @@ if(typeof module !== "undefined" && module.exports){
     if(state && state.tier && state.setKey){
       const ds = setData(state.setKey), q1 = QUOTES[ds.idx[0]], rec = loadSetRec(state.setKey);
       const head = state.pack ? ((packById(state.pack)||{}).title + " \u00B7 " + ds.label) : fmtShort(state.date);
-      let total = 0, n = 0, pts = 0; for(let t=1;t<=3;t++) if(rec["t"+t]){ total += rec["t"+t].ms || 0; pts += rec["t"+t].score || 0; n++; }
-      const marks = [1,2,3].map(t=> !rec["t"+t] ? "\u25CB" : rec["t"+t].clean ? "\u25CF" : "\u25D0").join(" ");
+      const N = skN(state.setKey);
+      let total = 0, n = 0, pts = 0; for(let t=1;t<=N;t++) if(rec["t"+t]){ total += rec["t"+t].ms || 0; pts += rec["t"+t].score || 0; n++; }
+      const marks = Array.from({length:N}, (_, i)=> i + 1).map(t=> !rec["t"+t] ? "\u25CB" : rec["t"+t].clean ? "\u25CF" : "\u25D0").join(" ");
       const line = q1.kind === "quote" ? "\u201C" + blankedLine(q1) + "\u201D\n\u2014 " + q1.author : blankedLine(q1);
-      return "Verbatim \u00B7 " + head + "\n" + marks + "  " + n + " of 3 set in " + fmtTime(Math.round(total/1000)) + (pts ? " \u00B7 " + pts.toLocaleString() + " pts" : "") +
-        "\n\n" + line + "\n\n" + (state.pack ? "Fill the blank, then two harder puzzles follow." : "Fill the blank, then two more puzzles are waiting.") + "\n" + currentUrl();
+      return "Verbatim \u00B7 " + head + "\n" + marks + "  " + (N > 1 ? n + " of " + N + " set in " : "Solved in ") + fmtTime(Math.round(total/1000)) + (pts ? " \u00B7 " + pts.toLocaleString() + " pts" : "") +
+        "\n\n" + line + "\n\n" + (state.pack ? "Fill the blank, then two harder puzzles follow." : N > 1 ? "Fill the blank, then two more puzzles are waiting." : "Fill the blank.") + "\n" + currentUrl();
     }
     const { score, elapsedSec } = computeScore();
     const label = state.date ? fmtShort(state.date) : ("№ " + state.seed);
@@ -4941,7 +4947,7 @@ if(typeof module !== "undefined" && module.exports){
     $("heroDate").textContent = fmtLong(t);
     const tSet = setFor(t);
     $("heroLabel").innerHTML = tSet ? "Today&rsquo;s Puzzles" : "Today&rsquo;s Quote";
-    $("heroAuthor").textContent = tSet ? ("Three puzzles today \u00B7 " + tiersDone(t) + " of 3 done") : ("— " + QUOTES[quoteIdxForDate(t)].author);
+    $("heroAuthor").textContent = tSet ? (skN("d:" + dateKey(t)) > 1 ? ("Three puzzles today \u00B7 " + tiersDone(t) + " of 3 done") : (tiersDone(t) ? "Solved" : "One puzzle today")) : ("— " + QUOTES[quoteIdxForDate(t)].author);
     const heroDone = $("heroCard").querySelector(".hero-done");
     if(heroDone) heroDone.remove();
     if(isDoneDate(t)){
@@ -4973,6 +4979,7 @@ if(typeof module !== "undefined" && module.exports){
   function cardLabel(d){
     const ds = setFor(d); if(ds.card) return ds.card;   // a set can name its own card (e.g. a tribute)
     const a = ds.items[0].a;
+    if(ds.items.length < 2) return a;
     return ds.items[0].k === "fact" ? a + " \u00B7 3 facts" : a + (ds.shape === "one" ? " \u00B7 3 quotes" : " & more");
   }
   function renderPacks(){
