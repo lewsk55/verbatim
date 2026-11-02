@@ -1718,7 +1718,7 @@ const DAILY_SETS = [
    items:[
     /* SMT demo (v0.6m/v0.6o): a single puzzle. m1 = puzzle 1 gets a mystery word (and, like every puzzle 1,
        no scrambled word in any mode); g = given letters at the start of the mystery word */
-    {k:"quote", a:"Fred Rogers", s:"Daytime Emmy Lifetime Achievement speech (1997)", t:"All of us have special ones who have loved us into being.", b:"special", m:"special", m1:1, g:"SP"}
+    {k:"quote", a:"Fred Rogers", s:"Daytime Emmy Lifetime Achievement speech (1997)", t:"All of us have special ones who have loved us into being.", b:"special", m:"special", m1:1, g:"SP", mx:20}
  ]},
  { d:"2026-10-02", shape:"one", theme:"Gandhi on nonviolence",
    note:"Mohandas Gandhi was born on October 2, 1869. The United Nations marks the date as the International Day of Non-Violence.",
@@ -2164,7 +2164,7 @@ DAILY_SETS.forEach(ds=>{
     ds.idx.push(QUOTES.length);
     QUOTES.push({ id:"s" + (ds.idd || ds.d).slice(5).replace("-","") + "abc"[i],   // idd: a set moved to a new date keeps its ids
                    text:it.t, author:it.a, src:it.s,
-                  kind:it.k, tier:i+1, setDate:ds.d, mystery:it.m||null, mystery1:!!it.m1, givenPrefix:it.g||null, clue:it.c||null, blank:it.b||null });
+                  kind:it.k, tier:i+1, setDate:ds.d, mystery:it.m||null, mystery1:!!it.m1, givenPrefix:it.g||null, maxMistakes:it.mx||null, clue:it.c||null, blank:it.b||null });
   });
   SET_BY_DATE[ds.d] = ds;
   ds.idx.forEach(qi=> QUOTES[qi].mood = SOMBER_DATES.includes(ds.d) ? "somber" : "bright");
@@ -2616,7 +2616,7 @@ if(typeof module !== "undefined" && module.exports){
     url: "https://jpasgxttyiaorhksybez.supabase.co",
     key: "sb_publishable_XEBCZFTnhakXn5G14MO9cg_tiwLrTpB", // publishable; RLS = insert+read only
     gameId: "verbatim",
-    gameVersion: "0.6o",
+    gameVersion: "0.6p",
     logVersion: 1,
     flushMs: 4000,          // standing flush cadence
     maxBatch: 40,           // events per POST (keepalive-safe size)
@@ -2843,7 +2843,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.6o";
+  const VERSION = "0.6p";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "easy" | "normal" — Normal (formerly Hard) is the default
   try{
@@ -3243,6 +3243,7 @@ if(typeof module !== "undefined" && module.exports){
       budget = Math.max(1, Math.floor(budget * 0.75));
       if(mode === "easy") budget = Math.floor(budget * 1.5);   // 50% more turns on Easy
       budget = Math.max(1, Math.round(budget * 1.25));          // v0.6j: 25% more mistakes in every mode
+      if(pz.quote.maxMistakes) budget = pz.quote.maxMistakes;   // v0.6p: per-puzzle override, any mode (Oct 1 SMT demo = 20)
       state.errorBudget = budget;
       state.errorsLeft = budget;
     }
