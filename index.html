@@ -2543,7 +2543,7 @@ QUOTES.push(
    todayinsci.com. Words 2,4,7,9,11,13,15,17,19 are pre-placed for a quick group solve. */
 const SECRET_BBC_IDX = QUOTES.length;
 QUOTES.push({id:"sbbc1", label:"David Attenborough", text:"If I were to be reincarnated I would come back as a sloth. Hanging from a tree, chewing leaves sounds great.",
-  author:"David Attenborough", src:"Interview, Time magazine (2011)", mystery:"sloth", anchorsAt:[2,4,7,9,11,13,15,17,19]});
+  author:"David Attenborough", src:"Interview, Time magazine (2011)", mystery:"sloth", anchorsAt:[2,4,7,9,11,13,15,17,19], noScramble:true});   // v0.6s: no scrambled word (LEAVES is a plain tile)
 
 /* ---- Curated PBS.org links, keyed by the person quoted ----
    Every URL here is a real, verified PBS.org page (series hub, special, or
@@ -2647,7 +2647,7 @@ if(typeof module !== "undefined" && module.exports){
     url: "https://jpasgxttyiaorhksybez.supabase.co",
     key: "sb_publishable_XEBCZFTnhakXn5G14MO9cg_tiwLrTpB", // publishable; RLS = insert+read only
     gameId: "verbatim",
-    gameVersion: "0.6r",
+    gameVersion: "0.6s",
     logVersion: 1,
     flushMs: 4000,          // standing flush cadence
     maxBatch: 40,           // events per POST (keepalive-safe size)
@@ -2874,7 +2874,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.6r";
+  const VERSION = "0.6s";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "easy" | "normal" — Normal (formerly Hard) is the default
   try{
@@ -3228,7 +3228,7 @@ if(typeof module !== "undefined" && module.exports){
       moves:0, solved:false, startTime:Date.now(), elapsedMs:0, score:0, placeSeq:0,
       phase:"assemble", secretIndex, secretWord, secretLen, secretKey, secretPunct,
       guesses:[], current:"", keyStatus:{}, secretGuesses:0, secretSolved:false,
-      mode, hard: (mode==="normal" && pz.quote.tier !== 1) ? buildHard(seed, words, secretIndex, anchors, pz.quote.author) : null,
+      mode, hard: (mode==="normal" && pz.quote.tier !== 1 && !pz.quote.noScramble) ? buildHard(seed, words, secretIndex, anchors, pz.quote.author) : null,
       tier: pz.quote.tier || null, hintsUsed: 0,
       setKey: pz.quote.setDate ? ("d:" + pz.quote.setDate) : (pz.quote.packSet ? ("p:" + pz.quote.packId + ":" + pz.quote.packSetIdx) : null),
       steps:[], stepIdx:-1, curScramble:null, scramSel:null,
