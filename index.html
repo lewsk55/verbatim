@@ -2520,6 +2520,30 @@ function buildPuzzle(seed, forceIdx){
     if(cand !== secretIndex) anchors.add(cand);
   }
 
+  // v0.6u: the mystery word is never the first open (unfilled) word of a quote
+  if(secretIndex >= 0){
+    const firstOpen = ()=>{ for(let k=0;k<words.length;k++) if(!anchors.has(k)) return k; return -1; };
+    if(firstOpen() === secretIndex){
+      const handPicked = !!q.mystery;
+      const alt = handPicked ? [] : cands.filter(o=> o.i !== secretIndex && !anchors.has(o.i) && o.i > secretIndex);
+      if(alt.length){
+        const maxL = Math.max(...alt.map(o=> o.core.length));
+        const top2 = alt.filter(o=> o.core.length === maxL);
+        secretIndex = top2[Math.floor(rng()*top2.length)].i;          // auto pick: choose another word
+      } else {
+        // hand-picked (or no other candidate): open up the pre-placed word just before it
+        let k = secretIndex - 1;
+        while(k > 0 && !anchors.has(k)) k--;
+        if(k > 0 && /[A-Za-z0-9]/.test(words[k])) anchors.delete(k);
+        else if(anchors.has(0)){
+          anchors.delete(0);                                         // mystery is word 2: open word 1 instead
+          for(let j = words.length - 2; j > secretIndex; j--){        // and give a foothold later in the line
+            if(!anchors.has(j) && /[A-Za-z0-9]/.test(words[j])){ anchors.add(j); break; }
+          }
+        }
+      }
+    }
+  }
   // bank = the non-anchor words (incl. the secret), shuffled deterministically
   const bankIdx = words.map((_,i)=>i).filter(i=>!anchors.has(i));
   const bankOrder = seededShuffle(bankIdx, rng);
@@ -2534,11 +2558,11 @@ function buildPuzzle(seed, forceIdx){
    ("About Myself", 1939; dashes rendered as commas); Leopold, Foreword (1949). */
 const WI_START = QUOTES.length;
 QUOTES.push(
-  {id:"pw01", label:"Justin Vernon", text:"I was born into this town, into this rural area that just always felt so sacred to me.", author:"Justin Vernon", src:"Bon Iver founder, raised in Eau Claire \u00B7 On Being (2025)"},
-  {id:"pw02", label:"John Muir", text:"I was only leaving one University for another, the Wisconsin University for the University of the Wilderness.", author:"John Muir", src:"Grew up on a farm near Portage \u00B7 The Story of My Boyhood and Youth (1913)"},
-  {id:"pw03", label:"Frank Lloyd Wright", text:"No house should ever be on a hill or on anything. It should be of the hill. Belonging to it.", author:"Frank Lloyd Wright", src:"Born in Richland Center; built Taliesin at Spring Green \u00B7 An Autobiography (1932)"},
-  {id:"pw04", label:"Georgia O'Keeffe", text:"Nobody sees a flower really, it is so small, we haven't time, and to see takes time, like to have a friend takes time.", author:"Georgia O'Keeffe", src:"Born in Sun Prairie \u00B7 Exhibition statement (1939)"},
-  {id:"pw05", label:"Aldo Leopold", text:"We abuse land because we regard it as a commodity belonging to us. When we see land as a community to which we belong, we may begin to use it with love and respect.", author:"Aldo Leopold", src:"Wrote at his shack near Baraboo \u00B7 A Sand County Almanac (1949)"}
+  {id:"pw01", label:"Justin Vernon", text:"I was born into this town, into this rural area that just always felt so sacred to me.", author:"Justin Vernon", src:"Bon Iver founder, raised in Eau Claire \u00B7 On Being (2025)", noScramble:true},
+  {id:"pw02", label:"John Muir", text:"I was only leaving one University for another, the Wisconsin University for the University of the Wilderness.", author:"John Muir", src:"Grew up on a farm near Portage \u00B7 The Story of My Boyhood and Youth (1913)", noScramble:true},
+  {id:"pw03", label:"Frank Lloyd Wright", text:"No house should ever be on a hill or on anything. It should be of the hill. Belonging to it.", author:"Frank Lloyd Wright", src:"Born in Richland Center; built Taliesin at Spring Green \u00B7 An Autobiography (1932)", noScramble:true},
+  {id:"pw04", label:"Georgia O'Keeffe", text:"Nobody sees a flower really, it is so small, we haven't time, and to see takes time, like to have a friend takes time.", author:"Georgia O'Keeffe", src:"Born in Sun Prairie \u00B7 Exhibition statement (1939)", noScramble:true},
+  {id:"pw05", label:"Aldo Leopold", text:"We abuse land because we regard it as a commodity belonging to us. When we see land as a community to which we belong, we may begin to use it with love and respect.", author:"Aldo Leopold", src:"Wrote at his shack near Baraboo \u00B7 A Sand County Almanac (1949)", noScramble:true}
 );
 
 /* ---- v0.6r: secret BBC demo puzzle (tap the home-screen "Verbatim" title 4 times) ----
@@ -2650,7 +2674,7 @@ if(typeof module !== "undefined" && module.exports){
     url: "https://jpasgxttyiaorhksybez.supabase.co",
     key: "sb_publishable_XEBCZFTnhakXn5G14MO9cg_tiwLrTpB", // publishable; RLS = insert+read only
     gameId: "verbatim",
-    gameVersion: "0.6t",
+    gameVersion: "0.6u",
     logVersion: 1,
     flushMs: 4000,          // standing flush cadence
     maxBatch: 40,           // events per POST (keepalive-safe size)
@@ -2877,7 +2901,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.6t";
+  const VERSION = "0.6u";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "easy" | "normal" — Normal (formerly Hard) is the default
   try{
@@ -2997,9 +3021,8 @@ if(typeof module !== "undefined" && module.exports){
   }
   function useHint(){
     if(!state || state.phase !== "assemble" || hintTokens() < 1) return;
-    // reveal the first open word, skipping the mystery word (that one stays a mystery)
-    let slotIdx = state.slots.findIndex((s,i)=> !s.fixed && !s.locked && !s._bouncing && i !== state.secretIndex);
-    if(slotIdx < 0) slotIdx = state.slots.findIndex(s=> !s.fixed && !s.locked && !s._bouncing);
+    // v0.6u: place the next open word, including the mystery word's tile (its letters stay hidden)
+    let slotIdx = state.slots.findIndex(s=> !s.fixed && !s.locked && !s._bouncing);
     if(slotIdx < 0) return;
     const want = state.slots[slotIdx].correct;
     if(state.slots[slotIdx].word !== null) returnWord(slotIdx);
