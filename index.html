@@ -725,7 +725,7 @@
     background:var(--pbs-blue); color:#fff; font-size:.66rem; font-weight:800;
     display:flex; align-items:center; justify-content:center;
   }
-  .hb-name{ display:block; font-family:var(--serif); font-weight:600; font-size:1.9rem; color:var(--navy); }
+  .hb-name{ -webkit-user-select:none; user-select:none; touch-action:manipulation; -webkit-tap-highlight-color:transparent; cursor:default; display:block; font-family:var(--serif); font-weight:600; font-size:1.9rem; color:var(--navy); }
   .hb-sub{ display:block; font-family:var(--ui); font-size:.62rem; letter-spacing:.18em; text-transform:uppercase; color:var(--ink-soft); font-weight:700; margin-top:3px; }
   .continue-card{
     display:flex; align-items:center; gap:10px; width:100%; text-align:left; cursor:pointer;
@@ -2481,9 +2481,16 @@ function buildPuzzle(seed, forceIdx){
       if(mi >= 0) secretIndex = mi;
     }
   }
+  // v0.6r: a standalone puzzle (the secret BBC demo) can name its own mystery word
+  if(!q.tier && q.mystery){
+    const mi = words.findIndex((w,i)=> i!==0 && i!==lastIdx && norm(w)===q.mystery.toLowerCase());
+    if(mi >= 0) secretIndex = mi;
+  }
   // pre-placed anchors: index 0 is always given; last word and the secret word
   // are never given. Longer quotes get more footholds.
   const anchors = new Set([0]);
+  // v0.6r: hand-picked pre-placed words (word positions) replace the usual random footholds
+  if(q.anchorsAt) q.anchorsAt.forEach(i=>{ if(i !== secretIndex && i > 0 && i < lastIdx) anchors.add(i); });
   // standalone punctuation (em dashes etc.) is placed automatically, never dealt to the bank
   words.forEach((w, i)=>{ if(!/[A-Za-z0-9]/.test(w)) anchors.add(i); });
   const interiorTarget = !q.tier ? Math.floor(words.length / 8)   // 0 short · 1 medium · 2–3 long
@@ -2494,9 +2501,9 @@ function buildPuzzle(seed, forceIdx){
   // v0.6h: long lines get extra footholds, about one more given word for every
   // three words past 12, spread evenly along the line so no stretch is bare
   const lenTarget = words.length >= 14 ? Math.round((words.length - 12) / 3) : 0;
-  const target = Math.max(interiorTarget, lenTarget);
+  const target = q.anchorsAt ? 0 : Math.max(interiorTarget, lenTarget);
   const interior = words.length - 2;                       // positions 1 .. length-2
-  if(lenTarget > interiorTarget && interior > 0){
+  if(!q.anchorsAt && lenTarget > interiorTarget && interior > 0){
     for(let k = 0; k < target; k++){
       const lo = 1 + Math.floor(k * interior / target), hi = Math.max(lo, Math.floor((k + 1) * interior / target));
       let cand = lo + Math.floor(rng() * (hi - lo + 1));
@@ -2530,6 +2537,13 @@ QUOTES.push(
   {id:"pw04", label:"Georgia O'Keeffe", text:"Nobody sees a flower really, it is so small, we haven't time, and to see takes time, like to have a friend takes time.", author:"Georgia O'Keeffe", src:"Born in Sun Prairie \u00B7 Exhibition statement (1939)"},
   {id:"pw05", label:"Aldo Leopold", text:"We abuse land because we regard it as a commodity belonging to us. When we see land as a community to which we belong, we may begin to use it with love and respect.", author:"Aldo Leopold", src:"Wrote at his shack near Baraboo \u00B7 A Sand County Almanac (1949)"}
 );
+
+/* ---- v0.6r: secret BBC demo puzzle (tap the home-screen "Verbatim" title 4 times) ----
+   Source: Belinda Luscombe, "10 Questions for David Attenborough", Time (2011), as listed on
+   todayinsci.com. Words 2,4,7,9,11,13,15,17,19 are pre-placed for a quick group solve. */
+const SECRET_BBC_IDX = QUOTES.length;
+QUOTES.push({id:"sbbc1", label:"David Attenborough", text:"If I were to be reincarnated I would come back as a sloth. Hanging from a tree, chewing leaves sounds great.",
+  author:"David Attenborough", src:"Interview, Time magazine (2011)", mystery:"sloth", anchorsAt:[2,4,7,9,11,13,15,17,19]});
 
 /* ---- Curated PBS.org links, keyed by the person quoted ----
    Every URL here is a real, verified PBS.org page (series hub, special, or
@@ -2633,7 +2647,7 @@ if(typeof module !== "undefined" && module.exports){
     url: "https://jpasgxttyiaorhksybez.supabase.co",
     key: "sb_publishable_XEBCZFTnhakXn5G14MO9cg_tiwLrTpB", // publishable; RLS = insert+read only
     gameId: "verbatim",
-    gameVersion: "0.6q",
+    gameVersion: "0.6r",
     logVersion: 1,
     flushMs: 4000,          // standing flush cadence
     maxBatch: 40,           // events per POST (keepalive-safe size)
@@ -2860,7 +2874,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.6q";
+  const VERSION = "0.6r";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "easy" | "normal" — Normal (formerly Hard) is the default
   try{
@@ -3274,6 +3288,7 @@ if(typeof module !== "undefined" && module.exports){
     if(state.pack){ const pk = packById(state.pack); if(noLab) noLab.textContent = pk ? pk.title.toUpperCase() : "PACK"; $("puzzleNum").textContent = (state.packOrd || (state.packIdx+1)) + " of " + (pk?pk.count:"?"); }
     else if(state.date && state.tier){ if(noLab) noLab.textContent = "DAILY"; $("puzzleNum").textContent = fmtShort(state.date); }
     else if(state.date){ if(noLab) noLab.textContent = "DAILY"; $("puzzleNum").textContent = fmtShort(state.date); }
+    else if(opts && opts.secret){ if(noLab) noLab.textContent = "SECRET"; $("puzzleNum").textContent = "BBC"; }
     else { if(noLab) noLab.textContent = "PUZZLE"; $("puzzleNum").textContent = "№ " + seed; }
     // byline is rendered by renderAttribution() (scrambled in hard mode)
     const _src = (pz.quote.src || "").trim();
@@ -4951,6 +4966,20 @@ if(typeof module !== "undefined" && module.exports){
     initGame(setSeed(d, t), { date:d, quoteIdx: ds.idx[t-1] });
     window.scrollTo(0,0);
   }
+  // v0.6r: secret BBC puzzle: four quick taps on the home-screen "Verbatim" title
+  (function secretTaps(){
+    const el = document.querySelector(".hb-name"); if(!el) return;
+    let n = 0, t0 = 0;
+    el.addEventListener("click", ()=>{
+      const now = Date.now();
+      if(now - t0 > 2500){ n = 0; t0 = now; }
+      if(++n >= 4){ n = 0; t0 = 0;
+        try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:nav", { to: "secret_bbc" }); }catch(e){}
+        hideOverlays(); gameStarted = true;
+        initGame(777001, { quoteIdx: SECRET_BBC_IDX, secret: true }); window.scrollTo(0,0);
+      }
+    });
+  })();
   function showHome(){
     try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:nav", { to: "home" }); }catch(e){}
     $("archive").classList.remove("show"); $("passport").classList.remove("show"); $("packView").classList.remove("show");
