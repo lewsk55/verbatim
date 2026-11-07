@@ -2480,13 +2480,15 @@ function buildPuzzle(seed, forceIdx){
   if(q.tier){
     secretIndex = -1;
     if((q.tier > 1 || q.mystery1) && q.mystery){   // v0.6m: a puzzle 1 can opt in with m1
-      const mi = words.findIndex((w,i)=> i!==0 && i!==lastIdx && norm(w)===q.mystery.toLowerCase());
+      // v0.6y: a hand-picked mystery word may be the LAST word (only auto-picks skip it).
+      // Before this, 14 puzzles whose chosen word ended the line silently lost their mystery word.
+      const mi = words.findIndex((w,i)=> i!==0 && norm(w)===q.mystery.toLowerCase());
       if(mi >= 0) secretIndex = mi;
     }
   }
   // v0.6r: a standalone puzzle (the secret BBC demo) can name its own mystery word
   if(!q.tier && q.mystery){
-    const mi = words.findIndex((w,i)=> i!==0 && i!==lastIdx && norm(w)===q.mystery.toLowerCase());
+    const mi = words.findIndex((w,i)=> i!==0 && norm(w)===q.mystery.toLowerCase());
     if(mi >= 0) secretIndex = mi;
   }
   // pre-placed anchors: index 0 is always given; last word and the secret word
@@ -2674,7 +2676,7 @@ if(typeof module !== "undefined" && module.exports){
     url: "https://jpasgxttyiaorhksybez.supabase.co",
     key: "sb_publishable_XEBCZFTnhakXn5G14MO9cg_tiwLrTpB", // publishable; RLS = insert+read only
     gameId: "verbatim",
-    gameVersion: "0.6x",
+    gameVersion: "0.6y",
     logVersion: 1,
     flushMs: 4000,          // standing flush cadence
     maxBatch: 40,           // events per POST (keepalive-safe size)
@@ -2901,7 +2903,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.6x";
+  const VERSION = "0.6y";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "easy" | "normal" — Normal (formerly Hard) is the default
   try{
@@ -3162,6 +3164,9 @@ if(typeof module !== "undefined" && module.exports){
     if(sv.phase === "scramble" && _w && !scrDone){
       state.stepIdx = state.steps.indexOf("word");
       enterScramble(_w);
+    } else if(sv.phase === "scramble" && scrDone && state.steps.indexOf("wordle") < 0){
+      state.stepIdx = state.steps.length - 1;   // v0.6y: nothing left after the scramble
+      finishSolve();
     } else if(sv.phase === "wordle" || (sv.phase === "scramble" && scrDone)){
       state.stepIdx = state.steps.indexOf("wordle");
       enterWordle();
@@ -4620,6 +4625,10 @@ if(typeof module !== "undefined" && module.exports){
 
   /* ===================== Final solve ===================== */
   function finishSolve(){
+    // v0.6y: when the scrambled word is the last step (no mystery word after it), nothing
+    // re-rendered the line, so the reveal kept the scrambled spelling. Unscramble it first.
+    if(state.hard && state.hard.word && !state.hard.word.solved && state.phase !== "over") state.hard.word.solved = true;
+    if(state.hard && state.hard.word){ state.secretSolved = true; skipJuice = true; render(); skipJuice = false; }
     state.solved = true; state.phase = "done"; state.secretSolved = true;
     state.elapsedMs = clockNow() - state.startTime;   // active time only, spanning every attempt via the carry
     try{ if(window.PBSTelemetry) PBSTelemetry.markRunDone(); }catch(e){}   // one boolean; nothing else on this tick
