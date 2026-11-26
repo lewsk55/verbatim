@@ -2114,9 +2114,9 @@ const DAILY_SETS = [
  { d:"2026-11-26", shape:"voices", theme:"A Day for Giving Thanks",
    note:"Happy Thanksgiving! In October 1863 Abraham Lincoln proclaimed the last Thursday of November a national day of Thanksgiving and Praise, setting the precedent for today's holiday.",
    items:[
-    {k:"quote", a:"Robin Wall Kimmerer", s:"Braiding Sweetgrass (2013)", t:"Gratitude plants the seed for abundance.", b:"seed"},
-    {k:"quote", a:"William Shakespeare", s:"Henry VI, Part 2 (c. 1591)", t:"O Lord, that lends me life, Lend me a heart replete with thankfulness!", m:"replete"},
-    {k:"quote", a:"Abraham Lincoln", s:"Thanksgiving Proclamation (1863)", t:"It has seemed to me fit and proper that they should be solemnly, reverently and gratefully acknowledged as with one heart and one voice by the whole American People.", m:"reverently", c:"with deep, worshipful respect"}
+    {k:"quote", a:"G. K. Chesterton", s:"Orthodoxy (1908)", t:"The test of all happiness is gratitude; and I felt grateful, though I hardly knew to whom.", b:"gratitude"},
+    {k:"quote", a:"John F. Kennedy", s:"Thanksgiving Day Proclamation 3560 (1963)", t:"As we express our gratitude, we must never forget that the highest appreciation is not to utter words but to live by them.", m:"forget"},
+    {k:"quote", a:"Abraham Lincoln", s:"Thanksgiving Proclamation (1863)", t:"It has seemed to me fit and proper that they should be solemnly, reverently and gratefully acknowledged as with one heart and one voice by the whole American People.", m:"reverently", c:"With deep respect"}
  ]},
  { d:"2026-11-27", shape:"voices", theme:"Native Voices on Land and Story",
    note:"The day after Thanksgiving is Native American Heritage Day, first designated by Congress in the Native American Heritage Day Act of 2008. Today's three voices are Lakota and Dakota writers of the early 1900s.",
@@ -2147,7 +2147,7 @@ const DAILY_SETS = [
     {k:"quote", a:"Winston Churchill", s:"Painting as a Pastime (1921-22)", t:"You know you will never get to the end of the journey. But this, so far from discouraging, only adds to the joy and the glory of the climb.", m:"journey", c:"a long trip somewhere"}
  ]},
  { d:"2026-12-01", shape:"one", theme:"H. G. Wells, on minds great and small",
-   note:"The Mercury Theatre broadcast The War of the Worlds on October 30, 1938. Historians now say reports of a nationwide panic were greatly exaggerated by newspapers.",
+   note:"In the 1890s, H. G. Wells wrote The Time Machine and The War of the Worlds, two short novels that still shape how we imagine the future and life beyond Earth.",
    items:[
     {k:"quote", a:"H. G. Wells", s:"The Time Machine (1895)", t:"There is no intelligence where there is no change and no need of change.", b:"intelligence"},
     {k:"quote", a:"H. G. Wells", s:"The Time Machine (1895)", t:"It is a law of nature we overlook, that intellectual versatility is the compensation for change, danger, and trouble.", m:"danger"},
@@ -2886,7 +2886,7 @@ if(typeof module !== "undefined" && module.exports){
     url: "https://jpasgxttyiaorhksybez.supabase.co",
     key: "sb_publishable_XEBCZFTnhakXn5G14MO9cg_tiwLrTpB", // publishable; RLS = insert+read only
     gameId: "verbatim",
-    gameVersion: "0.6z",
+    gameVersion: "0.7a",
     logVersion: 1,
     flushMs: 4000,          // standing flush cadence
     maxBatch: 40,           // events per POST (keepalive-safe size)
@@ -3113,7 +3113,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.6z";
+  const VERSION = "0.7a";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "easy" | "normal" — Normal (formerly Hard) is the default
   try{
@@ -3362,7 +3362,7 @@ if(typeof module !== "undefined" && module.exports){
       state.music.played = [];
       for(let i = 0; i < doneN; i++){
         const n = ladderNote(state.music, i);
-        if(state.music.played[state.music.played.length-1] !== n) state.music.played.push(n);
+        if(n != null && state.music.played[state.music.played.length-1] !== n) state.music.played.push(n);
       }
     }
     updateTurnUI();
@@ -3675,7 +3675,7 @@ if(typeof module !== "undefined" && module.exports){
   function playCheckpointTwinkles(){
     try{ if(localStorage.getItem("verbatim_muted") === "1") return; }catch(e){}
     const M = state && state.music; const ac = getAC(); if(!M || !ac) return;
-    const base = M.noteIdx > 0 ? ladderNote(M, M.noteIdx - 1) : M.key.root;
+    const base = (M.noteIdx > 0 ? lastLadderNote(M, M.noteIdx - 1) : null) ?? M.key.root;
     const sc = M.key.scale, root = M.key.root;
     const midiAt = d => root + 12 * Math.floor(d / 7) + sc[((d % 7) + 7) % 7];
     let d0 = -14; while(midiAt(d0) < base && d0 < 80) d0++;      // scale degree at (or just above) the piano note
@@ -4236,10 +4236,14 @@ if(typeof module !== "undefined" && module.exports){
     const chordEvery = 3 + Math.floor(rng() * 2);               // harmony rotates every 3-4 notes
     const midiAt = s => start + 12 * Math.floor(s / 7) + scale[s % 7];
     let maxDeg = 0; while(midiAt(maxDeg + 1) <= ceiling) maxDeg++;
-    const ladder = [];
+    // v0.7a: never repeat a note back to back. When a long puzzle has more correct
+    // moves than distinct notes, only every other move (or every third...) sounds.
+    const stride = Math.max(1, Math.ceil(count / Math.max(1, maxDeg)));
+    const notesN = Math.ceil(count / stride);
+    const notes = [];
     let si = 0;
-    for(let i = 0; i < count; i++){
-      const remainingNotes = count - i;
+    for(let i = 0; i < notesN; i++){
+      const remainingNotes = notesN - i;
       const remainingDeg = maxDeg - si;
       const base = remainingDeg / remainingNotes;               // even pacing to the top
       let step = Math.max(1, Math.round(base + (rng() - 0.5) * 0.9));
@@ -4249,17 +4253,27 @@ if(typeof module !== "undefined" && module.exports){
       let chosen = si + step;                                   // snap to a nearby chord tone when possible
       for(let k = 0; k <= 1; k++){
         const c = si + step + k;
-        if(c <= maxDeg - (remainingNotes - 1) + 1 && tonePCs.has(((midiAt(c) % 12) + 12) % 12)){ chosen = c; break; }
+        if(c <= maxDeg - (remainingNotes - 1) && tonePCs.has(((midiAt(c) % 12) + 12) % 12)){ chosen = c; break; }
       }
       si = Math.min(chosen, maxDeg);
-      ladder.push(midiAt(si));
+      notes.push(midiAt(si));
     }
+    // spread the notes across the moves; the moves in between stay silent (null)
+    const ladder = [];
+    for(let i = 0; i < count; i++) ladder.push(i % stride === 0 ? notes[i / stride] : null);
     return ladder;
   }
-  function ladderNote(M, i){ return M.ladder[Math.min(i, M.ladder.length - 1)]; }
+  // a move past the end of the ladder is silent rather than repeating the top note
+  function ladderNote(M, i){ return i < M.ladder.length ? M.ladder[i] : null; }
+  // the most recent note that actually sounded at or before move i (for chords that build on it)
+  function lastLadderNote(M, i){
+    for(let k = Math.min(i, M.ladder.length - 1); k >= 0; k--) if(M.ladder[k] != null) return M.ladder[k];
+    return null;
+  }
   function playStepNote(vol, sustain){
     const M = state && state.music; if(!M) return;
     const n = ladderNote(M, M.noteIdx++);
+    if(n == null) return;                       // a silent step on a long puzzle
     if(M.played[M.played.length - 1] !== n) M.played.push(n);
     playPianoNote(n, vol, 0, sustain);
   }
@@ -4269,7 +4283,7 @@ if(typeof module !== "undefined" && module.exports){
     // the mystery word is the puzzle's final act — land it on the nearest root
     // above the climb so the melody itself resolves
     const M = state && state.music; if(!M) return;
-    const cur = M.noteIdx > 0 ? ladderNote(M, M.noteIdx - 1) : M.key.root;
+    const cur = (M.noteIdx > 0 ? lastLadderNote(M, M.noteIdx - 1) : null) ?? M.key.root;
     let n = M.key.root;
     while(n <= cur) n += 12;
     M.noteIdx++;
@@ -4299,24 +4313,37 @@ if(typeof module !== "undefined" && module.exports){
       }
       if(oct >= 99) break;
     }
-    // one note per word when possible; very long quotes share notes in pairs
-    const m = Math.min(wordCount, positions.length);
-    const notes = [];
-    for(let i = 0; i < m - 1; i++) notes.push(positions[Math.round(i * (positions.length - 1) / Math.max(1, m - 1) * 0.85)]);
-    const prev = notes.length ? notes[notes.length - 1] : r - 12;
+    // v0.7a: one note per word, always climbing, never the same note twice in a row.
+    // When a long quote has more words than chord tones, only every other word
+    // (or every third...) sounds; the words between still light up on the beat.
+    const N = wordCount, before = N - 1;
+    let stride = 1;
+    while(Math.ceil(before / stride) > positions.length) stride++;
+    const k = Math.ceil(before / stride);                       // sounding notes before the final root
+    const span = Math.min(positions.length, Math.max(k, Math.round(positions.length * 0.85)));
+    const notes = new Array(N).fill(null);
+    let j = 0;
+    for(let i = 0; i < before; i++){
+      if(i % stride !== 0) continue;
+      notes[i] = positions[k <= 1 ? 0 : Math.round(j * (span - 1) / (k - 1))];
+      j++;
+    }
+    let prev = r - 12;
+    for(let i = before - 1; i >= 0; i--) if(notes[i] != null){ prev = notes[i]; break; }
     let top = r; while(top <= prev) top += 12;               // final note: the root, always
-    notes.push(top);
+    notes[N - 1] = top;
     // rubato schedule: ~1.9s on medium and long quotes, but short quotes roll
     // quicker — the per-note gap is capped so a 6-9 word reveal stays lively
-    const base = Math.min(150, 1900 / Math.max(3, m));
+    const base = Math.min(150, 1900 / Math.max(3, N));
     const times = []; let t = 0;
-    for(let i = 0; i < m; i++){
-      if(i > 0) t += base * (i === m - 1 ? 1.6 : (0.6 + M.rng() * 0.8));
+    for(let i = 0; i < N; i++){
+      if(i > 0) t += base * (i === N - 1 ? 1.6 : (0.6 + M.rng() * 0.8));
       times.push(Math.round(t));
     }
-    // schedule the piano
+    // schedule the piano (silent words have no note)
     notes.forEach((n, i)=>{
-      const last = i === m - 1;
+      if(n == null) return;
+      const last = i === N - 1;
       const vol = i === 0 ? 0.06 : (last ? 0.058 : 0.042 + M.rng() * 0.014);
       playPianoNote(n, vol, times[i] / 1000, last ? 4.0 : 2.8 + M.rng() * 0.5);
     });
