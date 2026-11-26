@@ -964,7 +964,10 @@
   .pause-cover .pc-go{ margin-top:6px; padding:10px 22px; border-radius:999px; background:var(--pbs-blue); color:#fff; font-weight:700; font-size:.9rem; }
   .go-mode{ margin:10px auto 4px; display:flex; flex-direction:column; align-items:center; gap:6px; }
   .go-mode-lab{ font-size:.72rem; font-weight:700; letter-spacing:.06em; color:var(--ink-soft); }
-  .go-mode .mode-tog{ margin:0; min-width:220px; }
+  .go-mode .mode-tog{ margin:0; min-width:260px; }
+  .mode-desc{ margin:-12px 0 18px; font-size:.82rem; line-height:1.4; color:var(--ink-soft); text-align:center; min-height:2.3em; }
+  .go-mode .mode-desc{ margin:2px auto 0; max-width:300px; }
+  .go-reveal{ display:block; color:var(--ink); font-family:var(--serif, Georgia, serif); font-size:1.02rem; line-height:1.45; margin:8px auto 2px; max-width:34em; }
   #scoreLine{ white-space:pre-line; }
   .go-title{ font-family:var(--serif); font-weight:600; font-size:1.5rem; color:var(--navy); }
   .go-sub{ font-family:var(--ui); font-size:.88rem; color:var(--ink-soft); margin:6px 0 14px; }
@@ -1056,7 +1059,9 @@
     <div class="mode-tog" role="group" aria-label="Mode">
       <button id="togEasy" type="button">Easy</button>
       <button id="togNorm" class="on" type="button">Normal</button>
+      <button id="togHard" type="button">Hard</button>
     </div>
+    <p class="mode-desc" id="modeDesc" aria-live="polite"></p>
     <p class="row-label">This week</p>
     <div class="week-row" id="weekRow"></div>
     <p class="row-label">Packs</p>
@@ -1194,10 +1199,13 @@
         <div class="mode-tog" role="group" aria-label="Difficulty for your next try">
           <button id="goEasy" type="button">Easy</button>
           <button id="goNorm" type="button">Normal</button>
+          <button id="goHard" type="button">Hard</button>
         </div>
+        <p class="mode-desc" id="goModeDesc"></p>
       </div>
       <div class="controls go-controls">
         <button class="btn btn-primary go-retry" id="retryBtn">Try again</button>
+        <button class="btn btn-primary go-retry" id="goNextBtn" type="button" hidden>Next puzzle</button>
         <button class="btn btn-ghost" id="goHomeBtn">Home</button>
       </div>
     </div>
@@ -2886,7 +2894,7 @@ if(typeof module !== "undefined" && module.exports){
     url: "https://jpasgxttyiaorhksybez.supabase.co",
     key: "sb_publishable_XEBCZFTnhakXn5G14MO9cg_tiwLrTpB", // publishable; RLS = insert+read only
     gameId: "verbatim",
-    gameVersion: "0.7a",
+    gameVersion: "0.7b",
     logVersion: 1,
     flushMs: 4000,          // standing flush cadence
     maxBatch: 40,           // events per POST (keepalive-safe size)
@@ -3113,22 +3121,28 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.7a";
+  const VERSION = "0.7b";
   const MODE_KEY = "verbatim_mode";
-  let mode = "normal";   // "easy" | "normal" — Normal (formerly Hard) is the default
+  let mode = "normal";   // "easy" | "normal" | "hard" — Normal is the default
   try{
     const saved = localStorage.getItem(MODE_KEY);
-    if(saved === "easy") mode = "easy";
+    if(saved === "easy" || saved === "hard") mode = saved;
     else if(saved === "normal-legacy") mode = "easy";
   }catch(e){}
+  // v0.7b: one short line under the toggle says what each difficulty means
+  const MODE_DESC = {
+    easy:   "50% more mistakes and no scrambled words. Scores a little lower.",
+    normal: "The standard puzzle. Run out of mistakes and you can try again from your last checkpoint.",
+    hard:   "Same mistakes as Normal, but no retries. Run out and the puzzle is over."
+  };
   function setMode(m){
-    if(m !== "easy" && m !== "normal") m = "normal";
+    if(m !== "easy" && m !== "normal" && m !== "hard") m = "normal";
     mode = m;
     try{ localStorage.setItem(MODE_KEY, m); }catch(e){}
-    const te = document.getElementById("togEasy"), tn = document.getElementById("togNorm");
-    if(te && tn){ te.classList.toggle("on", m==="easy"); tn.classList.toggle("on", m==="normal"); }
-    const ge = document.getElementById("goEasy"), gn = document.getElementById("goNorm");
-    if(ge && gn){ ge.classList.toggle("on", m==="easy"); gn.classList.toggle("on", m==="normal"); }
+    [["togEasy","togNorm","togHard"],["goEasy","goNorm","goHard"]].forEach(ids=>{
+      ids.forEach((id, i)=>{ const el = document.getElementById(id); if(el) el.classList.toggle("on", m === ["easy","normal","hard"][i]); });
+    });
+    ["modeDesc","goModeDesc"].forEach(id=>{ const el = document.getElementById(id); if(el) el.textContent = MODE_DESC[m]; });
   }
 
   let state = null, drag = null, justDragged = false;
@@ -3223,7 +3237,22 @@ if(typeof module !== "undefined" && module.exports){
       localStorage.setItem(FREE_HINT_KEY, JSON.stringify(m)); }catch(e){}
   }
   function earnedHints(){ if(!state || !state.tier || !state.setKey) return 0; const r = loadSetRec(state.setKey); return Math.max(0, (r.earned||0) - (r.spent||0)); }
-  function hintTokens(){ if(!state) return 0; return (freeHintUsed() ? 0 : 1) + earnedHints(); }
+  /* v0.7b: inside a trio, unused free hints carry forward. Each puzzle reached adds one
+     free hint to the set's pool; any left over roll into the next puzzle. */
+  function setFreeSpent(){
+    const r = loadSetRec(state.setKey);
+    if(r.freeSpent != null) return r.freeSpent;
+    let n = 0;   // older saves: count the per-puzzle free hints already used in this set
+    try{ const m = JSON.parse(localStorage.getItem(FREE_HINT_KEY) || "{}");
+      for(let t = 1; t <= skN(state.setKey); t++) if(m[state.setKey + ":t" + t]) n++; }catch(e){}
+    return n;
+  }
+  function freeHintsLeft(){
+    if(!state) return 0;
+    if(!state.tier || !state.setKey) return freeHintUsed() ? 0 : 1;
+    return Math.max(0, state.tier - setFreeSpent());
+  }
+  function hintTokens(){ if(!state) return 0; return freeHintsLeft() + earnedHints(); }
   function updateHintUI(){
     const b = $("hintBtn"); if(!b) return;
     const n = hintTokens();
@@ -3240,8 +3269,11 @@ if(typeof module !== "undefined" && module.exports){
     if(state.slots[slotIdx].word !== null) returnWord(slotIdx);
     const item = state.bank.find(b=> b.word === want);
     if(!item) return;
-    const kind = freeHintUsed() ? "earned" : "free";
-    if(kind === "free") spendFreeHint();
+    const kind = freeHintsLeft() > 0 ? "free" : "earned";
+    if(kind === "free"){
+      if(state.tier && state.setKey){ const fs = setFreeSpent(); const r = loadSetRec(state.setKey); r.freeSpent = fs + 1; saveSetRec(state.setKey, r); }
+      spendFreeHint();
+    }
     else { const r = loadSetRec(state.setKey); r.spent = (r.spent||0) + 1; saveSetRec(state.setKey, r); state.earnedHintsUsed = (state.earnedHintsUsed||0) + 1; }
     state.hintsUsed++;
     try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:hint", { tier: state.tier, kind: kind, tokens_left: hintTokens() }); }catch(e){}
@@ -3305,7 +3337,7 @@ if(typeof module !== "undefined" && module.exports){
     if(sv.date){ const d = parseDateKey(sv.date); if(d) opts.date = d; }
     if(sv.pack){ opts.pack = sv.pack; opts.packIdx = sv.packIdx; opts.packOrd = sv.packOrd; }
     if(sv.quoteIdx >= 0) opts.quoteIdx = sv.quoteIdx;
-    setMode(sv.mode === "easy" ? "easy" : "normal");
+    setMode(sv.mode === "easy" || sv.mode === "hard" ? sv.mode : "normal");
     hideOverlays();
     gameStarted = true;
     _resuming = true;
@@ -3469,7 +3501,7 @@ if(typeof module !== "undefined" && module.exports){
       moves:0, solved:false, startTime:Date.now(), elapsedMs:0, score:0, placeSeq:0,
       phase:"assemble", secretIndex, secretWord, secretLen, secretKey, secretPunct,
       guesses:[], current:"", keyStatus:{}, secretGuesses:0, secretSolved:false,
-      mode, hard: (mode==="normal" && pz.quote.tier !== 1 && !pz.quote.noScramble) ? buildHard(seed, words, secretIndex, anchors, pz.quote.author) : null,
+      mode, hard: (mode!=="easy" && pz.quote.tier !== 1 && !pz.quote.noScramble) ? buildHard(seed, words, secretIndex, anchors, pz.quote.author) : null,
       tier: pz.quote.tier || null, hintsUsed: 0,
       setKey: pz.quote.setDate ? ("d:" + pz.quote.setDate) : (pz.quote.packSet ? ("p:" + pz.quote.packId + ":" + pz.quote.packSetIdx) : null),
       steps:[], stepIdx:-1, curScramble:null, scramSel:null,
@@ -3817,7 +3849,19 @@ if(typeof module !== "undefined" && module.exports){
     undoBtn.classList.remove("show");
     chromeEls.forEach(el=> el.classList.add("is-hidden"));
     setMode(mode);   // reflect the current difficulty on the retry toggle
+    const noRetry = state.mode === "hard";
+    $("retryBtn").hidden = noRetry;
+    document.querySelector("#gameover .go-mode").hidden = noRetry;
     {
+      const hasNext = !!(state.setKey && state.tier && (state.pack ? true : (state.tier < skN(state.setKey) && state.date)));
+      $("goNextBtn").hidden = !(noRetry && hasNext);
+    }
+    if(noRetry){
+      const sub = $("goSub");
+      sub.innerHTML = "Hard mode has no retries. Here's how the quote reads:"
+        + '<span class="go-reveal">\u201C' + escapeHtml(String(state.quote.text)) + '\u201D</span>';
+      sub.hidden = false;
+    } else {
       const T = state.cpTargets || [], sub = $("goSub");
       const hasCp = cpCarry.seed === state.seed && cpCarry.n > 0;
       $("retryBtn").textContent = hasCp ? "Resume from Checkpoint" : "Try again";
@@ -4236,35 +4280,47 @@ if(typeof module !== "undefined" && module.exports){
     const chordEvery = 3 + Math.floor(rng() * 2);               // harmony rotates every 3-4 notes
     const midiAt = s => start + 12 * Math.floor(s / 7) + scale[s % 7];
     let maxDeg = 0; while(midiAt(maxDeg + 1) <= ceiling) maxDeg++;
-    // v0.7a: never repeat a note back to back. When a long puzzle has more correct
-    // moves than distinct notes, only every other move (or every third...) sounds.
-    const stride = Math.max(1, Math.ceil(count / Math.max(1, maxDeg)));
-    const notesN = Math.ceil(count / stride);
-    const notes = [];
-    let si = 0;
-    for(let i = 0; i < notesN; i++){
-      const remainingNotes = notesN - i;
-      const remainingDeg = maxDeg - si;
-      const base = remainingDeg / remainingNotes;               // even pacing to the top
-      let step = Math.max(1, Math.round(base + (rng() - 0.5) * 0.9));
-      step = Math.min(step, Math.max(1, remainingDeg - (remainingNotes - 1)));  // leave room for the rest
-      const [degree, quality] = prog[Math.floor(i / chordEvery) % prog.length];
-      const tonePCs = new Set(buildChordNotes(key, degree, quality).map(n => ((n % 12) + 12) % 12));
-      let chosen = si + step;                                   // snap to a nearby chord tone when possible
-      for(let k = 0; k <= 1; k++){
-        const c = si + step + k;
-        if(c <= maxDeg - (remainingNotes - 1) && tonePCs.has(((midiAt(c) % 12) + 12) % 12)){ chosen = c; break; }
-      }
-      si = Math.min(chosen, maxDeg);
-      notes.push(midiAt(si));
-    }
-    // spread the notes across the moves; the moves in between stay silent (null)
     const ladder = [];
-    for(let i = 0; i < count; i++) ladder.push(i % stride === 0 ? notes[i / stride] : null);
+    let si = 0;
+    if(count <= maxDeg){
+      for(let i = 0; i < count; i++){
+        const remainingNotes = count - i;
+        const remainingDeg = maxDeg - si;
+        const base = remainingDeg / remainingNotes;               // even pacing to the top
+        let step = Math.max(1, Math.round(base + (rng() - 0.5) * 0.9));
+        step = Math.min(step, Math.max(1, remainingDeg - (remainingNotes - 1)));  // leave room for the rest
+        const [degree, quality] = prog[Math.floor(i / chordEvery) % prog.length];
+        const tonePCs = new Set(buildChordNotes(key, degree, quality).map(n => ((n % 12) + 12) % 12));
+        let chosen = si + step;                                   // snap to a nearby chord tone when possible
+        for(let k = 0; k <= 1; k++){
+          const c = si + step + k;
+          if(c <= maxDeg - (remainingNotes - 1) && tonePCs.has(((midiAt(c) % 12) + 12) % 12)){ chosen = c; break; }
+        }
+        si = Math.min(chosen, maxDeg);
+        ladder.push(midiAt(si));
+      }
+      return ladder;
+    }
+    // v0.7b: a long puzzle has more correct moves than notes in the climb. Every move
+    // still plays: the melody follows a slow rising line and steps one note up or down
+    // whenever it would otherwise repeat, so no two notes in a row are ever the same.
+    let prev = -1;
+    for(let i = 0; i < count; i++){
+      let d = Math.round(1 + i * (maxDeg - 1) / Math.max(1, count - 1));
+      if(d === prev) d = (d + 1 <= maxDeg && (i % 2 === 0)) ? d + 1 : d - 1;
+      if(d < 0) d = prev + 1;
+      ladder.push(midiAt(d));
+      prev = d;
+    }
     return ladder;
   }
-  // a move past the end of the ladder is silent rather than repeating the top note
-  function ladderNote(M, i){ return i < M.ladder.length ? M.ladder[i] : null; }
+  // a move past the end of the ladder (rare) steps around the last notes instead of repeating
+  function ladderNote(M, i){
+    const L = M.ladder; if(!L.length) return null;
+    if(i < L.length) return L[i];
+    const a = L[L.length - 1], b = L.length > 1 ? L[L.length - 2] : a - 5;
+    return (i - L.length) % 2 === 0 ? b : a;
+  }
   // the most recent note that actually sounded at or before move i (for chords that build on it)
   function lastLadderNote(M, i){
     for(let k = Math.min(i, M.ladder.length - 1); k >= 0; k--) if(M.ladder[k] != null) return M.ladder[k];
@@ -4273,7 +4329,6 @@ if(typeof module !== "undefined" && module.exports){
   function playStepNote(vol, sustain){
     const M = state && state.music; if(!M) return;
     const n = ladderNote(M, M.noteIdx++);
-    if(n == null) return;                       // a silent step on a long puzzle
     if(M.played[M.played.length - 1] !== n) M.played.push(n);
     playPianoNote(n, vol, 0, sustain);
   }
@@ -4468,8 +4523,13 @@ if(typeof module !== "undefined" && module.exports){
     try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:placement", {
       correct: !!state.slots[slotIdx].locked, move: state.moves, errors_left: state.errorsLeft }); }catch(e){}
     if(state.slots[slotIdx].locked){ playWordChord(); maybeCheckpoint(slotIdx); return; }
-    // wrong spot: spend a mistake, shake "no", hold a beat, then fly home to the bank
-    const gameOn = spendError();
+    // wrong spot: spend a mistake, shake "no", hold a beat, then fly home to the bank.
+    // v0.7b: dropping the SAME wrong word back into the SAME slot is an accident, not a
+    // new guess, so it bounces home without costing another mistake.
+    const wrongSig = slotIdx + "|" + String(s.word).toLowerCase();
+    const repeatWrong = state._lastWrong === wrongSig;
+    state._lastWrong = wrongSig;
+    const gameOn = repeatWrong ? true : spendError();
     if(!gameOn) return;
     s._bouncing = true;
     const rejKey = s._fromKey, rejIdx = slotIdx;
@@ -5269,7 +5329,7 @@ if(typeof module !== "undefined" && module.exports){
     const sv = loadProgress();
     const cc = $("continueCard");
     cc.hidden = !sv;
-    if(sv) $("continueSub").textContent = progressLabel(sv) + " · " + (sv.mode==="easy"?"Easy":"Normal");
+    if(sv) $("continueSub").textContent = progressLabel(sv) + " · " + (sv.mode==="easy"?"Easy":sv.mode==="hard"?"Hard":"Normal");
     const t = todayDate();
     $("heroDate").textContent = fmtLong(t);
     const tSet = setFor(t);
@@ -5370,6 +5430,8 @@ if(typeof module !== "undefined" && module.exports){
     try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:settings", { mode: "easy" }); }catch(e){} });
   $("togNorm").addEventListener("click", ()=>{ setMode("normal");
     try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:settings", { mode: "normal" }); }catch(e){} });
+  $("togHard").addEventListener("click", ()=>{ setMode("hard");
+    try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:settings", { mode: "hard" }); }catch(e){} });
   setMode(mode);   // reflect the saved difficulty on the toggle at startup
 
   // ---------- quote archive (month by month) ----------
@@ -5495,11 +5557,12 @@ if(typeof module !== "undefined" && module.exports){
     if(state && state.phase === "wordle") renderWordle();
   });
   $("pauseCover").addEventListener("click", ()=>{ lastInputAt = Date.now(); if(gameOnScreen()) resumeClock(); });
-  ["goEasy","goNorm"].forEach(id=> $(id).addEventListener("click", ()=>{
-    const m = id === "goEasy" ? "easy" : "normal";
+  ["goEasy","goNorm","goHard"].forEach(id=> $(id).addEventListener("click", ()=>{
+    const m = id === "goEasy" ? "easy" : id === "goHard" ? "hard" : "normal";
     setMode(m);
     try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:settings", { mode: m, context: "retry" }); }catch(e){}
   }));
+  $("goNextBtn").addEventListener("click", ()=>{ $("gameover").classList.remove("show"); goNextTier(); });
   $("retryBtn").addEventListener("click", ()=>{
     if(!lastInit) return;
     try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:retry", { attempts_done: attemptCarry.tries || 1,
