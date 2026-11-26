@@ -967,6 +967,23 @@
   .go-mode .mode-tog{ margin:0; min-width:260px; }
   .mode-desc{ margin:-12px 0 18px; font-size:.82rem; line-height:1.4; color:var(--ink-soft); text-align:center; min-height:2.3em; }
   .go-mode .mode-desc{ margin:2px auto 0; max-width:300px; }
+  .tut-offer{ position:fixed; inset:0; z-index:9600; background:rgba(10,20,90,.42); display:flex; align-items:center; justify-content:center; padding:20px; }
+  .tut-card{ background:#fff; border-radius:18px; padding:22px 20px 16px; max-width:360px; width:100%; text-align:center; box-shadow:0 18px 50px rgba(10,20,90,.3); }
+  .tut-card h2{ font-family:var(--serif); font-weight:600; font-size:1.45rem; color:var(--navy); margin:0 0 8px; }
+  .tut-card p{ font-family:var(--ui); font-size:.95rem; line-height:1.45; color:var(--ink); margin:0; }
+  .tut-card .controls{ flex-direction:column; gap:8px; }
+  .tut-card .tut-small{ font-size:.78rem; color:var(--ink-soft); margin-top:6px; }
+  .coach{ position:fixed; z-index:9500; left:12px; right:12px; max-width:340px; margin:0 auto; background:var(--navy, #0a145a); color:#fff; border-radius:14px; padding:13px 14px 10px; box-shadow:0 12px 34px rgba(10,20,90,.35); }
+  .coach::after{ content:""; position:absolute; left:var(--ax, 50%); width:14px; height:14px; background:inherit; transform:translateX(-50%) rotate(45deg); }
+  .coach.below::after{ top:-6px; }
+  .coach.above::after{ bottom:-6px; }
+  .coach.center::after{ display:none; }
+  .coach-txt{ font-family:var(--ui); font-size:.93rem; line-height:1.45; margin:0 0 8px; }
+  .coach-foot{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
+  .coach-skip{ background:none; border:none; color:rgba(255,255,255,.78); font-family:var(--ui); font-size:.8rem; font-weight:700; cursor:pointer; padding:8px 2px; min-height:36px; }
+  .coach-next{ min-height:38px; padding:0 18px; background:#fff; color:var(--navy, #0a145a); border-color:#fff; }
+  .coach-next[hidden]{ display:none !important; }
+  .tut-hl{ outline:3px solid var(--yellow, #FFCF00); outline-offset:4px; border-radius:10px; position:relative; z-index:2; }
   .lb-open{ display:block; margin:18px auto 0; min-width:200px; }
   .lbv-intro{ font-family:var(--ui); font-size:.85rem; color:var(--ink-soft); margin:4px 2px 14px; line-height:1.45; }
   .lbv-day{ background:#fff; border:1.5px solid var(--paper-edge); border-radius:14px; margin:0 0 12px; overflow:hidden; }
@@ -1118,6 +1135,13 @@
     </div>
     <div class="set-row">
       <div class="set-info">
+        <span class="set-name">Tutorial</span>
+        <span class="set-sub">Replay the one-minute walkthrough.</span>
+      </div>
+      <button class="btn btn-ghost" id="tutSettingsBtn" type="button" style="flex:none;">Start tutorial</button>
+    </div>
+    <div class="set-row">
+      <div class="set-info">
         <span class="set-name">Leaderboards</span>
         <span class="set-sub">Show anonymous score boards after each puzzle and on the home screen. Turning this off also stops posting your new scores.</span>
       </div>
@@ -1138,6 +1162,25 @@
       </div>
       <p class="set-sub" id="wipeDone" hidden style="color:var(--navy); font-weight:700;">Progress wiped.</p>
     </div>
+  </div>
+</div>
+
+<div class="tut-offer" id="tutOffer" role="dialog" aria-modal="true" aria-labelledby="tutOfferTitle" hidden>
+  <div class="tut-card">
+    <h2 id="tutOfferTitle">New to Verbatim?</h2>
+    <p>Want a quick tour? Let&rsquo;s start with a line from Fred Rogers. It takes about a minute.</p>
+    <div class="controls" style="margin:14px 0 6px;">
+      <button class="btn btn-primary" id="tutYes" type="button">Yes</button>
+      <button class="btn btn-ghost" id="tutNo" type="button">Skip it, I&rsquo;ll jump in</button>
+    </div>
+    <p class="tut-small">You can find the tutorial anytime in Settings.</p>
+  </div>
+</div>
+<div class="coach" id="coach" role="dialog" aria-live="polite" hidden>
+  <p class="coach-txt" id="coachTxt"></p>
+  <div class="coach-foot">
+    <button class="coach-skip" id="coachSkip" type="button">Skip tutorial</button>
+    <button class="btn btn-primary coach-next" id="coachNext" type="button">Next</button>
   </div>
 </div>
 
@@ -2844,6 +2887,13 @@ const SECRET_BBC_IDX = QUOTES.length;
 QUOTES.push({id:"sbbc1", label:"David Attenborough", text:"I would come back as a sloth. Hanging from a tree, chewing leaves sounds great.",
   author:"David Attenborough", src:"Asked what he would be reincarnated as \u00B7 Time magazine (2011)", mystery:"sloth", anchorsAt:[2,4,7,9,11], noScramble:true, givenPrefix:"S", maxMistakes:20, noCheckpoints:true});   // v0.6x: text starts where his answer starts (Time, Dec 12, 2011); the "If I were to be reincarnated" lead-in was the interviewer's question   // v0.6w: fewer footholds, no checkpoints   // v0.6t: the S in SLOTH is given   // v0.6s: no scrambled word (LEAVES is a plain tile)
 
+/* ---- v0.7h: tutorial puzzle (the Oct 1 Fred Rogers line). A practice round: lots of
+   mistakes, never posts to leaderboards. "loved" is scrambled so the tour can show that step. */
+const TUTORIAL_IDX = QUOTES.length;
+QUOTES.push({id:"tut01", label:"Fred Rogers", text:"All of us have special ones who have loved us into being.",
+  author:"Fred Rogers", src:"Daytime Emmy Lifetime Achievement speech (1997)", mystery:"special", givenPrefix:"SP",
+  maxMistakes:99, scrambleWord:"loved", anchorsAt:[0,6], tutorial:true});
+
 /* ---- Curated PBS.org links, keyed by the person quoted ----
    Every URL here is a real, verified PBS.org page (series hub, special, or
    the major-series landing pages). When a quote's author matches, we surface
@@ -2946,7 +2996,7 @@ if(typeof module !== "undefined" && module.exports){
     url: "https://jpasgxttyiaorhksybez.supabase.co",
     key: "sb_publishable_XEBCZFTnhakXn5G14MO9cg_tiwLrTpB", // publishable; RLS = insert+read only
     gameId: "verbatim",
-    gameVersion: "0.7g",
+    gameVersion: "0.7h",
     logVersion: 1,
     flushMs: 4000,          // standing flush cadence
     maxBatch: 40,           // events per POST (keepalive-safe size)
@@ -3180,7 +3230,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.7g";
+  const VERSION = "0.7h";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "easy" | "normal" | "hard" — Normal is the default
   try{
@@ -3561,7 +3611,7 @@ if(typeof module !== "undefined" && module.exports){
       moves:0, solved:false, startTime:Date.now(), elapsedMs:0, score:0, placeSeq:0,
       phase:"assemble", secretIndex, secretWord, secretLen, secretKey, secretPunct,
       guesses:[], current:"", keyStatus:{}, secretGuesses:0, secretSolved:false,
-      mode, hard: (mode!=="easy" && pz.quote.tier !== 1 && !pz.quote.noScramble) ? buildHard(seed, words, secretIndex, anchors, pz.quote.author) : null,
+      mode, hard: (pz.quote.scrambleWord || (mode!=="easy" && pz.quote.tier !== 1 && !pz.quote.noScramble)) ? buildHard(seed, words, secretIndex, anchors, pz.quote.author, pz.quote.scrambleWord) : null,
       tier: pz.quote.tier || null, hintsUsed: 0,
       setKey: pz.quote.setDate ? ("d:" + pz.quote.setDate) : (pz.quote.packSet ? ("p:" + pz.quote.packId + ":" + pz.quote.packSetIdx) : null),
       steps:[], stepIdx:-1, curScramble:null, scramSel:null,
@@ -3627,6 +3677,7 @@ if(typeof module !== "undefined" && module.exports){
     else if(state.date && state.tier){ if(noLab) noLab.textContent = "DAILY"; $("puzzleNum").textContent = fmtShort(state.date); }
     else if(state.date){ if(noLab) noLab.textContent = "DAILY"; $("puzzleNum").textContent = fmtShort(state.date); }
     else if(opts && opts.secret){ if(noLab) noLab.textContent = "SECRET"; $("puzzleNum").textContent = "BBC"; }
+    else if(opts && opts.tutorial){ if(noLab) noLab.textContent = "PRACTICE"; $("puzzleNum").textContent = "Tutorial"; }
     else { if(noLab) noLab.textContent = "PUZZLE"; $("puzzleNum").textContent = "№ " + seed; }
     // byline is rendered by renderAttribution() (scrambled in hard mode)
     const _src = (pz.quote.src || "").trim();
@@ -3827,6 +3878,7 @@ if(typeof module !== "undefined" && module.exports){
     let hit = 0;
     while((state.cpN || 0) < T.length && locked >= T[state.cpN || 0]){ state.cpN = (state.cpN || 0) + 1; hit = state.cpN; }
     if(!hit) return;
+    setTimeout(()=>{ try{ tutOnCheckpoint(); }catch(e){} }, 400);
     state.cpSlots = state.slots.map((x,i)=> (!x.fixed && x.locked) ? i : -1).filter(i=> i >= 0);
     cpCarry = { seed: state.seed, n: state.cpN, slots: state.cpSlots.slice() };
     try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:checkpoint", {
@@ -4590,7 +4642,8 @@ if(typeof module !== "undefined" && module.exports){
     haptic(state.slots[slotIdx].locked ? 32 : 18);   // stronger on drop; strongest when correct
     try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:placement", {
       correct: !!state.slots[slotIdx].locked, move: state.moves, errors_left: state.errorsLeft }); }catch(e){}
-    if(state.slots[slotIdx].locked){ playWordChord(); maybeCheckpoint(slotIdx); return; }
+    if(state.slots[slotIdx].locked){ playWordChord(); maybeCheckpoint(slotIdx); try{ tutOnPlace(true, slotIdx); }catch(e){} return; }
+    try{ tutOnPlace(false, slotIdx); }catch(e){}
     // wrong spot: spend a mistake, shake "no", hold a beat, then fly home to the bank.
     // v0.7b: dropping the SAME wrong word back into the SAME slot is an accident, not a
     // new guess, so it bounces home without costing another mistake.
@@ -4678,7 +4731,7 @@ if(typeof module !== "undefined" && module.exports){
     return {target, tiles, order, solved:false, label:""};
   }
   function scrambledStr(sc){ return sc.order.map(id=>sc.tiles[id].ch).join(""); }
-  function buildHard(seed, words, secretIndex, anchors, author){
+  function buildHard(seed, words, secretIndex, anchors, author, pick){
     const rng = mulberry32(xfnv1a("scramble:"+seed));
     const hard = { word:null, first:null, last:null, authorTokens:(author||"").split(/\s+/), firstTokIdx:-1, lastTokIdx:-1 };
     // one scrambled quote word (placed by the player): letters-only length 4–8, longest wins
@@ -4690,6 +4743,7 @@ if(typeof module !== "undefined" && module.exports){
     }
     if(cands.length){
       cands.sort((a,b)=> b.len-a.len || (rng()-0.5));
+      if(pick){ const pi = cands.findIndex(c=> c.core.toLowerCase() === String(pick).toLowerCase()); if(pi > 0) cands.unshift(cands.splice(pi, 1)[0]); }
       const sc = letterScramble(cands[0].core.toUpperCase(), rng); sc.wi = cands[0].i; sc.label = "scrambled word"; hard.word = sc;
     }
     // (author-name scrambles removed — hard mode is: scrambled word, then the mystery word)
@@ -4706,6 +4760,7 @@ if(typeof module !== "undefined" && module.exports){
   }
   function enterScramble(sc){
     state.phase = "scramble"; state.curScramble = sc; state.scramSel = null;
+    setTimeout(()=>{ try{ tutOnPhase("scramble"); }catch(e){} }, 600);
     undoBtn.classList.remove("show");
     [bankLabelEl, bankEl, controlsEl].forEach(el=> el.classList.add("is-faded"));
     setTimeout(()=> [bankLabelEl, bankEl, controlsEl].forEach(el=> el.classList.add("is-hidden")), 450);
@@ -4865,6 +4920,7 @@ if(typeof module !== "undefined" && module.exports){
   /* ===================== Phase B: Wordle ===================== */
   function enterWordle(){
     state.phase = "wordle";
+    setTimeout(()=>{ try{ tutOnPhase("wordle"); }catch(e){} }, 600);
     state.guesses = []; state.current = ""; state.keyStatus = {}; state.secretGuesses = 0;
     if(state.given) state.given.forEach(i=>{ state.keyStatus[state.secretWord[i]] = "correct"; });
     state._evaluating = false; state._shakeRow = false; state._justTyped = -1;
@@ -5137,6 +5193,7 @@ if(typeof module !== "undefined" && module.exports){
     submitScore(score, false);
     showLeaderboards($("lbBox"));
     afterglowEl.classList.add("show");
+    setTimeout(()=>{ try{ tutOnPhase("done"); }catch(e){} }, 700);
     // Center the revealed quote (the hero), not the stats panel below it —
     // otherwise the view scrolls down and pushes the quote out of frame on mobile.
     const hero = $("stage");
@@ -5164,7 +5221,7 @@ if(typeof module !== "undefined" && module.exports){
   }
   function lbSetRef(){ return state && state.setKey ? "set:" + state.setKey : ""; }
   function submitScore(score, lost){
-    if(!state || lbOff()) return;
+    if(!state || lbOff() || state.quote.tutorial) return;
     const ref = lbRef(), m = lbMine();
     if(!m[ref]){
       m[ref] = { score: score, mode: state.mode, lost: !!lost };
@@ -5252,7 +5309,7 @@ if(typeof module !== "undefined" && module.exports){
   function showLeaderboards(host){
     if(!host || !state) return;
     host.innerHTML = "";
-    if(lbOff()) return;
+    if(lbOff() || state.quote.tutorial) return;
     const m = lbMine(), boards = [];
     const ref = lbRef();
     const pTitle = state.setKey && state.tier ? "Puzzle " + state.tier + " leaderboard" : "Today's leaderboard";
@@ -5355,6 +5412,135 @@ if(typeof module !== "undefined" && module.exports){
     try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:nav", { to: "leaderboards" }); }catch(e){}
     renderLbView();
     const v = $("lbView"); v.classList.add("show"); v.scrollTop = 0;
+  }
+  /* -------- v0.7h tutorial --------
+     A guided practice run of the Oct 1 Fred Rogers quote. Coach-mark bubbles point at
+     the part of the screen they describe; action steps advance on their own when the
+     player does the thing. Script approved by Adam (Nov 26, 2026). */
+  const TUT_SEEN_KEY = "verbatim_tutorial_seen";
+  const TUT = {
+    s1:  { at:"#line",      txt:"Every Verbatim puzzle is a real quote or fact with some words missing. Put them back in order to solve the puzzle." },
+    s2:  { at:"#attrBy",    txt:"This quote is from Fred Rogers, accepting a lifetime achievement Emmy in 1997." },
+    s3:  { at:"#bank",      txt:"Tap a word to drop it into the next open blank, or drag it to any blank. Give it a try.", action:true },
+    s4:  { at:()=> lineEl.children[tut.lastSlot], txt:"Right spot! Correct words lock in and play a note. Keep going." },
+    s5:  { at:"#turnsWrap", txt:"A word in the wrong spot bounces back and uses one mistake." },
+    s6:  { at:"#cpPips",    txt:"Checkpoint! On longer quotes, if you run out of mistakes on Normal and Easy you can pick up from here." },
+    s7:  { at:"#bank .chip.secret", txt:"See the tile with hidden letters? That's the mystery word. Place it like any other word. You'll solve it at the end." },
+    s8:  { at:"#hintBtn",   txt:"Stuck? \u201CUse a hint\u201D places the next word for you. Unused hints carry over to the next puzzle in the day's trio. The \u21A9 button takes back your last word." },
+    s9:  { at:"#scramble",  txt:"On harder puzzles, one word you placed comes back scrambled. Tap two letters to swap them, or drag one onto another. An incorrect swap costs you a mistake." },
+    s10: { at:"#wordle",    txt:"Now guess the mystery word. The first letters are already filled in. Solid blue means right letter, right spot. A blue outline means it's in the word but somewhere else. Gray means it's not in the word. Each wrong guess uses a mistake." },
+    s11: { at:"#scoreLine", txt:"You set the quote! Your score comes from speed, accuracy and difficulty. Optional: you can always rate the quote to tell us what you think of today's puzzle." },
+    s12: { at:null,         txt:"That's it. Each day brings three linked puzzles, from a quick warm-up to a longer finale. Finish all three to reveal what ties them together. Pick Easy, Normal or Hard on the home screen, browse the packs, and check Leaderboards to see how you stack up.", next:"Play today's puzzles", end:true }
+  };
+  let tut = null;   // { shown:{}, queue:[], cur:null, corrects:0 }
+  function tutActive(){ return !!(tut && state && state.quote && state.quote.tutorial); }
+  function tutSeen(){ try{ return localStorage.getItem(TUT_SEEN_KEY) === "1"; }catch(e){ return true; } }
+  function tutMarkSeen(){ try{ localStorage.setItem(TUT_SEEN_KEY, "1"); }catch(e){} }
+  function isFirstPlay(){
+    if(tutSeen()) return false;
+    try{ if(Object.keys(doneMap()).length || localStorage.getItem("verbatim_progress")) return false; }catch(e){}
+    return true;
+  }
+  function startTutorial(){
+    tutMarkSeen();
+    $("tutOffer").hidden = true;
+    try{ $("settings").classList.remove("show"); $("lbView").classList.remove("show"); }catch(e){}
+    try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:tutorial", { action: "start" }); }catch(e){}
+    hideOverlays(); gameStarted = true;
+    tut = { shown:{}, queue:[], cur:null, corrects:0 };
+    initGame(777002, { quoteIdx: TUTORIAL_IDX, tutorial: true });
+    window.scrollTo(0,0);
+    setTimeout(()=>{ tutQueue("s1"); tutQueue("s2"); tutQueue("s3"); }, 650);
+  }
+  function endTutorial(how){
+    try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:tutorial", { action: how || "skip", step: tut && tut.cur }); }catch(e){}
+    tutClear(); tut = null; $("coach").hidden = true;
+  }
+  function tutClear(){ document.querySelectorAll(".tut-hl").forEach(el=> el.classList.remove("tut-hl")); }
+  function tutQueue(id){
+    if(!tutActive() || tut.shown[id] || tut.queue.includes(id)) return;
+    tut.queue.push(id);
+    if(!tut.cur) tutNext();
+  }
+  function tutNext(){
+    if(!tut) return;
+    tutClear();
+    const id = tut.queue.shift();
+    if(!id){ tut.cur = null; $("coach").hidden = true; return; }
+    tut.cur = id; tut.shown[id] = 1;
+    const st = TUT[id], c = $("coach");
+    $("coachTxt").textContent = st.txt;
+    const nb = $("coachNext");
+    nb.hidden = !!st.action; nb.textContent = st.next || "Next";
+    $("coachSkip").hidden = !!st.end;
+    c.hidden = false; c.style.visibility = "hidden";
+    // wait for the board to re-render before pointing at it
+    setTimeout(()=>{ tutPlace(); c.style.visibility = ""; }, 90);
+  }
+  function tutPlace(){
+    if(!tut || !tut.cur) return;
+    const st = TUT[tut.cur], c = $("coach");
+    const el = !st.at ? null : typeof st.at === "function" ? st.at() : document.querySelector(st.at);
+    c.classList.remove("above", "below", "center");
+    if(!el || el.offsetParent === null){
+      c.classList.add("center"); c.style.top = "50%"; c.style.transform = "translateY(-50%)"; return;
+    }
+    el.classList.add("tut-hl");
+    const r0 = el.getBoundingClientRect();
+    if(r0.top < 70 || r0.bottom > window.innerHeight - 160) el.scrollIntoView({ block:"center" });
+    const r = el.getBoundingClientRect(), ch = c.offsetHeight || 140, vh = window.innerHeight;
+    c.style.transform = "";
+    const cw = Math.min(340, window.innerWidth - 24), left = Math.max(12, (window.innerWidth - cw) / 2);
+    c.style.setProperty("--ax", Math.max(18, Math.min(cw - 18, r.left + r.width / 2 - left)) + "px");
+    if(r.bottom + 14 + ch < vh){ c.classList.add("below"); c.style.top = (r.bottom + 14) + "px"; }
+    else { c.classList.add("above"); c.style.top = Math.max(8, r.top - 14 - ch) + "px"; }
+  }
+  // game hooks
+  function tutOnPlace(correct, slotIdx){
+    if(!tutActive()) return;
+    if(tut.cur === "s3"){ tut.queue = tut.queue.filter(x=> x !== "s3"); tutNext(); }
+    if(correct){
+      tut.corrects++;
+      if(!tut.shown.s4) tut.lastSlot = slotIdx;
+      tutQueue("s4");
+      if(tut.corrects >= 3) tutQueue("s5");
+      if(tut.corrects >= 2) tutQueue("s8");
+    } else tutQueue("s5");
+    setTimeout(()=>{ if(tutActive() && state.phase === "assemble" && firstEmptySlot() === state.secretIndex) tutQueue("s7"); }, 350);
+  }
+  function tutOnCheckpoint(){ if(tutActive()) tutQueue("s6"); }
+  function tutOnPhase(ph){
+    if(!tutActive()) return;
+    tut.queue = []; tut.cur = null; tutClear();   // a new phase replaces whatever bubble was up
+    if(ph === "scramble") tutQueue("s9");
+    if(ph === "wordle") tutQueue("s10");
+    if(ph === "done"){ tutQueue("s11"); tutQueue("s12"); }
+  }
+  $("coachNext").addEventListener("click", ()=>{
+    if(!tut) return;
+    if(TUT[tut.cur] && TUT[tut.cur].end){
+      endTutorial("finish");
+      try{ $("afterglow").classList.remove("show"); }catch(e){}
+      playDate(todayDate());
+      return;
+    }
+    tutNext();
+  });
+  $("coachSkip").addEventListener("click", ()=>{ endTutorial("skip"); showHome(); });
+  window.addEventListener("resize", ()=>{ if(tut && tut.cur) tutPlace(); });
+  $("tutYes").addEventListener("click", startTutorial);
+  $("tutNo").addEventListener("click", ()=>{
+    tutMarkSeen(); $("tutOffer").hidden = true;
+    try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:tutorial", { action: "decline" }); }catch(e){}
+    const go = tutPending; tutPending = null; if(go) go();
+  });
+  $("tutSettingsBtn").addEventListener("click", startTutorial);
+  // offer the tour on a player's very first Play tap
+  let tutPending = null;
+  function offerTutorialThen(go){
+    if(!isFirstPlay()){ go(); return; }
+    tutPending = go; $("tutOffer").hidden = false;
+    try{ $("tutYes").focus(); }catch(e){}
   }
   function applySetAfterglow(){
     const nextB = $("nextBtn"), rev = $("setReveal"), shareB = $("shareBtn"), newB = $("newBtn"), earn = $("earnLine");
@@ -5572,6 +5758,7 @@ if(typeof module !== "undefined" && module.exports){
   // ---------- home screen ----------
   function hideOverlays(){ $("home").classList.remove("show"); $("archive").classList.remove("show"); $("passport").classList.remove("show"); $("packView").classList.remove("show"); }
   function playDate(d){
+    if(isFirstPlay()){ offerTutorialThen(()=> playDate(d)); return; }
     if(setFor(d)){ playSetTier(d, nextTierFor(d)); return; }
     hideOverlays();
     gameStarted = true;
@@ -5580,6 +5767,7 @@ if(typeof module !== "undefined" && module.exports){
   }
   function playSetTier(d, t){
     const ds = setFor(d); if(!ds) return;
+    if(isFirstPlay()){ offerTutorialThen(()=> playSetTier(d, t)); return; }
     hideOverlays();
     gameStarted = true;
     initGame(setSeed(d, t), { date:d, quoteIdx: ds.idx[t-1] });
@@ -5600,6 +5788,7 @@ if(typeof module !== "undefined" && module.exports){
     });
   })();
   function showHome(){
+    try{ if(tut) endTutorial("left"); }catch(e){}
     try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:nav", { to: "home" }); }catch(e){}
     $("archive").classList.remove("show"); $("passport").classList.remove("show"); $("packView").classList.remove("show");
     pauseClock(Date.now(), "away");
@@ -5699,6 +5888,7 @@ if(typeof module !== "undefined" && module.exports){
   }
   function playPackSetTier(id, i, ord, t){
     const pk = packById(id); if(!pk || !pk.sets) return;
+    if(isFirstPlay()){ offerTutorialThen(()=> playPackSetTier(id, i, ord, t)); return; }
     const ds = SET_PACK_DATA[id][i]; if(!ds) return;
     hideOverlays();
     gameStarted = true;
