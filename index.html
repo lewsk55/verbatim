@@ -967,6 +967,21 @@
   .go-mode .mode-tog{ margin:0; min-width:260px; }
   .mode-desc{ margin:-12px 0 18px; font-size:.82rem; line-height:1.4; color:var(--ink-soft); text-align:center; min-height:2.3em; }
   .go-mode .mode-desc{ margin:2px auto 0; max-width:300px; }
+  .lb-wrap{ width:min(420px, 100%); margin:14px auto 4px; display:grid; gap:12px; }
+  .lb-wrap:empty{ display:none; }
+  .lb{ background:#fff; border:1.5px solid var(--paper-edge); border-radius:14px; padding:10px 12px 8px; text-align:left; }
+  .lb-head{ display:flex; justify-content:space-between; align-items:baseline; gap:8px; font-family:var(--ui); font-weight:700; font-size:.82rem; color:var(--ink); margin:0 2px 6px; }
+  .lb-head span{ font-weight:600; color:var(--ink-soft); font-size:.76rem; white-space:nowrap; }
+  .lb-list{ list-style:none; margin:0; padding:0; max-height:210px; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+  .lb-row{ display:grid; grid-template-columns:2.6em minmax(0,1fr) auto; gap:8px; align-items:center; padding:6px 8px; border-radius:8px; font-family:var(--ui); font-size:.86rem; color:var(--ink-soft); }
+  .lb-row:nth-child(odd){ background:rgba(38,56,196,.04); }
+  .lb-row .rk{ font-weight:700; font-variant-numeric:tabular-nums; }
+  .lb-row .sc{ font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .lb-row .md{ font-size:.74rem; }
+  .lb-row.me{ background:var(--pbs-blue); color:#fff; }
+  .lb-row.me .sc, .lb-row.me .md{ color:#fff; }
+  .lb-msg{ font-family:var(--ui); font-size:.8rem; color:var(--ink-soft); padding:6px 4px; }
+  .line.loss-reveal .tok{ opacity:.78; }
   .go-reveal{ display:block; color:var(--ink); font-family:var(--serif, Georgia, serif); font-size:1.02rem; line-height:1.45; margin:8px auto 2px; max-width:34em; }
   #scoreLine{ white-space:pre-line; }
   .go-title{ font-family:var(--serif); font-weight:600; font-size:1.5rem; color:var(--navy); }
@@ -1194,6 +1209,7 @@
     <div class="gameover" id="gameover">
       <div class="go-title">Out of mistakes</div>
       <p class="go-tip" id="goSub" hidden></p>
+      <div class="lb-wrap" id="goLb"></div>
       <div class="go-mode">
         <span class="go-mode-lab">Difficulty for your next try</span>
         <div class="mode-tog" role="group" aria-label="Difficulty for your next try">
@@ -1247,6 +1263,7 @@
         <button class="btn btn-ghost" id="newBtn">Try another</button>
         <button class="btn btn-ghost" id="homeBtn">Home</button>
       </div>
+      <div class="lb-wrap" id="lbBox"></div>
       <p class="earn-line" id="earnLine" hidden></p>
       <p class="tomorrow" id="tomorrowLine">A new quotation arrives each morning.</p>
       <div class="pbs-links" id="pbsBox"></div>
@@ -2894,7 +2911,7 @@ if(typeof module !== "undefined" && module.exports){
     url: "https://jpasgxttyiaorhksybez.supabase.co",
     key: "sb_publishable_XEBCZFTnhakXn5G14MO9cg_tiwLrTpB", // publishable; RLS = insert+read only
     gameId: "verbatim",
-    gameVersion: "0.7b",
+    gameVersion: "0.7c",
     logVersion: 1,
     flushMs: 4000,          // standing flush cadence
     maxBatch: 40,           // events per POST (keepalive-safe size)
@@ -2988,9 +3005,9 @@ if(typeof module !== "undefined" && module.exports){
     sDel(CFG.queueKey);
   } catch (e) { sDel(CFG.queueKey); }
 
-  function track(name, payload) {
+  function track(name, payload, force) {
     try {
-      if (!gate(name)) return;
+      if (!force && !gate(name)) return;
       queue.push({
         event_name: name,
         event_ts: new Date().toISOString(),
@@ -3096,6 +3113,13 @@ if(typeof module !== "undefined" && module.exports){
     markRunDone: function () { runDone = true; },        // one boolean; safe on the solve tick
     closeRun: function () { runId = null; runDone = false; },
     runOpen: function () { return !!runId && !runDone; },
+    // v0.7c leaderboard: scores are never sampled out, and the board reads them back
+    submit: function (eventId, data) {
+      var p = { event_id: eventId };
+      if (data) for (var k in data) if (Object.prototype.hasOwnProperty.call(data, k)) p[k] = data[k];
+      track("game_event", p, true); flush(false);
+    },
+    info: function () { return { url: CFG.url, key: CFG.key, env: ENV, playerId: playerId, gameId: CFG.gameId }; },
     flushNow: function () { flush(false); },             // tests/debug only
     _env: ENV, _device: deviceType, _display: displayMode
   };
@@ -3121,7 +3145,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.7b";
+  const VERSION = "0.7c";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "easy" | "normal" | "hard" — Normal is the default
   try{
@@ -3131,7 +3155,7 @@ if(typeof module !== "undefined" && module.exports){
   }catch(e){}
   // v0.7b: one short line under the toggle says what each difficulty means
   const MODE_DESC = {
-    easy:   "50% more mistakes and no scrambled words. Scores a little lower.",
+    easy:   "Get 50% more turns. No scrambled words. Scores a little lower.",
     normal: "The standard puzzle. Run out of mistakes and you can try again from your last checkpoint.",
     hard:   "Same mistakes as Normal, but no retries. Run out and the puzzle is over."
   };
@@ -3463,6 +3487,7 @@ if(typeof module !== "undefined" && module.exports){
   /* -------- (re)start a game -------- */
   let lastInit = null;
   function initGame(seed, opts){
+    try{ lineEl.classList.remove("loss-reveal"); const gl = $("goLb"); if(gl) gl.innerHTML = ""; const lb = $("lbBox"); if(lb) lb.innerHTML = ""; }catch(e){}
     // telemetry: starting a different puzzle while a run is open abandons that run
     try{ if(window.PBSTelemetry && PBSTelemetry.runOpen() && state && !state.solved && attemptCarry.seed !== seed && !_resuming){
       PBSTelemetry.track("game_quit", { quit_type:"inferred", trigger:"superseded", attempt_num: state.attemptNum || 1, moves: state.moves });
@@ -3834,6 +3859,7 @@ if(typeof module !== "undefined" && module.exports){
   }, { capture:true, passive:true }));
   let _resuming = false;   // telemetry: resumeProgress re-enters initGame without minting a new run
   function gameOver(){
+    if(state && state._lossRecorded) return;
     const prevPhase = state.phase;
     state.phase = "over";
     const spent = clockNow() - state.startTime;   // startTime already includes prior carry (active time only)
@@ -3852,14 +3878,21 @@ if(typeof module !== "undefined" && module.exports){
     const noRetry = state.mode === "hard";
     $("retryBtn").hidden = noRetry;
     document.querySelector("#gameover .go-mode").hidden = noRetry;
+    $("goLb").innerHTML = "";
+    lineEl.classList.remove("loss-reveal");
     {
-      const hasNext = !!(state.setKey && state.tier && (state.pack ? true : (state.tier < skN(state.setKey) && state.date)));
-      $("goNextBtn").hidden = !(noRetry && hasNext);
+      const inSet = !!(state.setKey && state.tier);
+      const hasNext = inSet && (state.pack ? true : (state.tier < skN(state.setKey) && !!state.date));
+      const nb = $("goNextBtn");
+      nb.hidden = !inSet;
+      nb.textContent = hasNext ? (noRetry ? "Next puzzle" : "Skip to next puzzle") : "Finish the trio";
+      nb.dataset.next = hasNext ? "1" : "";
+      nb.className = "btn " + (noRetry ? "btn-primary" : "btn-ghost") + " go-retry";
     }
+    if(noRetry){ recordLoss(); revealOnLoss(); showLeaderboards($("goLb")); }
     if(noRetry){
       const sub = $("goSub");
-      sub.innerHTML = "Hard mode has no retries. Here's how the quote reads:"
-        + '<span class="go-reveal">\u201C' + escapeHtml(String(state.quote.text)) + '\u201D</span>';
+      sub.textContent = "Hard mode has no retries. This puzzle scores 0, and the full quote is above.";
       sub.hidden = false;
     } else {
       const T = state.cpTargets || [], sub = $("goSub");
@@ -5066,6 +5099,8 @@ if(typeof module !== "undefined" && module.exports){
       });
     }catch(e){}
     applySetAfterglow();
+    submitScore(score, false);
+    showLeaderboards($("lbBox"));
     afterglowEl.classList.add("show");
     // Center the revealed quote (the hero), not the stats panel below it —
     // otherwise the view scrolls down and pushes the quote out of frame on mobile.
@@ -5075,6 +5110,119 @@ if(typeof module !== "undefined" && module.exports){
     }
   }
 
+  /* -------- v0.7c anonymous leaderboards --------
+     One "verbatim:score" event per player per puzzle (the first finished result
+     counts; replays don't re-post). A loss posts 0. The trio total posts as
+     "verbatim:set_score" once every puzzle in the set has a result. Boards show
+     rank, score and difficulty only; the viewer's own row reads "You". */
+  const LB_KEY = "verbatim_lb_mine";
+  function lbMine(){ try{ return JSON.parse(localStorage.getItem(LB_KEY) || "{}"); }catch(e){ return {}; } }
+  function lbSaveMine(m){ try{ const ks = Object.keys(m); if(ks.length > 600) ks.slice(0, ks.length - 600).forEach(k=> delete m[k]); localStorage.setItem(LB_KEY, JSON.stringify(m)); }catch(e){} }
+  function lbRef(){ return puzzleRef(); }
+  function lbSetRef(){ return state && state.setKey ? "set:" + state.setKey : ""; }
+  function submitScore(score, lost){
+    if(!state) return;
+    const ref = lbRef(), m = lbMine();
+    if(!m[ref]){
+      m[ref] = { score: score, mode: state.mode, lost: !!lost };
+      try{ if(window.PBSTelemetry && PBSTelemetry.submit) PBSTelemetry.submit("verbatim:score",
+        { puzzle_ref: ref, set_key: state.setKey || null, tier: state.tier || null, quote_id: state.quote.id,
+          score: score, mode: state.mode, lost: !!lost }); }catch(e){}
+    }
+    if(state.setKey){
+      const N = skN(state.setKey), sref = lbSetRef();
+      let all = true, tot = 0, modes = {};
+      for(let t = 1; t <= N; t++){ const r = m[state.setKey + ":t" + t]; if(!r){ all = false; break; } tot += r.score || 0; modes[r.mode] = 1; }
+      if(all && N > 1 && !m[sref]){
+        const md = Object.keys(modes).length === 1 ? Object.keys(modes)[0] : "mixed";
+        m[sref] = { score: tot, mode: md };
+        try{ if(window.PBSTelemetry && PBSTelemetry.submit) PBSTelemetry.submit("verbatim:set_score",
+          { set_key: state.setKey, tiers: N, score: tot, mode: md }); }catch(e){}
+      }
+    }
+    lbSaveMine(m);
+  }
+  async function lbFetch(eventId, field, val){
+    const I = window.PBSTelemetry && PBSTelemetry.info ? PBSTelemetry.info() : null;
+    if(!I) throw new Error("no telemetry");
+    const q = I.url + "/rest/v1/events?select=id,player_id,payload&game_id=eq." + encodeURIComponent(I.gameId)
+      + "&env=eq." + encodeURIComponent(I.env) + "&event_name=eq.game_event"
+      + "&payload->>event_id=eq." + encodeURIComponent(eventId)
+      + "&payload->>" + field + "=eq." + encodeURIComponent(val) + "&order=id.asc&limit=5000";
+    const ctl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const tm = ctl ? setTimeout(()=> ctl.abort(), 8000) : null;
+    try{
+      const r = await fetch(q, { headers: { apikey: I.key, Authorization: "Bearer " + I.key }, signal: ctl ? ctl.signal : undefined });
+      if(!r.ok) throw new Error("http " + r.status);
+      const rows = await r.json(), seen = {}, out = [];
+      rows.forEach(x=>{ if(!x.player_id || seen[x.player_id]) return; seen[x.player_id] = 1;
+        const sc = Number(x.payload && x.payload.score); if(!isFinite(sc)) return;
+        out.push({ pid: x.player_id, score: Math.max(0, Math.round(sc)), mode: String((x.payload && x.payload.mode) || "") }); });
+      return { rows: out, me: I.playerId };
+    } finally { if(tm) clearTimeout(tm); }
+  }
+  const LB_MODE = { easy:"Easy", normal:"Normal", hard:"Hard", mixed:"Mixed" };
+  function lbRender(box, title, data, mine){
+    let rows = data.rows.filter(r=> r.pid !== data.me);
+    if(mine) rows.push({ pid: data.me, score: mine.score, mode: mine.mode, me: true });
+    rows.sort((a,b)=> b.score - a.score || (a.me ? -1 : b.me ? 1 : 0));
+    let rank = 0, prev = null;
+    const html = rows.map((r, i)=>{
+      if(r.score !== prev){ rank = i + 1; prev = r.score; }
+      return '<li class="lb-row' + (r.me ? ' me' : '') + '"><span class="rk">' + rank + '</span><span class="md">'
+        + (r.me ? 'You \u00B7 ' : '') + escapeHtml(LB_MODE[r.mode] || '') + '</span><span class="sc">' + r.score.toLocaleString() + '</span></li>';
+    }).join("");
+    box.innerHTML = '<div class="lb-head">' + escapeHtml(title) + '<span>' + rows.length + (rows.length === 1 ? ' player' : ' players') + '</span></div>'
+      + (rows.length ? '<ol class="lb-list">' + html + '</ol>' : '<p class="lb-msg">No scores yet. Be the first.</p>');
+    const me = box.querySelector(".lb-row.me"), list = box.querySelector(".lb-list");
+    if(me && list) list.scrollTop = Math.max(0, me.offsetTop - list.offsetTop - list.clientHeight / 2 + me.clientHeight / 2);
+  }
+  function showLeaderboards(host){
+    if(!host || !state) return;
+    host.innerHTML = "";
+    const m = lbMine(), boards = [];
+    const ref = lbRef();
+    const pTitle = state.setKey && state.tier ? "Puzzle " + state.tier + " leaderboard" : "Today's leaderboard";
+    boards.push({ title: pTitle, ev: "verbatim:score", field: "puzzle_ref", val: ref, mine: m[ref] });
+    if(state.setKey && skN(state.setKey) > 1 && m[lbSetRef()]){
+      boards.push({ title: state.pack ? "Full set leaderboard" : "Today's trio leaderboard", ev: "verbatim:set_score", field: "set_key", val: state.setKey, mine: m[lbSetRef()] });
+    }
+    boards.forEach(b=>{
+      const box = document.createElement("div"); box.className = "lb";
+      box.innerHTML = '<div class="lb-head">' + escapeHtml(b.title) + '</div><p class="lb-msg">Loading scores\u2026</p>';
+      host.appendChild(box);
+      // give our own just-posted score a moment to land before reading the board back
+      setTimeout(()=> lbFetch(b.ev, b.field, b.val)
+        .then(d=> lbRender(box, b.title, d, b.mine))
+        .catch(()=>{ const I = window.PBSTelemetry && PBSTelemetry.info ? PBSTelemetry.info() : {};
+          lbRender(box, b.title, { rows: [], me: I.playerId || "me" }, b.mine);
+          box.insertAdjacentHTML("beforeend", '<p class="lb-msg">Other scores couldn\u2019t load right now.</p>'); }), 900);
+    });
+  }
+  // a lost puzzle still counts toward the set: it scores 0 and the set moves on
+  function recordLoss(){
+    if(!state || state._lossRecorded) return;
+    state._lossRecorded = true;
+    state.score = 0;
+    if(state.tier && state.setKey){
+      const r = loadSetRec(state.setKey), k = "t" + state.tier;
+      if(!r[k]) r[k] = { ms: state.elapsedMs || 0, attempts: state.attemptNum || 1, clean: false, guesses: state.secretGuesses || 0, score: 0, lost: true };
+      saveSetRec(state.setKey, r);
+    }
+    markDone(); renderSetDots();
+    submitScore(0, true);
+  }
+  // show the solved quote on the board after a loss (letters of the mystery word included)
+  function revealOnLoss(){
+    if(!state) return;
+    if(state.hard && state.hard.word) state.hard.word.solved = true;
+    state.secretSolved = true;
+    state.slots.forEach(sl=>{ if(!sl.fixed){ sl.word = sl.correct; sl.locked = true; sl._bouncing = false; sl._fromKey = null; } });
+    state.bank = [];
+    skipJuice = true; render(); skipJuice = false;
+    lineEl.classList.add("loss-reveal");
+    try{ addTail(); }catch(e){}
+  }
   function applySetAfterglow(){
     const nextB = $("nextBtn"), rev = $("setReveal"), shareB = $("shareBtn"), newB = $("newBtn"), earn = $("earnLine");
     nextB.hidden = true; rev.hidden = true; rev.innerHTML = ""; earn.hidden = true;
@@ -5562,7 +5710,16 @@ if(typeof module !== "undefined" && module.exports){
     setMode(m);
     try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:settings", { mode: m, context: "retry" }); }catch(e){}
   }));
-  $("goNextBtn").addEventListener("click", ()=>{ $("gameover").classList.remove("show"); goNextTier(); });
+  $("goNextBtn").addEventListener("click", ()=>{
+    const nb = $("goNextBtn");
+    if(!state._lossRecorded){ recordLoss(); }
+    if(nb.dataset.next){ $("gameover").classList.remove("show"); goNextTier(); return; }
+    // the finale was lost: reveal it, score it 0 and show the trio results here
+    revealOnLoss();
+    $("retryBtn").hidden = true; document.querySelector("#gameover .go-mode").hidden = true; nb.hidden = true;
+    const sub = $("goSub"); sub.textContent = "This puzzle scores 0. Here's how your trio stacks up."; sub.hidden = false;
+    showLeaderboards($("goLb"));
+  });
   $("retryBtn").addEventListener("click", ()=>{
     if(!lastInit) return;
     try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:retry", { attempts_done: attemptCarry.tries || 1,
