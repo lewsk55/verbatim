@@ -2939,7 +2939,7 @@ if(typeof module !== "undefined" && module.exports){
     url: "https://jpasgxttyiaorhksybez.supabase.co",
     key: "sb_publishable_XEBCZFTnhakXn5G14MO9cg_tiwLrTpB", // publishable; RLS = insert+read only
     gameId: "verbatim",
-    gameVersion: "0.7d",
+    gameVersion: "0.7e",
     logVersion: 1,
     flushMs: 4000,          // standing flush cadence
     maxBatch: 40,           // events per POST (keepalive-safe size)
@@ -3173,7 +3173,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.7d";
+  const VERSION = "0.7e";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "easy" | "normal" | "hard" — Normal is the default
   try{
@@ -5170,29 +5170,58 @@ if(typeof module !== "undefined" && module.exports){
     }
     lbSaveMine(m);
   }
-  async function lbFetch(eventId, field, val){
+  async function lbGet(filters){
     const I = window.PBSTelemetry && PBSTelemetry.info ? PBSTelemetry.info() : null;
     if(!I) throw new Error("no telemetry");
     const q = I.url + "/rest/v1/events?select=id,player_id,payload&game_id=eq." + encodeURIComponent(I.gameId)
-      + "&env=eq." + encodeURIComponent(I.env) + "&event_name=eq.game_event"
-      + "&payload->>event_id=eq." + encodeURIComponent(eventId)
-      + "&payload->>" + field + "=eq." + encodeURIComponent(val) + "&order=id.asc&limit=5000";
+      + "&env=eq." + encodeURIComponent(I.env) + filters + "&order=id.asc&limit=5000";
     const ctl = typeof AbortController !== "undefined" ? new AbortController() : null;
     const tm = ctl ? setTimeout(()=> ctl.abort(), 8000) : null;
     try{
       const r = await fetch(q, { headers: { apikey: I.key, Authorization: "Bearer " + I.key }, signal: ctl ? ctl.signal : undefined });
       if(!r.ok) throw new Error("http " + r.status);
-      const rows = await r.json(), seen = {}, out = [];
-      rows.forEach(x=>{ if(!x.player_id || seen[x.player_id]) return; seen[x.player_id] = 1;
-        const sc = Number(x.payload && x.payload.score); if(!isFinite(sc)) return;
-        out.push({ pid: x.player_id, score: Math.max(0, Math.round(sc)), mode: String((x.payload && x.payload.mode) || "") }); });
-      return { rows: out, me: I.playerId };
+      return { rows: await r.json(), me: I.playerId };
     } finally { if(tm) clearTimeout(tm); }
+  }
+  /* v0.7e: boards also count results from before leaderboards existed. Older solves
+     live in "game_complete" events, which carry the same puzzle_ref. A player's
+     leaderboard post wins; otherwise their earliest completed solve counts. */
+  async function lbFetch(eventId, field, val){
+    const enc = encodeURIComponent;
+    const posted = lbGet("&event_name=eq.game_event&payload->>event_id=eq." + enc(eventId) + "&payload->>" + field + "=eq." + enc(val));
+    const legacy = field === "puzzle_ref"
+      ? lbGet("&event_name=eq.game_complete&payload->>puzzle_ref=eq." + enc(val))
+      : lbGet("&event_name=eq.game_complete&payload->>puzzle_ref=like." + enc(val + ":t*"));
+    const [P, L] = await Promise.all([posted, legacy.catch(()=> ({ rows: [] }))]);
+    const best = {};
+    const num = x=> { const n = Number(x); return isFinite(n) ? Math.max(0, Math.round(n)) : null; };
+    P.rows.forEach(x=>{ if(!x.player_id || best[x.player_id]) return;
+      const sc = num(x.payload && x.payload.score); if(sc == null) return;
+      best[x.player_id] = { pid: x.player_id, score: sc, mode: String((x.payload && x.payload.mode) || "") }; });
+    if(field === "puzzle_ref"){
+      L.rows.forEach(x=>{ if(!x.player_id || best[x.player_id]) return;
+        const sc = num(x.payload && x.payload.score); if(sc == null) return;
+        best[x.player_id] = { pid: x.player_id, score: sc, mode: String((x.payload && x.payload.mode) || ""), legacy: true }; });
+    } else {
+      // a trio total from older solves needs a completed result on every puzzle in the set
+      const N = skN(val), per = {};
+      L.rows.forEach(x=>{ const p = x.payload || {}, pid = x.player_id; if(!pid || best[pid]) return;
+        const t = Number(p.set_tier) || Number(String(p.puzzle_ref || "").split(":t")[1]); const sc = num(p.score);
+        if(!t || sc == null) return;
+        const rec = per[pid] || (per[pid] = { tiers: {}, modes: {} });
+        if(rec.tiers[t] == null){ rec.tiers[t] = sc; rec.modes[p.mode || ""] = 1; } });
+      Object.keys(per).forEach(pid=>{ const rec = per[pid]; let tot = 0;
+        for(let t = 1; t <= N; t++){ if(rec.tiers[t] == null) return; tot += rec.tiers[t]; }
+        const ms = Object.keys(rec.modes);
+        best[pid] = { pid: pid, score: tot, mode: ms.length === 1 ? ms[0] : "mixed", legacy: true }; });
+    }
+    return { rows: Object.values(best), me: P.me };
   }
   const LB_MODE = { easy:"Easy", normal:"Normal", hard:"Hard", mixed:"Mixed" };
   function lbRender(box, title, data, mine){
-    let rows = data.rows.filter(r=> r.pid !== data.me);
-    if(mine) rows.push({ pid: data.me, score: mine.score, mode: mine.mode, me: true });
+    let rows;
+    if(mine){ rows = data.rows.filter(r=> r.pid !== data.me); rows.push({ pid: data.me, score: mine.score, mode: mine.mode, me: true }); }
+    else rows = data.rows.map(r=> r.pid === data.me ? Object.assign({}, r, { me: true }) : r);   // an older solve of yours still reads "You"
     rows.sort((a,b)=> b.score - a.score || (a.me ? -1 : b.me ? 1 : 0));
     let rank = 0, prev = null;
     const html = rows.map((r, i)=>{
