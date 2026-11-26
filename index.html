@@ -967,6 +967,22 @@
   .go-mode .mode-tog{ margin:0; min-width:260px; }
   .mode-desc{ margin:-12px 0 18px; font-size:.82rem; line-height:1.4; color:var(--ink-soft); text-align:center; min-height:2.3em; }
   .go-mode .mode-desc{ margin:2px auto 0; max-width:300px; }
+  .lb-open{ display:block; margin:18px auto 0; min-width:200px; }
+  .lbv-intro{ font-family:var(--ui); font-size:.85rem; color:var(--ink-soft); margin:4px 2px 14px; line-height:1.45; }
+  .lbv-day{ background:#fff; border:1.5px solid var(--paper-edge); border-radius:14px; margin:0 0 12px; overflow:hidden; }
+  .lbv-date{ font-family:var(--serif); font-weight:600; font-size:1.08rem; color:var(--navy); padding:12px 14px 4px; }
+  .lbv-date span{ font-family:var(--ui); font-size:.72rem; font-weight:700; color:#fff; background:var(--pbs-blue); border-radius:999px; padding:2px 8px; margin-left:8px; vertical-align:2px; }
+  .lbv-row{ display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; align-items:center; width:100%; text-align:left; background:none; border:none; border-top:1px solid rgba(10,20,90,.07); padding:11px 14px; cursor:pointer; font-family:var(--ui); color:var(--ink); -webkit-tap-highlight-color:transparent; min-height:44px; }
+  .lbv-row:first-of-type{ border-top:none; }
+  .lbv-row:focus-visible{ outline:3px solid var(--pbs-blue); outline-offset:-3px; }
+  .lbv-who{ font-size:.9rem; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .lbv-who small{ display:block; font-size:.74rem; font-weight:600; color:var(--ink-soft); }
+  .lbv-me{ font-size:.78rem; font-weight:700; color:var(--ink-soft); white-space:nowrap; }
+  .lbv-me.done{ color:var(--pbs-blue); }
+  .lbv-row[aria-expanded=true] .lbv-chev{ transform:rotate(90deg); }
+  .lbv-chev{ display:inline-block; margin-left:6px; transition:transform .15s ease; }
+  .lbv-board{ padding:0 10px 10px; }
+  .lbv-board .lb{ border-color:rgba(10,20,90,.12); }
   .lb-wrap{ width:min(420px, 100%); margin:14px auto 4px; display:grid; gap:12px; }
   .lb-wrap:empty{ display:none; }
   .lb{ background:#fff; border:1.5px solid var(--paper-edge); border-radius:14px; padding:10px 12px 8px; text-align:left; }
@@ -1081,6 +1097,7 @@
     <div class="week-row" id="weekRow"></div>
     <p class="row-label">Packs</p>
     <div class="pack-row" id="packRow"></div>
+    <button class="btn btn-ghost lb-open" id="lbOpenBtn" type="button">Leaderboards</button>
     <button class="settings-link" id="settingsBtnHome" type="button">&#9881; Settings</button>
     <p class="menu-ver" id="menuVer"></p>
   </div>
@@ -1114,6 +1131,17 @@
       </div>
       <p class="set-sub" id="wipeDone" hidden style="color:var(--navy); font-weight:700;">Progress wiped.</p>
     </div>
+  </div>
+</div>
+
+<div class="archive" id="lbView" aria-label="Leaderboards" style="z-index:9200;">
+  <div class="archive-head">
+    <button class="arch-back" id="lbBack" type="button" aria-label="Back to home">&larr;</button>
+    <span class="arch-title">Leaderboards</span>
+  </div>
+  <div class="archive-body">
+    <p class="lbv-intro">Scores for every daily puzzle and trio. Each puzzle is named only by its date and the person quoted, so nothing gets spoiled.</p>
+    <div id="lbvList"></div>
   </div>
 </div>
 
@@ -2911,7 +2939,7 @@ if(typeof module !== "undefined" && module.exports){
     url: "https://jpasgxttyiaorhksybez.supabase.co",
     key: "sb_publishable_XEBCZFTnhakXn5G14MO9cg_tiwLrTpB", // publishable; RLS = insert+read only
     gameId: "verbatim",
-    gameVersion: "0.7c",
+    gameVersion: "0.7d",
     logVersion: 1,
     flushMs: 4000,          // standing flush cadence
     maxBatch: 40,           // events per POST (keepalive-safe size)
@@ -3145,7 +3173,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.7c";
+  const VERSION = "0.7d";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "easy" | "normal" | "hard" — Normal is the default
   try{
@@ -5223,6 +5251,60 @@ if(typeof module !== "undefined" && module.exports){
     lineEl.classList.add("loss-reveal");
     try{ addTail(); }catch(e){}
   }
+  /* v0.7d: Leaderboards screen from the main menu. Every daily set up to today,
+     newest first. Puzzles are named only by date and the quoted person (never the
+     quote or the theme), so unplayed puzzles stay unspoiled. Boards load on tap. */
+  function lbvDateLabel(k){
+    const p = k.split("-").map(Number), d = new Date(p[0], p[1] - 1, p[2]);
+    return d.toLocaleDateString("en-US", { weekday:"short", month:"short", day:"numeric" });
+  }
+  function lbvWho(it){ return (it && (it.a || it.s)) || "Puzzle"; }
+  function renderLbView(){
+    const list = $("lbvList"); if(!list) return;
+    const today = dateKey(todayDate()), m = lbMine();
+    const keys = Object.keys(SET_BY_DATE).filter(k=> k <= today).sort().reverse();
+    list.innerHTML = keys.map(k=>{
+      const ds = SET_BY_DATE[k], sk = "d:" + k, N = (ds.items || []).length || 1;
+      let rows = "";
+      for(let t = 1; t <= N; t++){
+        const ref = sk + ":t" + t, mine = m[ref], done = skDone(sk, t);
+        const me = mine ? (mine.lost ? "You: 0 (lost)" : "You: " + Number(mine.score).toLocaleString())
+                 : done ? "Solved" : "Not played";
+        rows += '<button class="lbv-row" type="button" aria-expanded="false" data-ev="verbatim:score" data-field="puzzle_ref" data-val="' + escapeHtml(ref)
+          + '" data-title="' + escapeHtml("Puzzle " + t + " \u00B7 " + lbvWho(ds.items[t - 1])) + '">'
+          + '<span class="lbv-who">' + (N > 1 ? "Puzzle " + t + " \u00B7 " : "") + escapeHtml(lbvWho(ds.items[t - 1])) + '</span>'
+          + '<span class="lbv-me' + (mine || done ? ' done' : '') + '">' + escapeHtml(me) + '<span class="lbv-chev" aria-hidden="true">\u203A</span></span></button>'
+          + '<div class="lbv-board" hidden></div>';
+      }
+      if(N > 1){
+        const mt = m["set:" + sk];
+        rows += '<button class="lbv-row" type="button" aria-expanded="false" data-ev="verbatim:set_score" data-field="set_key" data-val="' + escapeHtml(sk)
+          + '" data-title="Full trio"><span class="lbv-who">Full trio</span><span class="lbv-me' + (mt ? ' done' : '') + '">'
+          + escapeHtml(mt ? "You: " + Number(mt.score).toLocaleString() : "Finish all " + N + " to post") + '<span class="lbv-chev" aria-hidden="true">\u203A</span></span></button>'
+          + '<div class="lbv-board" hidden></div>';
+      }
+      return '<section class="lbv-day"><div class="lbv-date">' + escapeHtml(lbvDateLabel(k)) + (k === today ? '<span>Today</span>' : '') + '</div>' + rows + '</section>';
+    }).join("") || '<p class="lb-msg">No daily puzzles yet.</p>';
+  }
+  function lbvToggle(btn){
+    const board = btn.nextElementSibling; if(!board) return;
+    const open = btn.getAttribute("aria-expanded") !== "true";
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+    board.hidden = !open;
+    if(!open || board.dataset.loaded) return;
+    board.dataset.loaded = "1";
+    const box = document.createElement("div"); box.className = "lb"; board.appendChild(box);
+    const title = btn.dataset.title, mine = btn.dataset.field === "set_key" ? lbMine()["set:" + btn.dataset.val] : lbMine()[btn.dataset.val];
+    box.innerHTML = '<div class="lb-head">' + escapeHtml(title) + '</div><p class="lb-msg">Loading scores\u2026</p>';
+    lbFetch(btn.dataset.ev, btn.dataset.field, btn.dataset.val)
+      .then(d=> lbRender(box, title, d, mine))
+      .catch(()=>{ board.dataset.loaded = ""; box.innerHTML = '<p class="lb-msg">Scores couldn\u2019t load right now. Tap again to retry.</p>'; btn.setAttribute("aria-expanded", "false"); board.hidden = true; board.innerHTML = ""; });
+  }
+  function openLbView(){
+    try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:nav", { to: "leaderboards" }); }catch(e){}
+    renderLbView();
+    const v = $("lbView"); v.classList.add("show"); v.scrollTop = 0;
+  }
   function applySetAfterglow(){
     const nextB = $("nextBtn"), rev = $("setReveal"), shareB = $("shareBtn"), newB = $("newBtn"), earn = $("earnLine");
     nextB.hidden = true; rev.hidden = true; rev.innerHTML = ""; earn.hidden = true;
@@ -5603,6 +5685,9 @@ if(typeof module !== "undefined" && module.exports){
     $("settings").classList.add("show");
   }
   $("settingsBtnHome").addEventListener("click", openSettings);
+  $("lbOpenBtn").addEventListener("click", openLbView);
+  $("lbBack").addEventListener("click", ()=> $("lbView").classList.remove("show"));
+  $("lbvList").addEventListener("click", e=>{ const b = e.target.closest(".lbv-row"); if(b) lbvToggle(b); });
   $("settingsBtnGame").addEventListener("click", openSettings);
   $("setBack").addEventListener("click", ()=>{
     $("settings").classList.remove("show");
