@@ -1116,6 +1116,13 @@
       </div>
       <button class="set-toggle" id="muteToggle" type="button" aria-pressed="false"><span class="set-knob"></span></button>
     </div>
+    <div class="set-row">
+      <div class="set-info">
+        <span class="set-name">Leaderboards</span>
+        <span class="set-sub">Show anonymous score boards after each puzzle and on the home screen. Turning this off also stops posting your new scores.</span>
+      </div>
+      <button class="set-toggle" id="lbToggle" type="button" aria-pressed="true" aria-label="Leaderboards"><span class="set-knob"></span></button>
+    </div>
     <div class="set-row set-col">
       <div class="set-info">
         <span class="set-name">Wipe progress</span>
@@ -2939,7 +2946,7 @@ if(typeof module !== "undefined" && module.exports){
     url: "https://jpasgxttyiaorhksybez.supabase.co",
     key: "sb_publishable_XEBCZFTnhakXn5G14MO9cg_tiwLrTpB", // publishable; RLS = insert+read only
     gameId: "verbatim",
-    gameVersion: "0.7f",
+    gameVersion: "0.7g",
     logVersion: 1,
     flushMs: 4000,          // standing flush cadence
     maxBatch: 40,           // events per POST (keepalive-safe size)
@@ -3173,7 +3180,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.7f";
+  const VERSION = "0.7g";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "easy" | "normal" | "hard" — Normal is the default
   try{
@@ -5019,7 +5026,7 @@ if(typeof module !== "undefined" && module.exports){
           pace_s_per_word: Math.round(sc.pace*100)/100, suspect_fast: sc.pace < 0.25 });   // flag for review, never a cap
         PBSTelemetry.track("game_complete", Object.assign(tmRunInfo(), {
           duration_ms: state.elapsedMs, attempts: state.attemptNum || 1, moves: state.moves,
-          score: sc.score, mistakes_left: state.errorsLeft, secret_guesses: state.secretGuesses }));
+          score: sc.score, mistakes_left: state.errorsLeft, secret_guesses: state.secretGuesses, lb_off: lbOff() || undefined }));
         PBSTelemetry.closeRun();
       } }catch(e){}
     }, 80);
@@ -5147,9 +5154,17 @@ if(typeof module !== "undefined" && module.exports){
   function lbMine(){ try{ return JSON.parse(localStorage.getItem(LB_KEY) || "{}"); }catch(e){ return {}; } }
   function lbSaveMine(m){ try{ const ks = Object.keys(m); if(ks.length > 600) ks.slice(0, ks.length - 600).forEach(k=> delete m[k]); localStorage.setItem(LB_KEY, JSON.stringify(m)); }catch(e){} }
   function lbRef(){ return puzzleRef(); }
+  // v0.7g: players can switch leaderboards off in Settings (hides the boards and stops posting scores)
+  const LB_OFF_KEY = "verbatim_lb_off";
+  function lbOff(){ try{ return localStorage.getItem(LB_OFF_KEY) === "1"; }catch(e){ return false; } }
+  function renderLbToggle(){
+    const on = !lbOff(), b = $("lbToggle");
+    if(b){ b.classList.toggle("off", !on); b.setAttribute("aria-pressed", on ? "true" : "false"); }
+    const ob = $("lbOpenBtn"); if(ob) ob.hidden = !on;
+  }
   function lbSetRef(){ return state && state.setKey ? "set:" + state.setKey : ""; }
   function submitScore(score, lost){
-    if(!state) return;
+    if(!state || lbOff()) return;
     const ref = lbRef(), m = lbMine();
     if(!m[ref]){
       m[ref] = { score: score, mode: state.mode, lost: !!lost };
@@ -5199,13 +5214,13 @@ if(typeof module !== "undefined" && module.exports){
       const sc = num(x.payload && x.payload.score); if(sc == null) return;
       best[x.player_id] = { pid: x.player_id, score: sc, mode: String((x.payload && x.payload.mode) || "") }; });
     if(field === "puzzle_ref"){
-      L.rows.forEach(x=>{ if(!x.player_id || best[x.player_id]) return;
+      L.rows.forEach(x=>{ if(!x.player_id || best[x.player_id] || (x.payload && x.payload.lb_off)) return;
         const sc = num(x.payload && x.payload.score); if(sc == null) return;
         best[x.player_id] = { pid: x.player_id, score: sc, mode: String((x.payload && x.payload.mode) || ""), legacy: true }; });
     } else {
       // a trio total from older solves needs a completed result on every puzzle in the set
       const N = skN(val), per = {};
-      L.rows.forEach(x=>{ const p = x.payload || {}, pid = x.player_id; if(!pid || best[pid]) return;
+      L.rows.forEach(x=>{ const p = x.payload || {}, pid = x.player_id; if(!pid || best[pid] || p.lb_off) return;
         const t = Number(p.set_tier) || Number(String(p.puzzle_ref || "").split(":t")[1]); const sc = num(p.score);
         if(!t || sc == null) return;
         const rec = per[pid] || (per[pid] = { tiers: {}, modes: {} });
@@ -5237,6 +5252,7 @@ if(typeof module !== "undefined" && module.exports){
   function showLeaderboards(host){
     if(!host || !state) return;
     host.innerHTML = "";
+    if(lbOff()) return;
     const m = lbMine(), boards = [];
     const ref = lbRef();
     const pTitle = state.setKey && state.tier ? "Puzzle " + state.tier + " leaderboard" : "Today's leaderboard";
@@ -5307,10 +5323,11 @@ if(typeof module !== "undefined" && module.exports){
       }
       if(N > 1){
         // v0.7f: a finished trio shows your total (or "Solved" for older solves); anything else is "Not played"
-        let mt = m["set:" + sk], allDone = true, tot = 0, haveAll = true;
-        for(let t = 1; t <= N; t++){ if(!skDone(sk, t)) allDone = false; const r = m[sk + ":t" + t]; if(r) tot += r.score || 0; else haveAll = false; }
+        let mt = m["set:" + sk], allDone = true, tot = 0, haveAll = true, nDone = 0;
+        for(let t = 1; t <= N; t++){ if(skDone(sk, t)) nDone++; else allDone = false; const r = m[sk + ":t" + t]; if(r) tot += r.score || 0; else haveAll = false; }
         const trioTxt = mt ? "You: " + Number(mt.score).toLocaleString()
                       : allDone ? (haveAll ? "You: " + tot.toLocaleString() : "Solved")
+                      : nDone ? nDone + " of " + N + " played"
                       : "Not played";
         rows += '<button class="lbv-row" type="button" aria-expanded="false" data-ev="verbatim:set_score" data-field="set_key" data-val="' + escapeHtml(sk)
           + '" data-title="Full trio"><span class="lbv-who">Full trio</span><span class="lbv-me' + (mt || allDone ? ' done' : '') + '">'
@@ -5715,11 +5732,18 @@ if(typeof module !== "undefined" && module.exports){
   function openSettings(){
     try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:nav", { to: "settings" }); }catch(e){}
     $("wipeConfirm").hidden = true; $("wipeBtn").hidden = false; $("wipeDone").hidden = true;
-    renderMuteToggle();
+    renderMuteToggle(); renderLbToggle();
     $("settings").classList.add("show");
   }
   $("settingsBtnHome").addEventListener("click", openSettings);
   $("lbOpenBtn").addEventListener("click", openLbView);
+  $("lbToggle").addEventListener("click", ()=>{
+    try{ localStorage.setItem(LB_OFF_KEY, lbOff() ? "0" : "1"); }catch(e){}
+    renderLbToggle();
+    if(lbOff()){ ["lbBox","goLb"].forEach(id=>{ const el = $(id); if(el) el.innerHTML = ""; }); }
+    try{ if(window.PBSTelemetry) PBSTelemetry.game("verbatim:settings", { leaderboards: !lbOff() }); }catch(e){}
+  });
+  renderLbToggle();
   $("lbBack").addEventListener("click", ()=> $("lbView").classList.remove("show"));
   $("lbvList").addEventListener("click", e=>{ const b = e.target.closest(".lbv-row"); if(b) lbvToggle(b); });
   $("settingsBtnGame").addEventListener("click", openSettings);
