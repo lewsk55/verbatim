@@ -2996,7 +2996,7 @@ if(typeof module !== "undefined" && module.exports){
     url: "https://jpasgxttyiaorhksybez.supabase.co",
     key: "sb_publishable_XEBCZFTnhakXn5G14MO9cg_tiwLrTpB", // publishable; RLS = insert+read only
     gameId: "verbatim",
-    gameVersion: "0.7h",
+    gameVersion: "0.7i",
     logVersion: 1,
     flushMs: 4000,          // standing flush cadence
     maxBatch: 40,           // events per POST (keepalive-safe size)
@@ -3230,7 +3230,7 @@ if(typeof module !== "undefined" && module.exports){
   // everything that fades away on the final solve
   const chromeEls = [promptEl, ruleBelowEl, bankLabelEl, bankEl, controlsEl, wordleEl, scrambleEl];
   const PROMPT_DEFAULT = "Place the words to set the quotation";
-  const VERSION = "0.7h";
+  const VERSION = "0.7i";
   const MODE_KEY = "verbatim_mode";
   let mode = "normal";   // "easy" | "normal" | "hard" — Normal is the default
   try{
@@ -5088,6 +5088,27 @@ if(typeof module !== "undefined" && module.exports){
     }, 80);
   }
 
+  /* v0.7i scoring curve. Pace = active seconds per word; 6 s/word is the typical solve (x1).
+     Faster: +0.25 per second saved, capped at x2 (reached at 2 s/word).
+     Slower: -0.03 per extra second, floored at x0.4 (reached at 26 s/word). */
+  const PACE_TYPICAL = 6;
+  function speedMultFor(pace){
+    const m = pace < PACE_TYPICAL ? 1 + 0.25 * (PACE_TYPICAL - pace) : 1 - 0.03 * (pace - PACE_TYPICAL);
+    return Math.max(0.4, Math.min(2, m));
+  }
+  // the pre-v0.7i curve, kept only to convert old scores
+  function oldSpeedMultFor(pace){ return Math.pow(6 / Math.max(0.0001, pace), 1.5); }
+  function rescaleOldScore(score, secs, words){
+    if(!(score > 0) || !(words > 0)) return score || 0;
+    const pace = Math.max(0.05, secs) / words;
+    return Math.round(score * speedMultFor(pace) / oldSpeedMultFor(pace));
+  }
+  // a game_version older than 0.7i scored with the old curve
+  function isOldScale(v){
+    const m = /^(\d+)\.(\d+)([a-z]*)/.exec(String(v || "")); if(!m) return true;
+    const maj = +m[1], min = +m[2], let_ = m[3] || "";
+    if(maj !== 0) return maj < 0; if(min !== 7) return min < 7; return let_ < "i";
+  }
   function computeScore(){
     const elapsedSec = Math.round(state.elapsedMs/1000);
     const tiles = state.words.length;          // full quote length (difficulty)
@@ -5101,15 +5122,16 @@ if(typeof module !== "undefined" && module.exports){
     const over = Math.max(0, elapsedSec - par);
     // per-move penalty eases on longer puzzles, so it's the RATE of mistakes that
     // matters, not the raw count — a few slips on a 20-word quote shouldn't tank it
-    // v0.6e: no par, no caps. Speed is pace (active seconds per word); the multiplier is
-    // (PACE_UNIT / pace)^1.5, so halving your time multiplies the score by about 2.8.
+    // v0.7i: speed is a straight line around a typical pace (see speedMultFor below):
+    // up to x2 for fast solves, easing down to a x0.4 floor for slow ones.
+    // (v0.6e to v0.7h used (PACE_UNIT / pace)^1.5 with no caps; old scores are rescaled.)
     // PACE_UNIT = 6 s/word = the median active pace in playtest data (33 runs, 3 players, Oct 2026),
     // so a typical solve lands near x1. Recalibrate as more players come in.
     const PACE_UNIT = 6, PACE_POWER = 1.5;
     const base = state.tier ? state.tier * 1000 : 1000;
     const secs = Math.max(0.05, state.elapsedMs / 1000);   // divide-by-zero guard only, not a cap
     const pace = secs / Math.max(1, tiles);
-    const speedMult = Math.pow(PACE_UNIT / pace, PACE_POWER);
+    const speedMult = speedMultFor(pace);
     const mistakes = extraMoves + extraGuesses + (state.hintsUsed || 0);   // failed tries already cost time
     const accMult = mistakes === 0 ? 1.25 : Math.pow(0.85, mistakes);
     const modeMult = state.mode === "easy" ? 0.8 : 1;
@@ -5224,7 +5246,7 @@ if(typeof module !== "undefined" && module.exports){
     if(!state || lbOff() || state.quote.tutorial) return;
     const ref = lbRef(), m = lbMine();
     if(!m[ref]){
-      m[ref] = { score: score, mode: state.mode, lost: !!lost };
+      m[ref] = { score: score, mode: state.mode, lost: !!lost, v: 2 };
       try{ if(window.PBSTelemetry && PBSTelemetry.submit) PBSTelemetry.submit("verbatim:score",
         { puzzle_ref: ref, set_key: state.setKey || null, tier: state.tier || null, quote_id: state.quote.id,
           score: score, mode: state.mode, lost: !!lost }); }catch(e){}
@@ -5235,7 +5257,7 @@ if(typeof module !== "undefined" && module.exports){
       for(let t = 1; t <= N; t++){ const r = m[state.setKey + ":t" + t]; if(!r){ all = false; break; } tot += r.score || 0; modes[r.mode] = 1; }
       if(all && N > 1 && !m[sref]){
         const md = Object.keys(modes).length === 1 ? Object.keys(modes)[0] : "mixed";
-        m[sref] = { score: tot, mode: md };
+        m[sref] = { score: tot, mode: md, v: 2 };
         try{ if(window.PBSTelemetry && PBSTelemetry.submit) PBSTelemetry.submit("verbatim:set_score",
           { set_key: state.setKey, tiers: N, score: tot, mode: md }); }catch(e){}
       }
@@ -5245,7 +5267,7 @@ if(typeof module !== "undefined" && module.exports){
   async function lbGet(filters){
     const I = window.PBSTelemetry && PBSTelemetry.info ? PBSTelemetry.info() : null;
     if(!I) throw new Error("no telemetry");
-    const q = I.url + "/rest/v1/events?select=id,player_id,payload&game_id=eq." + encodeURIComponent(I.gameId)
+    const q = I.url + "/rest/v1/events?select=id,player_id,game_version,payload&game_id=eq." + encodeURIComponent(I.gameId)
       + "&env=eq." + encodeURIComponent(I.env) + filters + "&order=id.asc&limit=5000";
     const ctl = typeof AbortController !== "undefined" ? new AbortController() : null;
     const tm = ctl ? setTimeout(()=> ctl.abort(), 8000) : null;
@@ -5258,41 +5280,76 @@ if(typeof module !== "undefined" && module.exports){
   /* v0.7e: boards also count results from before leaderboards existed. Older solves
      live in "game_complete" events, which carry the same puzzle_ref. A player's
      leaderboard post wins; otherwise their earliest completed solve counts. */
+  /* v0.7e: boards also count results from before leaderboards existed (game_complete events,
+     which carry the same puzzle_ref). A player's leaderboard post wins; otherwise their
+     earliest completed solve counts.
+     v0.7i: every score from a build before 0.7i is converted to the new speed curve, using
+     that solve's own time and word count (game_complete carries both). */
+  function gcSec(p){ return Number(p && p.duration_ms) / 1000; }
+  function newScaleScore(row){
+    const p = row.payload || {}, sc = Number(p.score);
+    if(!isFinite(sc)) return null;
+    if(!isOldScale(row.game_version)) return Math.max(0, Math.round(sc));
+    const secs = gcSec(p), words = Number(p.words);
+    if(!(secs > 0) || !(words > 0)) return Math.max(0, Math.round(sc));
+    return rescaleOldScore(sc, secs, words);
+  }
   async function lbFetch(eventId, field, val){
     const enc = encodeURIComponent;
     const posted = lbGet("&event_name=eq.game_event&payload->>event_id=eq." + enc(eventId) + "&payload->>" + field + "=eq." + enc(val));
     const legacy = field === "puzzle_ref"
       ? lbGet("&event_name=eq.game_complete&payload->>puzzle_ref=eq." + enc(val))
       : lbGet("&event_name=eq.game_complete&payload->>puzzle_ref=like." + enc(val + ":t*"));
-    const [P, L] = await Promise.all([posted, legacy.catch(()=> ({ rows: [] }))]);
+    const tierPosts = field === "puzzle_ref" ? Promise.resolve({ rows: [] })
+      : lbGet("&event_name=eq.game_event&payload->>event_id=eq.verbatim:score&payload->>set_key=eq." + enc(val));
+    const [P, L, TP] = await Promise.all([posted, legacy.catch(()=> ({ rows: [] })), tierPosts.catch(()=> ({ rows: [] }))]);
     const best = {};
-    const num = x=> { const n = Number(x); return isFinite(n) ? Math.max(0, Math.round(n)) : null; };
-    P.rows.forEach(x=>{ if(!x.player_id || best[x.player_id]) return;
-      const sc = num(x.payload && x.payload.score); if(sc == null) return;
-      best[x.player_id] = { pid: x.player_id, score: sc, mode: String((x.payload && x.payload.mode) || "") }; });
+    const optedOut = x=> x.payload && x.payload.lb_off;
+    // each player's completed solves, keyed by puzzle_ref, in order
+    const solves = {};
+    L.rows.forEach(x=>{ if(!x.player_id || optedOut(x)) return; const ref = (x.payload || {}).puzzle_ref;
+      ((solves[x.player_id] || (solves[x.player_id] = {}))[ref] || (solves[x.player_id][ref] = [])).push(x); });
+    // a posted score in the old scale is matched to its solve (same player, puzzle and score) for the time
+    const convertPost = (x, ref)=>{
+      const p = x.payload || {}, sc = Number(p.score);
+      if(!isFinite(sc)) return null;
+      if(sc <= 0 || p.lost || !isOldScale(x.game_version)) return Math.max(0, Math.round(sc));
+      const m = ((solves[x.player_id] || {})[ref] || []).find(g=> Math.round(Number(g.payload.score)) === Math.round(sc));
+      return m ? newScaleScore(m) : Math.max(0, Math.round(sc));
+    };
     if(field === "puzzle_ref"){
-      L.rows.forEach(x=>{ if(!x.player_id || best[x.player_id] || (x.payload && x.payload.lb_off)) return;
-        const sc = num(x.payload && x.payload.score); if(sc == null) return;
+      P.rows.forEach(x=>{ if(!x.player_id || best[x.player_id]) return;
+        const sc = convertPost(x, val); if(sc == null) return;
+        best[x.player_id] = { pid: x.player_id, score: sc, mode: String((x.payload && x.payload.mode) || "") }; });
+      L.rows.forEach(x=>{ if(!x.player_id || best[x.player_id] || optedOut(x)) return;
+        const sc = newScaleScore(x); if(sc == null) return;
         best[x.player_id] = { pid: x.player_id, score: sc, mode: String((x.payload && x.payload.mode) || ""), legacy: true }; });
     } else {
-      // a trio total from older solves needs a completed result on every puzzle in the set
+      // trio totals are rebuilt from each puzzle's result, so old totals land on the new scale too
       const N = skN(val), per = {};
-      L.rows.forEach(x=>{ const p = x.payload || {}, pid = x.player_id; if(!pid || best[pid] || p.lb_off) return;
-        const t = Number(p.set_tier) || Number(String(p.puzzle_ref || "").split(":t")[1]); const sc = num(p.score);
-        if(!t || sc == null) return;
-        const rec = per[pid] || (per[pid] = { tiers: {}, modes: {} });
-        if(rec.tiers[t] == null){ rec.tiers[t] = sc; rec.modes[p.mode || ""] = 1; } });
+      const put = (pid, t, sc, mode)=>{ const r = per[pid] || (per[pid] = { tiers: {}, modes: {} }); if(r.tiers[t] == null){ r.tiers[t] = sc; r.modes[mode || ""] = 1; } };
+      TP.rows.forEach(x=>{ const p = x.payload || {}; if(!x.player_id) return;
+        const t = Number(p.tier) || Number(String(p.puzzle_ref || "").split(":t")[1]); if(!t) return;
+        const sc = convertPost(x, p.puzzle_ref); if(sc == null) return; put(x.player_id, t, sc, p.mode); });
+      L.rows.forEach(x=>{ const p = x.payload || {}; if(!x.player_id || optedOut(x)) return;
+        const t = Number(p.set_tier) || Number(String(p.puzzle_ref || "").split(":t")[1]); if(!t) return;
+        const sc = newScaleScore(x); if(sc == null) return; put(x.player_id, t, sc, p.mode); });
+      const postedTrio = {};
+      P.rows.forEach(x=>{ if(x.player_id && !postedTrio[x.player_id]) postedTrio[x.player_id] = x; });
       Object.keys(per).forEach(pid=>{ const rec = per[pid]; let tot = 0;
         for(let t = 1; t <= N; t++){ if(rec.tiers[t] == null) return; tot += rec.tiers[t]; }
         const ms = Object.keys(rec.modes);
-        best[pid] = { pid: pid, score: tot, mode: ms.length === 1 ? ms[0] : "mixed", legacy: true }; });
+        best[pid] = { pid: pid, score: tot, mode: ms.length === 1 ? ms[0] : "mixed", legacy: !postedTrio[pid] }; });
+      // a posted trio total we couldn't rebuild (rare) still shows
+      Object.keys(postedTrio).forEach(pid=>{ if(best[pid]) return; const x = postedTrio[pid];
+        if(!isOldScale(x.game_version)){ const sc = Number(x.payload.score); if(isFinite(sc)) best[pid] = { pid, score: Math.round(sc), mode: String(x.payload.mode || "") }; } });
     }
     return { rows: Object.values(best), me: P.me };
   }
   const LB_MODE = { easy:"Easy", normal:"Normal", hard:"Hard", mixed:"Mixed" };
   function lbRender(box, title, data, mine){
     let rows;
-    if(mine){ rows = data.rows.filter(r=> r.pid !== data.me); rows.push({ pid: data.me, score: mine.score, mode: mine.mode, me: true }); }
+    if(mine && (mine.v >= 2 || !data.rows.some(r=> r.pid === data.me))){ rows = data.rows.filter(r=> r.pid !== data.me); rows.push({ pid: data.me, score: mine.score, mode: mine.mode, me: true }); }
     else rows = data.rows.map(r=> r.pid === data.me ? Object.assign({}, r, { me: true }) : r);   // an older solve of yours still reads "You"
     rows.sort((a,b)=> b.score - a.score || (a.me ? -1 : b.me ? 1 : 0));
     let rank = 0, prev = null;
@@ -5370,7 +5427,7 @@ if(typeof module !== "undefined" && module.exports){
       let rows = "";
       for(let t = 1; t <= N; t++){
         const ref = sk + ":t" + t, mine = m[ref], done = skDone(sk, t);
-        const me = mine ? (mine.lost ? "You: 0 (lost)" : "You: " + Number(mine.score).toLocaleString())
+        const me = mine ? (mine.lost ? "You: 0 (lost)" : mine.v >= 2 ? "You: " + Number(mine.score).toLocaleString() : "Solved")
                  : done ? "Solved" : "Not played";
         rows += '<button class="lbv-row" type="button" aria-expanded="false" data-ev="verbatim:score" data-field="puzzle_ref" data-val="' + escapeHtml(ref)
           + '" data-title="' + escapeHtml("Puzzle " + t + " \u00B7 " + lbvWho(ds.items[t - 1])) + '">'
@@ -5381,7 +5438,8 @@ if(typeof module !== "undefined" && module.exports){
       if(N > 1){
         // v0.7f: a finished trio shows your total (or "Solved" for older solves); anything else is "Not played"
         let mt = m["set:" + sk], allDone = true, tot = 0, haveAll = true, nDone = 0;
-        for(let t = 1; t <= N; t++){ if(skDone(sk, t)) nDone++; else allDone = false; const r = m[sk + ":t" + t]; if(r) tot += r.score || 0; else haveAll = false; }
+        if(mt && !mt.v) mt = null;   // an old-scale total: show "Solved" until the board loads
+        for(let t = 1; t <= N; t++){ if(skDone(sk, t)) nDone++; else allDone = false; const r = m[sk + ":t" + t]; if(r && (r.v >= 2 || r.lost)) tot += r.score || 0; else haveAll = false; }
         const trioTxt = mt ? "You: " + Number(mt.score).toLocaleString()
                       : allDone ? (haveAll ? "You: " + tot.toLocaleString() : "Solved")
                       : nDone ? nDone + " of " + N + " played"
@@ -5542,6 +5600,44 @@ if(typeof module !== "undefined" && module.exports){
     tutPending = go; $("tutOffer").hidden = false;
     try{ $("tutYes").focus(); }catch(e){}
   }
+  /* v0.7i: convert saved scores on this device to the new curve, once. Set records keep each
+     puzzle's active time (ms), so they convert exactly; leaderboard copies follow them. */
+  function migrateScoresV2(){
+    try{
+      if(localStorage.getItem("verbatim_score_v2") === "1") return;
+      const wordsFor = (sk, t)=>{ const ds = setData(sk); const ix = ds && ds.idx ? ds.idx[t - 1] : -1;
+        return ix >= 0 && QUOTES[ix] ? tokenize(QUOTES[ix].text).length : 0; };
+      const m = lbMine();
+      for(let i = 0; i < localStorage.length; i++){
+        const key = localStorage.key(i); if(!key || key.indexOf("verbatim_set_") !== 0) continue;
+        const rest = key.slice("verbatim_set_".length), sk = /^\d{4}-\d{2}-\d{2}$/.test(rest) ? "d:" + rest : rest;
+        let r; try{ r = JSON.parse(localStorage.getItem(key) || "{}"); }catch(e){ continue; }
+        let changed = false;
+        Object.keys(r).forEach(k=>{
+          const mt = /^t(\d+)$/.exec(k); if(!mt || !r[k] || !(r[k].score > 0) || r[k].v2) return;
+          const t = +mt[1], words = wordsFor(sk, t), secs = (r[k].ms || 0) / 1000;
+          if(words > 0 && secs > 0){
+            const ns = rescaleOldScore(r[k].score, secs, words);
+            const ref = sk + ":t" + t;
+            if(m[ref] && !m[ref].v && Math.round(m[ref].score) === Math.round(r[k].score)){ m[ref].score = ns; m[ref].v = 2; }
+            r[k].score = ns;
+          }
+          r[k].v2 = 1; changed = true;
+        });
+        if(changed) localStorage.setItem(key, JSON.stringify(r));
+      }
+      // trio totals you posted earlier: rebuild from the converted puzzle scores where possible
+      Object.keys(m).forEach(ref=>{
+        if(ref.indexOf("set:") !== 0 || m[ref].v) return;
+        const sk = ref.slice(4), N = skN(sk); let tot = 0, ok = true;
+        for(let t = 1; t <= N; t++){ const x = m[sk + ":t" + t]; if(!x || (!x.v && !x.lost)) { ok = false; break; } tot += x.score || 0; }
+        if(ok){ m[ref].score = tot; m[ref].v = 2; }
+      });
+      lbSaveMine(m);
+      localStorage.setItem("verbatim_score_v2", "1");
+    }catch(e){}
+  }
+  migrateScoresV2();
   function applySetAfterglow(){
     const nextB = $("nextBtn"), rev = $("setReveal"), shareB = $("shareBtn"), newB = $("newBtn"), earn = $("earnLine");
     nextB.hidden = true; rev.hidden = true; rev.innerHTML = ""; earn.hidden = true;
